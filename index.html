@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: https:; connect-src https://api.anthropic.com https://api.openai.com https://api.mistral.ai https://generativelanguage.googleapis.com https://api.perplexity.ai https://dashscope-intl.aliyuncs.com https://dashscope.aliyuncs.com https://api.deepseek.com https://api.x.ai https://openrouter.ai; base-uri 'none'; form-action 'none'">
+<title>Plume — éditeur Markdown avec révision</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.0/marked.min.js" integrity="sha384-NNQgBjjuhtXzPmmy4gurS5X7P4uTt1DThyevz4Ua0IVK5+kazYQI1W27JHjbbxQz" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.11/purify.min.js" integrity="sha384-Ic7KEGROu37YaruU6NyiYeib7UhjFyDZQ5fzBAji965L75T/4LGk5nzwMEjNGexs" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<style>
+  :root{
+    --paper:#F6F5F1; --paper-raised:#FCFBF9; --ink:#1B1A17; --ink-soft:#5A5852;
+    --line:#E3E1D9; --line-strong:#D2CFC4;
+    --accent:#2C3E63; --accent-soft:#E8ECF4;
+    --correct:#B23A3A; --style:#A6711F; --accept:#3E7D5A;
+    --shadow:0 1px 2px rgba(27,26,23,.05), 0 8px 24px rgba(27,26,23,.06);
+    --r:8px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    font-family:'Inter',system-ui,sans-serif;
+    background:var(--paper); color:var(--ink);
+    display:flex; flex-direction:column; height:100vh; overflow:hidden;
+    -webkit-font-smoothing:antialiased;
+  }
+  button{font-family:inherit; cursor:pointer; border:none; background:none; color:inherit}
+  button:focus-visible, textarea:focus-visible, input:focus-visible, select:focus-visible{
+    outline:2px solid var(--accent); outline-offset:2px;
+  }
+
+  /* ---- Topbar ---- */
+  header{
+    display:flex; align-items:center; gap:18px;
+    padding:0 18px; height:54px; flex:0 0 auto;
+    background:var(--paper-raised); border-bottom:1px solid var(--line);
+  }
+  .brand{display:flex; align-items:baseline; gap:9px}
+  .brand b{font-family:'Newsreader',serif; font-weight:600; font-size:21px; letter-spacing:.2px}
+  .brand span{font-size:11px; color:var(--ink-soft); letter-spacing:.06em; text-transform:uppercase}
+  .spacer{flex:1}
+  .toolgroup{display:flex; align-items:center; gap:6px}
+  .divider{width:1px; height:24px; background:var(--line); margin:0 4px}
+  .btn{
+    display:inline-flex; align-items:center; gap:7px;
+    padding:7px 12px; border-radius:var(--r); font-size:13px; font-weight:500;
+    border:1px solid transparent; color:var(--ink); transition:background .12s,border-color .12s;
+  }
+  .btn:hover{background:#EDEBE4}
+  .btn.primary{background:var(--accent); color:#fff}
+  .btn.primary:hover{background:#23324f}
+  .btn.ghost{border-color:var(--line-strong); background:transparent}
+  .btn.ghost:hover{background:#EDEBE4}
+  .btn.icon{padding:7px 9px}
+  .btn[disabled]{opacity:.45; cursor:not-allowed}
+  .seg{display:inline-flex; border:1px solid var(--line-strong); border-radius:var(--r); overflow:hidden}
+  .seg button{padding:6px 11px; font-size:12.5px; color:var(--ink-soft)}
+  .seg button.on{background:var(--accent-soft); color:var(--accent); font-weight:600}
+
+  /* ---- Body ---- */
+  main{flex:1; display:flex; min-height:0}
+  .panes{flex:1; display:flex; min-height:0; min-width:0}
+  .pane{min-width:0; display:flex; flex-direction:column; overflow:hidden}
+  .pane.edit{flex:var(--eg,1) 1 0}
+  .pane.preview{flex:var(--pg,1) 1 0}
+  .gutter{flex:0 0 7px; cursor:col-resize; background:var(--line); transition:background .12s}
+  .gutter:hover,.gutter.drag{background:var(--accent)}
+  .pane-label{
+    font-size:10.5px; letter-spacing:.09em; text-transform:uppercase; color:var(--ink-soft);
+    padding:9px 22px 0;
+  }
+  .fmtbar{
+    display:flex; align-items:center; gap:3px; flex-wrap:wrap;
+    padding:8px 20px 6px; border-bottom:1px solid var(--line);
+  }
+  .fmtbar button{
+    min-width:30px; height:28px; padding:0 8px; border-radius:6px;
+    font-size:12.5px; color:var(--ink-soft); border:1px solid transparent;
+    display:inline-flex; align-items:center; justify-content:center;
+  }
+  .fmtbar button:hover{background:#EDEBE4; color:var(--ink)}
+  .fmt-div{width:1px; height:18px; background:var(--line); margin:0 5px}
+  #editor{
+    flex:1; width:100%; resize:none; border:none; background:transparent;
+    padding:14px 28px 60px; font-family:'JetBrains Mono',monospace;
+    font-size:14.5px; line-height:1.75; color:var(--ink); tab-size:2;
+  }
+  #editor::placeholder{color:#A8A59C}
+  #preview{
+    flex:1; overflow-y:auto; padding:18px 34px 80px;
+    font-family:'Newsreader',serif; font-size:18px; line-height:1.65; color:#23211C;
+  }
+  #preview h1,#preview h2,#preview h3{font-weight:600; line-height:1.25; margin:1.4em 0 .5em}
+  #preview h1{font-size:1.7em} #preview h2{font-size:1.35em} #preview h3{font-size:1.12em}
+  #preview p{margin:0 0 .85em}
+  #preview ul,#preview ol{margin:0 0 .9em 1.3em}
+  #preview li{margin:.2em 0}
+  #preview blockquote{border-left:3px solid var(--line-strong); padding-left:14px; color:var(--ink-soft); font-style:italic; margin:0 0 .9em}
+  #preview code{font-family:'JetBrains Mono',monospace; font-size:.82em; background:#ECEAE3; padding:1px 5px; border-radius:4px}
+  #preview pre{background:#ECEAE3; padding:14px 16px; border-radius:var(--r); overflow-x:auto; margin:0 0 .9em}
+  #preview pre code{background:none; padding:0}
+  #preview a{color:var(--accent)}
+  #preview hr{border:none; border-top:1px solid var(--line-strong); margin:1.6em 0}
+  .hidden{display:none !important}
+
+  /* ---- Révision panel ---- */
+  aside{
+    flex:0 0 360px; width:360px; display:flex; flex-direction:column;
+    background:var(--paper-raised); border-left:1px solid var(--line); min-height:0;
+  }
+  .rev-head{display:flex; align-items:center; gap:10px; padding:14px 16px 10px; border-bottom:1px solid var(--line)}
+  .rev-head h2{font-family:'Newsreader',serif; font-weight:600; font-size:16px}
+  .rev-head .count{margin-left:auto; font-size:11px; color:var(--ink-soft)}
+  .rev-actions{display:flex; gap:6px; padding:10px 14px; flex-wrap:wrap; border-bottom:1px solid var(--line)}
+  .rev-body{flex:1; overflow-y:auto; padding:6px 0}
+  .empty{padding:34px 22px; color:var(--ink-soft); font-size:13.5px; line-height:1.6}
+  .empty b{color:var(--ink); font-weight:600}
+  .status{padding:14px 18px; font-size:13px; color:var(--ink-soft)}
+  .status.err{color:var(--correct)}
+  .spin{display:inline-block; width:13px; height:13px; border:2px solid var(--line-strong); border-top-color:var(--accent); border-radius:50%; animation:s .7s linear infinite; vertical-align:-2px; margin-right:7px}
+  @keyframes s{to{transform:rotate(360deg)}}
+
+  .proposal{padding:12px 16px; border-bottom:1px solid var(--line)}
+  .proposal .pl{font-size:10.5px; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-soft); margin-bottom:7px}
+  .proposed-text{font-family:'Newsreader',serif; font-size:15px; line-height:1.55; background:#fff; border:1px solid var(--line); border-radius:var(--r); padding:11px 13px; white-space:pre-wrap}
+  .apply-row{display:flex; gap:8px; margin-top:10px}
+  .apply-row .btn{flex:1; justify-content:center}
+  .apply-row .btn.primary{flex:2}
+
+  .change{display:flex; gap:9px; padding:11px 16px; border-bottom:1px solid var(--line)}
+  .tag{flex:0 0 auto; font-size:9.5px; font-weight:600; letter-spacing:.05em; text-transform:uppercase; padding:3px 6px; border-radius:5px; height:fit-content; margin-top:1px}
+  .tag.ortho,.tag.gram{background:#F6E4E4; color:var(--correct)}
+  .tag.style{background:#F4EAD6; color:var(--style)}
+  .tag.vocab{background:var(--accent-soft); color:var(--accent)}
+  .change .c{font-size:13px; line-height:1.5}
+  .change .c .bf{color:var(--ink-soft); text-decoration:line-through}
+  .change .c .af{color:var(--ink); font-weight:500}
+  .change .c .note{display:block; color:var(--ink-soft); font-size:12px; margin-top:3px; font-style:italic}
+  .voc{padding:12px 16px}
+  .voc .chip{display:inline-block; margin:3px 5px 3px 0; padding:5px 10px; border:1px solid var(--line-strong); border-radius:20px; font-size:13px; background:#fff}
+  .voc .chip:hover{border-color:var(--accent); color:var(--accent)}
+
+  /* ---- footer ---- */
+  footer{
+    flex:0 0 auto; height:30px; display:flex; align-items:center; gap:16px;
+    padding:0 18px; font-size:11.5px; color:var(--ink-soft);
+    background:var(--paper-raised); border-top:1px solid var(--line);
+  }
+  footer .save{margin-left:auto}
+  footer .dot{display:inline-block; width:6px; height:6px; border-radius:50%; background:var(--accept); margin-right:6px; vertical-align:0px}
+
+  /* ---- Modal ---- */
+  .overlay{position:fixed; inset:0; background:rgba(27,26,23,.35); display:flex; align-items:center; justify-content:center; z-index:50; padding:20px}
+  .modal{background:var(--paper-raised); border-radius:12px; box-shadow:var(--shadow); width:min(560px,100%); max-height:90vh; overflow-y:auto}
+  .modal h2{font-family:'Newsreader',serif; font-weight:600; font-size:20px; padding:20px 22px 4px}
+  .modal .sub{padding:0 22px 16px; color:var(--ink-soft); font-size:13px; line-height:1.55}
+  .field{padding:0 22px 16px}
+  .field label{display:block; font-size:12px; font-weight:600; margin-bottom:6px}
+  .field .hint{font-size:11.5px; color:var(--ink-soft); margin-top:5px; line-height:1.5}
+  .field input,.field select,.field textarea{
+    width:100%; padding:9px 11px; border:1px solid var(--line-strong); border-radius:var(--r);
+    font-family:inherit; font-size:13.5px; background:#fff; color:var(--ink);
+  }
+  .field textarea{font-family:'JetBrains Mono',monospace; font-size:12.5px; line-height:1.6; min-height:150px; resize:vertical}
+  .field-row{display:flex; gap:12px}
+  .field-row>div{flex:1}
+  .toggle{display:flex; align-items:center; gap:10px}
+  .toggle input{width:auto}
+  .modal-foot{display:flex; gap:10px; justify-content:flex-end; padding:14px 22px 22px; border-top:1px solid var(--line); margin-top:6px}
+
+  @media (max-width:880px){
+    aside{position:fixed; right:0; top:54px; bottom:30px; z-index:30; box-shadow:var(--shadow)}
+    .pane.preview{display:none}
+  }
+  @media (prefers-reduced-motion:reduce){*{animation:none !important; transition:none !important}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand"><b>Plume</b><span>révision assistée</span></div>
+  <div class="spacer"></div>
+
+  <div class="toolgroup">
+    <button class="btn primary" id="act-correct" title="Orthographe et grammaire (Ctrl+Entrée)">Corriger</button>
+    <button class="btn ghost" id="act-style" title="Reformulation au registre choisi">Réviser le style</button>
+    <button class="btn ghost" id="act-vocab" title="Propositions de vocabulaire sur la sélection">Vocabulaire</button>
+  </div>
+  <div class="divider"></div>
+  <div class="seg" id="view-seg">
+    <button data-v="edit">Source</button>
+    <button data-v="split" class="on">Partagé</button>
+    <button data-v="preview">Aperçu</button>
+  </div>
+  <div class="divider"></div>
+  <div class="seg" id="zoom-seg">
+    <button id="zoom-out" title="Réduire le texte">A&minus;</button>
+    <button id="zoom-pct" title="Réinitialiser à 100%" style="min-width:46px">100%</button>
+    <button id="zoom-in" title="Agrandir le texte">A+</button>
+  </div>
+  <div class="divider"></div>
+  <div class="toolgroup">
+    <button class="btn icon ghost" id="act-export" title="Télécharger en .md">↓</button>
+    <button class="btn icon ghost" id="act-settings" title="Réglages">⚙</button>
+  </div>
+</header>
+
+<main>
+  <div class="panes">
+    <div class="pane edit">
+      <div class="pane-label">Source Markdown</div>
+      <div class="fmtbar" id="fmtbar">
+        <button data-fmt="h1" title="Titre 1">H1</button>
+        <button data-fmt="h2" title="Titre 2">H2</button>
+        <button data-fmt="h3" title="Titre 3">H3</button>
+        <span class="fmt-div"></span>
+        <button data-fmt="bold" title="Gras (Ctrl+B)"><b>G</b></button>
+        <button data-fmt="italic" title="Italique (Ctrl+I)"><i>I</i></button>
+        <button data-fmt="strike" title="Barré"><s>S</s></button>
+        <button data-fmt="code" title="Code en ligne">&lt;/&gt;</button>
+        <span class="fmt-div"></span>
+        <button data-fmt="quote" title="Citation">&ldquo;</button>
+        <button data-fmt="ul" title="Liste à puces">&bull;</button>
+        <button data-fmt="ol" title="Liste numérotée">1.</button>
+        <button data-fmt="link" title="Lien">Lien</button>
+      </div>
+      <textarea id="editor" spellcheck="true" placeholder="Sélectionne un passage, puis lance une révision. Sans sélection, le paragraphe courant est traité.
+
+# Titre
+
+Ton texte ici…"></textarea>
+    </div>
+    <div class="gutter" id="gutter" title="Glisser pour redimensionner"></div>
+    <div class="pane preview">
+      <div class="pane-label">Aperçu</div>
+      <div id="preview"></div>
+    </div>
+  </div>
+
+  <aside>
+    <div class="rev-head">
+      <h2>Révision</h2>
+      <span class="count" id="rev-scope"></span>
+    </div>
+    <div class="rev-body" id="rev-body">
+      <div class="empty">
+        Sélectionne un passage dans l'éditeur, puis choisis <b>Corriger</b>, <b>Réviser le style</b> ou <b>Vocabulaire</b>.<br><br>
+        La proposition s'affiche ici avec le détail des modifications. Rien ne change dans ton texte tant que tu n'as pas cliqué sur <b>Appliquer</b>.<br><br>
+        Pense à renseigner ta clé API dans les réglages.
+      </div>
+    </div>
+  </aside>
+</main>
+
+<footer>
+  <span id="stat-words">0 mot</span>
+  <span id="stat-chars">0 signe</span>
+  <span id="stat-model"></span>
+  <span class="save" id="stat-save"><span class="dot"></span>Enregistré localement</span>
+</footer>
+
+<!-- Réglages -->
+<div class="overlay hidden" id="settings">
+  <div class="modal">
+    <h2>Réglages</h2>
+    <div class="sub">La clé reste dans ce navigateur (localStorage) et n'est transmise qu'au fournisseur choisi. Ne l'inscris jamais en dur dans le fichier déposé en ligne.</div>
+
+    <div class="field">
+      <label for="set-provider">Fournisseur</label>
+      <div class="field-row">
+        <div>
+          <select id="set-provider">
+            <option value="anthropic">Anthropic (Claude)</option>
+            <option value="openai">OpenAI</option>
+            <option value="mistral">Mistral</option>
+            <option value="gemini">Google (Gemini)</option>
+            <option value="openrouter">OpenRouter (Qwen, Llama, DeepSeek…)</option>
+            <option value="qwen">Qwen (DashScope)</option>
+            <option value="perplexity">Perplexity</option>
+            <option value="deepseek">DeepSeek</option>
+            <option value="xai">xAI (Grok)</option>
+          </select>
+        </div>
+        <div><input type="text" id="set-model" placeholder="modèle"></div>
+      </div>
+      <div class="hint" id="model-hint"></div>
+    </div>
+
+    <div class="field">
+      <label for="set-key">Clé API</label>
+      <input type="password" id="set-key" placeholder="collée ici, jamais dans le code">
+    </div>
+
+    <div class="field">
+      <label for="set-profile">Profil de registre (consignes au modèle)</label>
+      <textarea id="set-profile"></textarea>
+      <div class="hint">Ces consignes pilotent chaque révision. Modifie-les à ta guise.</div>
+    </div>
+
+    <div class="field">
+      <div class="toggle">
+        <input type="checkbox" id="set-auto">
+        <label for="set-auto" style="margin:0">Vérifier le paragraphe courant après une pause de frappe (consomme des appels)</label>
+      </div>
+    </div>
+
+    <div class="modal-foot">
+      <button class="btn ghost" id="set-cancel">Annuler</button>
+      <button class="btn primary" id="set-save">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const LS = 'plume.v1';
+
+const PROVIDERS = {
+  anthropic:{ default:'claude-sonnet-4-6', hint:'Ex. claude-sonnet-4-6, claude-opus-4-8, claude-haiku-4-5-20251001.' },
+  openai:{ default:'gpt-4o', hint:'Ex. gpt-4o, gpt-4o-mini.' },
+  mistral:{ default:'mistral-large-latest', hint:'Ex. mistral-large-latest, mistral-small-latest.' },
+  gemini:{ default:'gemini-2.5-flash', hint:'Ex. gemini-2.5-flash, gemini-2.5-pro, gemini-3-flash-preview. Restreins la clé à l\'API Gemini dans AI Studio.' },
+  openrouter:{ default:'qwen/qwen-2.5-72b-instruct', hint:'Passerelle multi-modèles : une seule clé donne accès à Qwen, Llama, DeepSeek, Perplexity, etc. Ex. qwen/qwen-2.5-72b-instruct, deepseek/deepseek-chat, meta-llama/llama-3.3-70b-instruct.' },
+  qwen:{ default:'qwen-plus', hint:'API DashScope (endpoint international). Ex. qwen-plus, qwen-max, qwen-turbo.' },
+  perplexity:{ default:'sonar-pro', hint:'Ex. sonar, sonar-pro, sonar-reasoning. Modèle orienté recherche web : moins adapté à la pure correction.' },
+  deepseek:{ default:'deepseek-chat', hint:'Ex. deepseek-chat, deepseek-reasoner.' },
+  xai:{ default:'grok-2-latest', hint:'Ex. grok-2-latest, grok-beta.' }
+};
+
+// Fournisseurs compatibles avec l'API « chat completions » d'OpenAI : même corps de requête, seul l'endpoint change.
+const OPENAI_COMPAT = {
+  openai:'https://api.openai.com/v1/chat/completions',
+  mistral:'https://api.mistral.ai/v1/chat/completions',
+  openrouter:'https://openrouter.ai/api/v1/chat/completions',
+  qwen:'https://dashscope-intl.aliyuncs.com/compatible-mode/v1/chat/completions',
+  perplexity:'https://api.perplexity.ai/chat/completions',
+  deepseek:'https://api.deepseek.com/chat/completions',
+  xai:'https://api.x.ai/v1/chat/completions'
+};
+
+const DEFAULT_PROFILE =
+`Tu es réviseur de français. Tu interviens sur un texte rédigé en registre soutenu, ton professionnel et incarné, sans enthousiasme performé.
+Règles strictes:
+- pas de doublets adjectivaux ni de doublets nominaux décoratifs;
+- voix active par défaut, verbes plutôt que nominalisations;
+- information forte en position de stress (fin de phrase, fin de paragraphe);
+- phrases brèves quand l'enjeu est dense;
+- pas de tournures américanisées traduites mot à mot;
+- pas de tiret cadratin;
+- pas d'emojis, sobriété du gras.
+Tu corriges sans réécrire au-delà du nécessaire. Tu préserves le sens et la voix de l'auteur.`;
+
+let state = {
+  provider:'anthropic', model:PROVIDERS.anthropic.default,
+  key:'', profile:DEFAULT_PROFILE, auto:false, doc:'', split:50, zoom:1
+};
+
+function load(){
+  try{ const s = JSON.parse(localStorage.getItem(LS)); if(s) state = {...state, ...s}; }catch(e){}
+}
+function persist(){ localStorage.setItem(LS, JSON.stringify(state)); }
+
+/* ---------- Éditeur & aperçu ---------- */
+const editor = $('#editor'), preview = $('#preview');
+
+function renderPreview(){
+  const md = editor.value;
+  if(window.marked && window.DOMPurify){ preview.innerHTML = DOMPurify.sanitize(marked.parse(md)); }
+  else{ preview.textContent = md; }
+}
+function counts(){
+  const t = editor.value.trim();
+  const w = t ? t.split(/\s+/).length : 0;
+  $('#stat-words').textContent = w + (w>1?' mots':' mot');
+  $('#stat-chars').textContent = editor.value.length + ' signes';
+}
+let saveT;
+function onInput(){
+  state.doc = editor.value; renderPreview(); counts();
+  $('#stat-save').innerHTML = '<span class="dot" style="background:#A6711F"></span>Enregistrement…';
+  clearTimeout(saveT);
+  saveT = setTimeout(()=>{ persist(); $('#stat-save').innerHTML='<span class="dot"></span>Enregistré localement'; }, 500);
+  scheduleAuto();
+}
+editor.addEventListener('input', onInput);
+
+/* ---------- Barre de formatage ---------- */
+function applyFmt(start, end, text, selStart, selEnd){
+  editor.value = editor.value.slice(0,start) + text + editor.value.slice(end);
+  editor.selectionStart = selStart; editor.selectionEnd = selEnd;
+  onInput(); editor.focus();
+}
+function wrapSel(mark){
+  const s = editor.selectionStart, e = editor.selectionEnd;
+  const sel = editor.value.slice(s,e) || 'texte';
+  const wrapped = mark + sel + mark;
+  applyFmt(s, e, wrapped, s + mark.length, s + mark.length + sel.length);
+}
+function linePrefix(mk, ordered){
+  const v = editor.value, s = editor.selectionStart, e = editor.selectionEnd;
+  let ls = v.lastIndexOf('\n', s-1) + 1;
+  let le = v.indexOf('\n', e); if(le<0) le = v.length;
+  const block = v.slice(ls, le);
+  const out = block.split('\n').map((l,i)=>{
+    const clean = l.replace(/^(\s*)(#{1,6}\s+|>\s+|[-*]\s+|\d+\.\s+)?/, '$1');
+    if(clean.trim()==='') return clean;
+    return (ordered ? (i+1)+'. ' : mk) + clean;
+  }).join('\n');
+  applyFmt(ls, le, out, ls, ls + out.length);
+}
+function insertLink(){
+  const s = editor.selectionStart, e = editor.selectionEnd;
+  const sel = editor.value.slice(s,e) || 'texte';
+  const md = '['+sel+'](url)';
+  const urlAt = s + md.length - 4;
+  applyFmt(s, e, md, urlAt, urlAt + 3);
+}
+const FMT = {
+  h1:()=>linePrefix('# '), h2:()=>linePrefix('## '), h3:()=>linePrefix('### '),
+  bold:()=>wrapSel('**'), italic:()=>wrapSel('*'), strike:()=>wrapSel('~~'),
+  code:()=>wrapSel('`'), quote:()=>linePrefix('> '),
+  ul:()=>linePrefix('- '), ol:()=>linePrefix('', true), link:insertLink
+};
+$('#fmtbar').addEventListener('click', e=>{
+  const b = e.target.closest('button'); if(!b) return;
+  const fn = FMT[b.dataset.fmt]; if(fn) fn();
+});
+document.addEventListener('keydown', e=>{
+  if(e.metaKey||e.ctrlKey){
+    if(e.key==='b'){ e.preventDefault(); FMT.bold(); }
+    else if(e.key==='i'){ e.preventDefault(); FMT.italic(); }
+  }
+});
+
+/* ---------- Vue partagée ---------- */
+const gutter = $('#gutter'), panes = $('.panes');
+function setSplit(pct){
+  pct = Math.max(20, Math.min(80, pct));
+  state.split = pct;
+  panes.style.setProperty('--eg', pct);
+  panes.style.setProperty('--pg', 100-pct);
+}
+$('#view-seg').addEventListener('click', e=>{
+  const b = e.target.closest('button'); if(!b) return;
+  [...$('#view-seg').children].forEach(x=>x.classList.toggle('on', x===b));
+  const v = b.dataset.v;
+  $('.pane.edit').classList.toggle('hidden', v==='preview');
+  $('.pane.preview').classList.toggle('hidden', v==='edit');
+  gutter.classList.toggle('hidden', v!=='split');
+});
+
+let dragging = false;
+gutter.addEventListener('pointerdown', e=>{
+  dragging = true; gutter.classList.add('drag');
+  gutter.setPointerCapture(e.pointerId); e.preventDefault();
+});
+gutter.addEventListener('pointermove', e=>{
+  if(!dragging) return;
+  const r = panes.getBoundingClientRect();
+  setSplit((e.clientX - r.left) / r.width * 100);
+});
+gutter.addEventListener('pointerup', e=>{
+  if(!dragging) return;
+  dragging = false; gutter.classList.remove('drag'); persist();
+});
+
+/* ---------- Zoom ---------- */
+function setZoom(z){
+  state.zoom = Math.max(0.7, Math.min(1.8, Math.round(z*100)/100));
+  editor.style.fontSize = (14.5 * state.zoom).toFixed(1) + 'px';
+  preview.style.fontSize = (18 * state.zoom).toFixed(1) + 'px';
+  $('#zoom-pct').textContent = Math.round(state.zoom*100) + '%';
+}
+$('#zoom-in').onclick = ()=>{ setZoom(state.zoom + 0.1); persist(); };
+$('#zoom-out').onclick = ()=>{ setZoom(state.zoom - 0.1); persist(); };
+$('#zoom-pct').onclick = ()=>{ setZoom(1); persist(); };
+
+/* ---------- Sélection / paragraphe ---------- */
+function getTarget(){
+  const s = editor.selectionStart, e = editor.selectionEnd;
+  if(e > s) return { text: editor.value.slice(s,e), start:s, end:e, isSel:true };
+  // paragraphe courant: bornes au double saut de ligne
+  const v = editor.value;
+  let start = v.lastIndexOf('\n\n', s-1); start = start<0 ? 0 : start+2;
+  let end = v.indexOf('\n\n', s); end = end<0 ? v.length : end;
+  return { text: v.slice(start,end).trim().length ? v.slice(start,end) : v, start, end, isSel:false };
+}
+function applyRange(start, end, replacement){
+  editor.value = editor.value.slice(0,start) + replacement + editor.value.slice(end);
+  editor.selectionStart = start; editor.selectionEnd = start + replacement.length;
+  onInput(); editor.focus();
+}
+
+/* ---------- Appel LLM ---------- */
+async function callLLM(system, user){
+  if(!state.key) throw new Error('Aucune clé API. Ouvre les réglages.');
+  const p = state.provider;
+  let url, headers, body;
+  if(p==='anthropic'){
+    url='https://api.anthropic.com/v1/messages';
+    headers={'content-type':'application/json','x-api-key':state.key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'};
+    body={ model:state.model, max_tokens:1500, system, messages:[{role:'user',content:user}] };
+  } else if(p==='gemini'){
+    url='https://generativelanguage.googleapis.com/v1beta/models/'+encodeURIComponent(state.model)+':generateContent';
+    headers={'content-type':'application/json','x-goog-api-key':state.key};
+    body={ system_instruction:{parts:[{text:system}]}, contents:[{role:'user',parts:[{text:user}]}], generationConfig:{maxOutputTokens:2000} };
+  } else {
+    url = OPENAI_COMPAT[p];
+    if(!url) throw new Error('Fournisseur inconnu : '+p);
+    headers={'content-type':'application/json','authorization':'Bearer '+state.key};
+    body={ model:state.model, messages:[{role:'system',content:system},{role:'user',content:user}] };
+  }
+  const r = await fetch(url,{method:'POST',headers,body:JSON.stringify(body)});
+  if(!r.ok){ const t = await r.text(); throw new Error('HTTP '+r.status+' '+t.slice(0,160)); }
+  const d = await r.json();
+  if(p==='anthropic') return (d.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('\n');
+  if(p==='gemini') return (d.candidates?.[0]?.content?.parts||[]).map(x=>x.text||'').join('\n');
+  return d.choices?.[0]?.message?.content || '';
+}
+function parseResponse(mode, raw){
+  const txt = raw.replace(/```[a-z]*\n?/gi,'').replace(/```/g,'').trim();
+  const out = {};
+  const revSplit = txt.split('<<<REVISED>>>')[1];
+  if(revSplit!=null){
+    out.revised = revSplit.split(/<<<(?:CHANGES|VOCAB)>>>/)[0].trim();
+  }
+  if(mode==='vocab'){
+    out.vocab = [];
+    const vb = txt.split('<<<VOCAB>>>')[1];
+    if(vb){
+      vb.trim().split('\n').forEach(line=>{
+        line = line.replace(/^[-*]\s*/,'').trim(); if(!line) return;
+        const i = line.indexOf(':::'); if(i<0) return;
+        const word = line.slice(0,i).trim();
+        const opts = line.slice(i+3).split('|').map(s=>s.trim()).filter(Boolean);
+        if(word && opts.length) out.vocab.push({ word, options:opts });
+      });
+    }
+  } else {
+    out.changes = [];
+    const cb = txt.split('<<<CHANGES>>>')[1];
+    if(cb){
+      cb.trim().split('\n').forEach(line=>{
+        line = line.replace(/^[-*]\s*/,'').trim(); if(!line) return;
+        const p = line.split(':::').map(s=>s.trim());
+        if(p.length>=3) out.changes.push({ type:p[0], before:p[1], after:p[2], note:p[3]||'' });
+      });
+    }
+  }
+  if(!out.revised && mode!=='vocab') out.revised = txt; // repli si le modèle ignore le format
+  return out;
+}
+
+/* ---------- Panneau ---------- */
+const body = $('#rev-body');
+function setStatus(html, err){ body.innerHTML = '<div class="status'+(err?' err':'')+'">'+html+'</div>'; }
+function setScope(t){ $('#rev-scope').textContent = t; }
+
+async function runRevision(mode){
+  const tgt = getTarget();
+  if(!tgt.text.trim()){ setStatus('Rien à réviser : le texte est vide.', true); return; }
+  setScope(tgt.isSel ? 'sélection' : 'paragraphe courant');
+  setStatus('<span class="spin"></span>Révision en cours…');
+
+  const sys = state.profile + '\n\nTu suis EXACTEMENT le format de réponse demandé, sans rien ajouter avant ni après les balises.';
+  let user;
+  if(mode==='correct'){
+    user = `Corrige uniquement l'orthographe, la grammaire, la conjugaison et la ponctuation du texte ci-dessous, sans reformuler au-delà du nécessaire.
+
+Réponds exactement dans ce format:
+<<<REVISED>>>
+(le texte corrigé, tel quel, sur autant de lignes qu'il faut)
+<<<CHANGES>>>
+type ::: avant ::: après ::: courte justification
+
+Une ligne par modification. Le type vaut ortho ou gram. S'il n'y a aucune correction, laisse la section CHANGES vide.
+
+Texte:
+"""${tgt.text}"""`;
+  } else if(mode==='style'){
+    user = `Révise le style du texte ci-dessous selon les consignes de registre. Renforce la précision, la vigueur des verbes et la position de l'information forte, sans trahir le sens ni la voix.
+
+Réponds exactement dans ce format:
+<<<REVISED>>>
+(le texte révisé, tel quel, sur autant de lignes qu'il faut)
+<<<CHANGES>>>
+type ::: avant ::: après ::: courte justification
+
+Une ligne par modification notable. Le type vaut style, gram ou ortho.
+
+Texte:
+"""${tgt.text}"""`;
+  } else { // vocab
+    user = `Pour le passage ci-dessous, propose des variantes de vocabulaire plus justes ou plus soutenues, fidèles au sens et au registre.
+
+Réponds exactement dans ce format:
+<<<REVISED>>>
+(le passage éventuellement ajusté; s'il n'y a rien à changer, recopie-le tel quel)
+<<<VOCAB>>>
+terme ::: option1 | option2 | option3
+
+Une ligne par terme concerné.
+
+Passage:
+"""${tgt.text}"""`;
+  }
+
+  try{
+    const raw = await callLLM(sys, user);
+    const data = parseResponse(mode, raw);
+    renderResult(mode, data, tgt);
+  }catch(err){
+    setStatus('La révision a échoué : '+err.message+'<br><br>Vérifie la clé, le modèle et le fournisseur dans les réglages.', true);
+  }
+}
+
+function esc(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function renderResult(mode, data, tgt){
+  let h = '';
+  if(data.revised){
+    h += `<div class="proposal"><div class="pl">Proposition</div>
+      <div class="proposed-text">${esc(data.revised)}</div>
+      <div class="apply-row">
+        <button class="btn primary" id="apply">Appliquer</button>
+        <button class="btn ghost" id="ignore">Ignorer</button>
+      </div></div>`;
+  }
+  if(mode==='vocab' && Array.isArray(data.vocab)){
+    data.vocab.forEach(v=>{
+      h += `<div class="voc"><div class="pl" style="margin-bottom:8px">${esc(v.word)}</div>`;
+      (v.options||[]).forEach(o=> h += `<span class="chip">${esc(o)}</span>`);
+      h += `</div>`;
+    });
+  } else if(Array.isArray(data.changes) && data.changes.length){
+    data.changes.forEach(c=>{
+      const cls = (c.type||'style').toLowerCase();
+      h += `<div class="change"><span class="tag ${cls}">${esc(c.type||'style')}</span>
+        <div class="c"><span class="bf">${esc(c.before)}</span> &rarr; <span class="af">${esc(c.after)}</span>
+        ${c.note?`<span class="note">${esc(c.note)}</span>`:''}</div></div>`;
+    });
+  } else if(data.revised && mode!=='vocab'){
+    h += `<div class="status">Aucune modification détaillée retournée.</div>`;
+  }
+  body.innerHTML = h || '<div class="status">Pas de proposition.</div>';
+
+  const ap = $('#apply');
+  if(ap) ap.onclick = ()=>{ applyRange(tgt.start, tgt.end, data.revised); setStatus('Proposition appliquée.'); setScope(''); };
+  const ig = $('#ignore'); if(ig) ig.onclick = ()=>{ setStatus('Proposition ignorée.'); setScope(''); };
+}
+
+$('#act-correct').onclick = ()=>runRevision('correct');
+$('#act-style').onclick = ()=>runRevision('style');
+$('#act-vocab').onclick = ()=>runRevision('vocab');
+document.addEventListener('keydown', e=>{
+  if((e.metaKey||e.ctrlKey) && e.key==='Enter'){ e.preventDefault(); runRevision('correct'); }
+});
+
+/* ---------- Auto-vérification ---------- */
+let autoT;
+function scheduleAuto(){
+  if(!state.auto) return;
+  clearTimeout(autoT);
+  autoT = setTimeout(()=>{ if(state.auto && state.key) runRevision('correct'); }, 1600);
+}
+
+/* ---------- Export ---------- */
+$('#act-export').onclick = ()=>{
+  const blob = new Blob([editor.value],{type:'text/markdown'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'document.md'; a.click(); URL.revokeObjectURL(a.href);
+};
+
+/* ---------- Réglages ---------- */
+function openSettings(){
+  $('#set-provider').value = state.provider;
+  $('#set-model').value = state.model;
+  $('#set-key').value = state.key;
+  $('#set-profile').value = state.profile;
+  $('#set-auto').checked = state.auto;
+  $('#model-hint').textContent = PROVIDERS[state.provider].hint;
+  $('#settings').classList.remove('hidden');
+}
+$('#act-settings').onclick = openSettings;
+$('#set-cancel').onclick = ()=> $('#settings').classList.add('hidden');
+$('#set-provider').onchange = e=>{
+  const p = e.target.value;
+  $('#set-model').value = PROVIDERS[p].default;
+  $('#model-hint').textContent = PROVIDERS[p].hint;
+};
+$('#set-save').onclick = ()=>{
+  state.provider = $('#set-provider').value;
+  state.model = $('#set-model').value.trim() || PROVIDERS[state.provider].default;
+  state.key = $('#set-key').value.trim();
+  state.profile = $('#set-profile').value.trim() || DEFAULT_PROFILE;
+  state.auto = $('#set-auto').checked;
+  persist(); refreshFooter();
+  $('#settings').classList.add('hidden');
+};
+function refreshFooter(){
+  $('#stat-model').textContent = state.provider + ' · ' + state.model + (state.key?'':' · clé manquante');
+}
+
+/* ---------- Init ---------- */
+load();
+editor.value = state.doc || '';
+setSplit(state.split); setZoom(state.zoom);
+renderPreview(); counts(); refreshFooter();
+window.addEventListener('load', renderPreview);
+if(!state.key) setTimeout(openSettings, 350);
+</script>
+</body>
+</html>
