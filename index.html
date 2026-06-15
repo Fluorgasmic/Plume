@@ -140,8 +140,11 @@
   .change .c .af{color:var(--ink); font-weight:500}
   .change .c .note{display:block; color:var(--ink-soft); font-size:12px; margin-top:3px; font-style:italic}
   .voc{padding:12px 16px}
-  .voc .chip{display:inline-block; margin:3px 5px 3px 0; padding:5px 10px; border:1px solid var(--line-strong); border-radius:20px; font-size:13px; background:#fff}
+  .voc .chip{display:inline-block; margin:3px 5px 3px 0; padding:5px 10px; border:1px solid var(--line-strong); border-radius:20px; font-size:13px; background:#fff; user-select:none}
   .voc .chip:hover{border-color:var(--accent); color:var(--accent)}
+  .voc .chip.sel{border-color:var(--accent); background:var(--accent-soft); color:var(--accent); font-weight:600}
+  .voc .chip.orig{font-style:italic; color:var(--ink-soft)}
+  .voc .chip.orig.sel{font-style:normal; color:var(--accent)}
 
   /* ---- footer ---- */
   footer{
@@ -679,6 +682,38 @@ function renderResult(mode, data, tgt){
     markTarget(tgt);
     return;
   }
+  if(mode==='vocab' && Array.isArray(data.vocab)){
+    let work = data.revised || tgt.text; // texte de travail, modifié par les clics
+    const groups = data.vocab.map(v=>({ word:v.word, current:v.word, options:(v.options||[]) }));
+    h += `<div class="proposal"><div class="pl">Proposition</div>
+      <div class="proposed-text" id="voc-text">${esc(work)}</div>
+      <div class="apply-row">
+        <button class="btn primary" id="apply">Appliquer</button>
+        <button class="btn ghost" id="ignore">Ignorer</button>
+      </div></div>`;
+    groups.forEach((g,gi)=>{
+      h += `<div class="voc"><div class="pl" style="margin-bottom:8px">${esc(g.word)}</div>`;
+      h += `<span class="chip orig sel" data-g="${gi}" data-orig="1" title="Revenir au mot d'origine">${esc(g.word)}</span>`;
+      g.options.forEach((o,oi)=> h += `<span class="chip" data-g="${gi}" data-o="${oi}">${esc(o)}</span>`);
+      h += `</div>`;
+    });
+    body.innerHTML = h;
+    const txtEl = $('#voc-text');
+    function findIdx(hay, find){ let i=hay.indexOf(find); if(i>=0) return [i,find.length]; const li=hay.toLowerCase().indexOf((find||'').toLowerCase()); return li>=0?[li,find.length]:[-1,0]; }
+    body.querySelectorAll('.chip[data-g]').forEach(chip=>{
+      chip.onclick = ()=>{
+        const gi=+chip.dataset.g, g=groups[gi];
+        const next = chip.dataset.orig ? g.word : g.options[+chip.dataset.o];
+        const [i,len] = findIdx(work, g.current);
+        if(i>=0 && next!==g.current){ work = work.slice(0,i)+next+work.slice(i+len); g.current=next; txtEl.textContent = work; }
+        body.querySelectorAll('.chip[data-g="'+gi+'"]').forEach(c=>c.classList.toggle('sel', c===chip));
+      };
+    });
+    const apv = $('#apply'); if(apv) apv.onclick = ()=>{ applyRange(tgt.start, tgt.end, work); setStatus('Proposition appliquée.'); setScope(''); };
+    const igv = $('#ignore'); if(igv) igv.onclick = ()=>{ setStatus('Proposition ignorée.'); setScope(''); };
+    markTarget(tgt);
+    return;
+  }
   if(data.revised){
     h += `<div class="proposal"><div class="pl">Proposition</div>
       <div class="proposed-text">${esc(data.revised)}</div>
@@ -687,13 +722,7 @@ function renderResult(mode, data, tgt){
         <button class="btn ghost" id="ignore">Ignorer</button>
       </div></div>`;
   }
-  if(mode==='vocab' && Array.isArray(data.vocab)){
-    data.vocab.forEach(v=>{
-      h += `<div class="voc"><div class="pl" style="margin-bottom:8px">${esc(v.word)}</div>`;
-      (v.options||[]).forEach(o=> h += `<span class="chip">${esc(o)}</span>`);
-      h += `</div>`;
-    });
-  } else if(Array.isArray(data.changes) && data.changes.length){
+  if(Array.isArray(data.changes) && data.changes.length){
     data.changes.forEach(c=>{
       const cls = (c.type||'style').toLowerCase();
       h += `<div class="change"><span class="tag ${cls}">${esc(c.type||'style')}</span>
