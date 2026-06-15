@@ -145,6 +145,8 @@
   .voc .chip.sel{border-color:var(--accent); background:var(--accent-soft); color:var(--accent); font-weight:600}
   .voc .chip.orig{font-style:italic; color:var(--ink-soft)}
   .voc .chip.orig.sel{font-style:normal; color:var(--accent)}
+  .vsub{border-radius:3px; transition:background .12s}
+  .vsub.on{background:var(--accent-soft); color:var(--accent); font-weight:600; padding:0 3px; box-shadow:inset 0 -1px 0 var(--accent)}
 
   /* ---- footer ---- */
   footer{
@@ -172,6 +174,9 @@
   .field-row>div{flex:1}
   .toggle{display:flex; align-items:center; gap:10px}
   .toggle input{width:auto}
+  .tone-row{display:flex; gap:8px; margin-bottom:8px}
+  .tone-row .tone-label{flex:0 0 130px; width:130px}
+  .tone-row .tone-instr{flex:1; min-width:0}
   .modal-foot{display:flex; gap:10px; justify-content:flex-end; padding:14px 22px 22px; border-top:1px solid var(--line); margin-top:6px}
 
   @media (max-width:880px){
@@ -309,6 +314,12 @@ Ton texte ici…"></textarea>
     </div>
 
     <div class="field">
+      <label>Tons de reformulation — bouton « Réviser le style »</label>
+      <div class="hint" style="margin-top:0; margin-bottom:8px">Trois variantes sont proposées, une par ton. Personnalise le libellé et la consigne de chacun.</div>
+      <div id="tones-list"></div>
+    </div>
+
+    <div class="field">
       <div class="toggle">
         <input type="checkbox" id="set-auto">
         <label for="set-auto" style="margin:0">Vérifier le paragraphe courant après une pause de frappe (consomme des appels)</label>
@@ -361,13 +372,26 @@ Règles strictes:
 - pas d'emojis, sobriété du gras.
 Tu corriges sans réécrire au-delà du nécessaire. Tu préserves le sens et la voix de l'auteur.`;
 
+const DEFAULT_TONES = [
+  { label:'Plus concis',  instr:'Resserre la phrase, supprime les redondances, va droit à l\'essentiel.' },
+  { label:'Plus incarné', instr:'Rends le propos plus vivant et concret : verbes d\'action, images sobres, présence d\'un sujet.' },
+  { label:'Plus formel',  instr:'Élève le registre, tenue et distance, sans lourdeur ni jargon.' }
+];
+function cloneTones(){ return DEFAULT_TONES.map(t=>({...t})); }
+function normTones(t){
+  const out = Array.isArray(t) ? t.slice(0,3) : [];
+  while(out.length<3) out.push({...DEFAULT_TONES[out.length]});
+  return out.map((x,i)=>({ label:(x&&x.label||DEFAULT_TONES[i].label).trim(), instr:(x&&x.instr||'').trim() }));
+}
+
 let state = {
   provider:'anthropic', model:PROVIDERS.anthropic.default,
-  key:'', profile:DEFAULT_PROFILE, auto:false, doc:'', split:50, zoom:1
+  key:'', profile:DEFAULT_PROFILE, tones:cloneTones(), auto:false, doc:'', split:50, zoom:1
 };
 
 function load(){
   try{ const s = JSON.parse(localStorage.getItem(LS)); if(s) state = {...state, ...s}; }catch(e){}
+  state.tones = normTones(state.tones);
 }
 function persist(){ localStorage.setItem(LS, JSON.stringify(state)); }
 
@@ -705,17 +729,21 @@ Une ligne par modification. Le type vaut ortho ou gram. S'il n'y a aucune correc
 Texte:
 """${tgt.text}"""`;
   } else if(mode==='style'){
-    user = `Propose TROIS reformulations distinctes du texte ci-dessous selon les consignes de registre. Renforce la précision, la vigueur des verbes et la position de l'information forte, sans trahir le sens ni la voix. Chaque variante explore un angle différent (par exemple plus concis, plus incarné, plus formel) tout en restant fidèle au fond.
+    const tones = normTones(state.tones);
+    const consignes = tones.map((t,i)=>`${i+1}. ${t.label}${t.instr?' — '+t.instr:''}`).join('\n');
+    user = `Reformule le texte ci-dessous en respectant les consignes de registre. Produis UNE reformulation pour CHACUN des trois tons suivants, dans cet ordre, sans trahir le sens ni la voix:
+${consignes}
 
-Répète EXACTEMENT ce bloc trois fois, une fois par variante, sans aucun autre texte avant, entre ou après:
+Répète EXACTEMENT ce bloc trois fois, une fois par ton et dans l'ordre ci-dessus, sans aucun autre texte avant, entre ou après:
 <<<ALT>>>
-Angle: deux à quatre mots décrivant l'approche
+Angle: le libellé exact du ton (par ex. « ${tones[0].label} »)
 puis le texte complet de la variante, à la ligne suivante
 
 Règles de forme impératives:
+- une variante par ton, dans l'ordre indiqué;
 - n'entoure jamais la variante de parenthèses, de guillemets ni de crochets;
 - ne numérote pas les variantes;
-- la ligne "Angle:" ne contient que le libellé, pas le texte;
+- la ligne "Angle:" ne contient que le libellé du ton, pas le texte;
 - recopie la variante intégralement, sans la tronquer.
 
 Texte à reformuler:
@@ -772,10 +800,34 @@ function renderResult(mode, data, tgt){
     return;
   }
   if(mode==='vocab' && Array.isArray(data.vocab)){
-    let work = data.revised || tgt.text; // texte de travail, modifié par les clics
-    const groups = data.vocab.map(v=>({ word:v.word, current:v.word, options:(v.options||[]) }));
+    const base = data.revised || tgt.text; // texte d'origine, jamais muté : sert de repère de positions
+    const groups = data.vocab.map(v=>({ word:v.word, value:v.word, options:(v.options||[]) }));
+    const indexOfCI = (hay, needle, from)=>{ const i=hay.indexOf(needle, from); return i>=0 ? i : hay.toLowerCase().indexOf((needle||'').toLowerCase(), from); };
+    // reconstruit la proposition à partir des positions d'origine : chaque terme retenu est inséré (et surligné s'il diffère)
+    function buildVocab(){
+      const used=[], marks=[];
+      groups.forEach((g,gi)=>{
+        let from=0, idx;
+        while((idx=indexOfCI(base, g.word, from))>=0){
+          const end=idx+g.word.length;
+          if(!used.some(u=> idx<u[1] && end>u[0])){ marks.push({gi,start:idx,end}); used.push([idx,end]); break; }
+          from=idx+1;
+        }
+      });
+      marks.sort((a,b)=>a.start-b.start);
+      let html='', plain='', cur=0;
+      marks.forEach(m=>{
+        html += esc(base.slice(cur,m.start)); plain += base.slice(cur,m.start);
+        const g=groups[m.gi], changed = g.value!==g.word;
+        html += `<span class="vsub${changed?' on':''}">${esc(g.value)}</span>`;
+        plain += g.value; cur=m.end;
+      });
+      html += esc(base.slice(cur)); plain += base.slice(cur);
+      return {html, plain};
+    }
+    let built = buildVocab();
     h += `<div class="proposal"><div class="pl">Proposition</div>
-      <div class="proposed-text" id="voc-text">${esc(work)}</div>
+      <div class="proposed-text" id="voc-text">${built.html}</div>
       <div class="apply-row">
         <button class="btn primary" id="apply">Appliquer</button>
         <button class="btn ghost" id="ignore">Ignorer</button>
@@ -788,17 +840,15 @@ function renderResult(mode, data, tgt){
     });
     body.innerHTML = h;
     const txtEl = $('#voc-text');
-    function findIdx(hay, find){ let i=hay.indexOf(find); if(i>=0) return [i,find.length]; const li=hay.toLowerCase().indexOf((find||'').toLowerCase()); return li>=0?[li,find.length]:[-1,0]; }
     body.querySelectorAll('.chip[data-g]').forEach(chip=>{
       chip.onclick = ()=>{
         const gi=+chip.dataset.g, g=groups[gi];
-        const next = chip.dataset.orig ? g.word : g.options[+chip.dataset.o];
-        const [i,len] = findIdx(work, g.current);
-        if(i>=0 && next!==g.current){ work = work.slice(0,i)+next+work.slice(i+len); g.current=next; txtEl.textContent = work; }
+        g.value = chip.dataset.orig ? g.word : g.options[+chip.dataset.o];
+        built = buildVocab(); txtEl.innerHTML = built.html;       // mise à jour + surlignage en temps réel
         body.querySelectorAll('.chip[data-g="'+gi+'"]').forEach(c=>c.classList.toggle('sel', c===chip));
       };
     });
-    const apv = $('#apply'); if(apv) apv.onclick = ()=>{ applyRange(tgt.start, tgt.end, work); setStatus('Proposition appliquée.'); setScope(''); };
+    const apv = $('#apply'); if(apv) apv.onclick = ()=>{ applyRange(tgt.start, tgt.end, built.plain); setStatus('Proposition appliquée.'); setScope(''); };
     const igv = $('#ignore'); if(igv) igv.onclick = ()=>{ setStatus('Proposition ignorée.'); setScope(''); };
     markTarget(tgt);
     return;
@@ -853,12 +903,27 @@ $('#act-export').onclick = ()=>{
 };
 
 /* ---------- Réglages ---------- */
+function renderToneFields(){
+  const tones = normTones(state.tones);
+  $('#tones-list').innerHTML = tones.map((t,i)=>
+    `<div class="tone-row" data-i="${i}">`
+    + `<input type="text" class="tone-label" value="${esc(t.label)}" placeholder="Libellé du ton ${i+1}">`
+    + `<input type="text" class="tone-instr" value="${esc(t.instr)}" placeholder="Consigne donnée au modèle pour ce ton">`
+    + `</div>`).join('');
+}
+function readToneFields(){
+  return [...document.querySelectorAll('#tones-list .tone-row')].map(row=>({
+    label: row.querySelector('.tone-label').value,
+    instr: row.querySelector('.tone-instr').value
+  }));
+}
 function openSettings(){
   $('#set-provider').value = state.provider;
   $('#set-model').value = state.model;
   $('#set-key').value = state.key;
   $('#set-profile').value = state.profile;
   $('#set-auto').checked = state.auto;
+  renderToneFields();
   $('#model-hint').textContent = PROVIDERS[state.provider].hint;
   $('#settings').classList.remove('hidden');
 }
@@ -874,6 +939,7 @@ $('#set-save').onclick = ()=>{
   state.model = $('#set-model').value.trim() || PROVIDERS[state.provider].default;
   state.key = $('#set-key').value.trim();
   state.profile = $('#set-profile').value.trim() || DEFAULT_PROFILE;
+  state.tones = normTones(readToneFields());
   state.auto = $('#set-auto').checked;
   persist(); refreshFooter();
   $('#settings').classList.add('hidden');
