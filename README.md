@@ -6,7 +6,8 @@
 
 - Éditeur Markdown avec aperçu en temps réel, barre de formatage, zoom et vue partagée redimensionnable.
 - Sélectionne un passage (ou laisse le curseur dans un paragraphe), puis lance **Corriger**, **Réviser le style** ou **Vocabulaire**.
-- **Réviser le style** propose **3 variantes** de reformulation, une par ton. Les **trois tons sont configurables** dans les réglages (libellé + consigne) — par défaut : plus concis, plus incarné, plus formel.
+- **Profils de voix** : registre + 3 tons regroupés par client/contexte, **commutables en un clic** depuis la barre (menu déroulant, favoris épinglés en tête). Gestionnaire dédié pour créer, dupliquer, supprimer et **exporter/importer** un profil (`.plume.json`). Les réglages techniques (fournisseur, modèle, clé) restent séparés dans ⚙.
+- **Réviser le style** propose **3 variantes** de reformulation, une par ton du profil actif.
 - **Vocabulaire** propose des synonymes cliquables : un clic remplace le terme dans la proposition, le mot changé est **surligné en temps réel**, puis « Appliquer » injecte le passage retouché.
 - La réponse de l'IA est **streamée** : le texte s'affiche au fur et à mesure plutôt qu'après la réponse complète.
 - **Annuler / Rétablir** (boutons ↶ ↷ ou `Ctrl/Cmd+Z` et `Ctrl/Cmd+Maj+Z`) couvrent aussi bien la frappe que les révisions et le formatage appliqués.

@@ -71,6 +71,18 @@
   .menu button:hover{background:var(--accent-soft); color:var(--accent)}
   .menu button span{font-family:'JetBrains Mono',monospace; font-size:11.5px; color:var(--ink-soft)}
   .menu button:hover span{color:var(--accent)}
+  .menu .menu-h{font-size:10.5px; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-soft); padding:7px 10px 5px}
+  .menu .menu-sep{height:1px; background:var(--line); margin:5px 6px}
+  #voice-menu{min-width:236px}
+  .vrow{display:flex !important; align-items:center; gap:9px; justify-content:flex-start !important}
+  .vrow .mk{flex:0 0 14px; text-align:center; font-family:inherit !important; color:var(--accent) !important; font-size:13px !important}
+  .vrow .nm{flex:1; font-family:inherit !important; font-size:13px !important; color:var(--ink) !important; text-align:left}
+  .vrow.on .nm{font-weight:600}
+  .vrow.muted .nm{color:var(--ink-soft) !important}
+  .vrow .fav{flex:0 0 auto; font-family:inherit !important; font-size:13px !important; color:var(--line-strong) !important}
+  .vrow .fav.on{color:#BA7517 !important}
+  .vrow:hover .nm,.vrow:hover .mk{color:var(--accent) !important}
+  #voice-btn #voice-name{max-width:160px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
   .seg{display:inline-flex; border:1px solid var(--line-strong); border-radius:var(--r); overflow:hidden}
   .seg button{padding:6px 11px; font-size:12.5px; color:var(--ink-soft)}
   .seg button.on{background:var(--accent-soft); color:var(--accent); font-weight:600}
@@ -205,6 +217,14 @@
 
 <header>
   <div class="brand"><b>Plume</b><span>révision assistée</span></div>
+  <div class="menu-wrap" id="voice-wrap">
+    <button class="btn ghost" id="voice-btn" title="Profil de voix" aria-haspopup="true" aria-expanded="false">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10v4"></path><path d="M7 7v10"></path><path d="M11 4v16"></path><path d="M15 8v8"></path><path d="M19 6v12"></path></svg>
+      <span id="voice-name">Profil</span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+    </button>
+    <div class="menu hidden" id="voice-menu" role="menu"></div>
+  </div>
   <div class="spacer"></div>
 
   <div class="toolgroup">
@@ -343,18 +363,6 @@ Ton texte ici…"></textarea>
     </div>
 
     <div class="field">
-      <label for="set-profile">Profil de registre (consignes au modèle)</label>
-      <textarea id="set-profile"></textarea>
-      <div class="hint">Ces consignes pilotent chaque révision. Modifie-les à ta guise.</div>
-    </div>
-
-    <div class="field">
-      <label>Tons de reformulation — bouton « Réviser le style »</label>
-      <div class="hint" style="margin-top:0; margin-bottom:8px">Trois variantes sont proposées, une par ton. Personnalise le libellé et la consigne de chacun.</div>
-      <div id="tones-list"></div>
-    </div>
-
-    <div class="field">
       <div class="toggle">
         <input type="checkbox" id="set-auto">
         <label for="set-auto" style="margin:0">Vérifier le paragraphe courant après une pause de frappe (consomme des appels)</label>
@@ -367,6 +375,52 @@ Ton texte ici…"></textarea>
     </div>
   </div>
 </div>
+
+<!-- Profils de voix -->
+<div class="overlay hidden" id="profiles">
+  <div class="modal">
+    <h2>Profils de voix</h2>
+    <div class="sub">Le registre et les 3 tons par client ou par contexte. Bascule en un clic depuis la barre. Tout reste dans ce navigateur.</div>
+
+    <div class="field">
+      <label for="pf-select">Profil à éditer</label>
+      <div class="field-row">
+        <div><select id="pf-select"></select></div>
+        <div class="toggle" style="justify-content:flex-start">
+          <input type="checkbox" id="pf-fav"><label for="pf-fav" style="margin:0">Favori (épinglé en tête)</label>
+        </div>
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="pf-name">Nom</label>
+      <input type="text" id="pf-name" placeholder="ex. Marque A — premium">
+    </div>
+
+    <div class="field">
+      <label for="pf-profile">Registre (consignes au modèle)</label>
+      <textarea id="pf-profile"></textarea>
+    </div>
+
+    <div class="field">
+      <label>Tons de reformulation — bouton « Réviser le style »</label>
+      <div class="hint" style="margin-top:0; margin-bottom:8px">Trois variantes sont proposées, une par ton. Personnalise le libellé et la consigne de chacun.</div>
+      <div id="tones-list"></div>
+    </div>
+
+    <div class="modal-foot" style="justify-content:space-between; flex-wrap:wrap; gap:8px">
+      <div style="display:flex; gap:6px; flex-wrap:wrap">
+        <button class="btn ghost" id="pf-new">Nouveau</button>
+        <button class="btn ghost" id="pf-dup">Dupliquer</button>
+        <button class="btn ghost" id="pf-del">Supprimer</button>
+        <button class="btn ghost" id="pf-export">Exporter</button>
+        <button class="btn ghost" id="pf-import">Importer</button>
+      </div>
+      <button class="btn primary" id="pf-done">Terminé</button>
+    </div>
+  </div>
+</div>
+<input type="file" id="pf-file" accept="application/json,.json" hidden>
 
 <script>
 const $ = s => document.querySelector(s);
@@ -421,14 +475,28 @@ function normTones(t){
 
 let state = {
   provider:'anthropic', model:PROVIDERS.anthropic.default, models:{},
-  key:'', profile:DEFAULT_PROFILE, tones:cloneTones(), auto:false, doc:'', split:50, zoom:1
+  key:'', profile:DEFAULT_PROFILE, tones:cloneTones(),
+  profiles:[], activeId:'', auto:false, doc:'', split:50, zoom:1
 };
+const uid = ()=> 'p'+Math.random().toString(36).slice(2,9)+Date.now().toString(36).slice(-3);
 
 function load(){
   try{ const s = JSON.parse(localStorage.getItem(LS)); if(s) state = {...state, ...s}; }catch(e){}
-  state.tones = normTones(state.tones);
   if(!state.models || typeof state.models!=='object') state.models = {};
+  // migration : un profil unique (registre + tons) devient « Profil par défaut »
+  if(!Array.isArray(state.profiles) || !state.profiles.length){
+    state.profiles = [{ id:uid(), name:'Profil par défaut', profile: state.profile||DEFAULT_PROFILE, tones: normTones(state.tones), fav:true }];
+  }
+  state.profiles = state.profiles.map(p=>({
+    id: p.id||uid(),
+    name: (p.name||'Sans nom').toString().trim() || 'Sans nom',
+    profile: (p.profile||DEFAULT_PROFILE).toString(),
+    tones: normTones(p.tones),
+    fav: !!p.fav
+  }));
+  if(!state.activeId || !state.profiles.some(p=>p.id===state.activeId)) state.activeId = state.profiles[0].id;
 }
+function getActive(){ return state.profiles.find(p=>p.id===state.activeId) || state.profiles[0]; }
 function persist(){ localStorage.setItem(LS, JSON.stringify(state)); }
 
 /* ---------- Éditeur & aperçu ---------- */
@@ -749,7 +817,7 @@ async function runRevision(mode){
   markTarget(tgt);
   body.innerHTML = srcBanner(tgt) + '<div class="proposal"><div class="pl"><span class="spin"></span>Génération en cours…</div><div class="proposed-text" id="live"></div></div>';
 
-  const sys = state.profile + '\n\nTu suis EXACTEMENT le format de réponse demandé, sans rien ajouter avant ni après les balises.';
+  const sys = getActive().profile + '\n\nTu suis EXACTEMENT le format de réponse demandé, sans rien ajouter avant ni après les balises.';
   let user;
   if(mode==='correct'){
     user = `Corrige uniquement l'orthographe, la grammaire, la conjugaison et la ponctuation du texte ci-dessous, sans reformuler au-delà du nécessaire.
@@ -765,7 +833,7 @@ Une ligne par modification. Le type vaut ortho ou gram. S'il n'y a aucune correc
 Texte:
 """${tgt.text}"""`;
   } else if(mode==='style'){
-    const tones = normTones(state.tones);
+    const tones = normTones(getActive().tones);
     const consignes = tones.map((t,i)=>`${i+1}. ${t.label}${t.instr?' — '+t.instr:''}`).join('\n');
     user = `Reformule le texte ci-dessous en respectant les consignes de registre. Produis UNE reformulation pour CHACUN des trois tons suivants, dans cet ordre, sans trahir le sens ni la voix:
 ${consignes}
@@ -990,8 +1058,8 @@ document.addEventListener('click', e=>{ if(!e.target.closest('.menu-wrap')) togg
 document.addEventListener('keydown', e=>{ if(e.key==='Escape') toggleExportMenu(false); });
 
 /* ---------- Réglages ---------- */
-function renderToneFields(){
-  const tones = normTones(state.tones);
+function renderToneFields(tones){
+  tones = normTones(tones);
   $('#tones-list').innerHTML = tones.map((t,i)=>
     `<div class="tone-row" data-i="${i}">`
     + `<input type="text" class="tone-label" value="${esc(t.label)}" placeholder="Libellé du ton ${i+1}">`
@@ -1022,9 +1090,7 @@ function openSettings(){
   $('#set-provider').value = state.provider;
   populateModels(state.provider, state.models[state.provider] || state.model);
   $('#set-key').value = state.key;
-  $('#set-profile').value = state.profile;
   $('#set-auto').checked = state.auto;
-  renderToneFields();
   $('#model-hint').textContent = PROVIDERS[state.provider].hint;
   $('#settings').classList.remove('hidden');
 }
@@ -1046,8 +1112,6 @@ $('#set-save').onclick = ()=>{
   state.model = selectedModel(p);
   state.models = {...state.models, [p]:state.model}; // mémorise le modèle par fournisseur
   state.key = $('#set-key').value.trim();
-  state.profile = $('#set-profile').value.trim() || DEFAULT_PROFILE;
-  state.tones = normTones(readToneFields());
   state.auto = $('#set-auto').checked;
   persist(); refreshFooter();
   $('#settings').classList.add('hidden');
@@ -1056,12 +1120,119 @@ function refreshFooter(){
   $('#stat-model').textContent = state.provider + ' · ' + state.model + (state.key?'':' · clé manquante');
 }
 
+/* ---------- Profils de voix : sélecteur + gestionnaire ---------- */
+function refreshVoice(){ $('#voice-name').textContent = getActive().name; }
+function sortedProfiles(){ return [...state.profiles].sort((a,b)=> (b.fav?1:0)-(a.fav?1:0)); }
+
+const voiceMenu = $('#voice-menu'), voiceBtn = $('#voice-btn');
+function renderVoiceMenu(){
+  const act = state.activeId;
+  let h = '<div class="menu-h">profils de voix</div>';
+  sortedProfiles().forEach(p=>{
+    h += `<button role="menuitem" data-pick="${p.id}" class="vrow${p.id===act?' on':''}">`
+      + `<span class="mk">${p.id===act?'✓':''}</span>`
+      + `<span class="nm">${esc(p.name)}</span>`
+      + `<span class="fav${p.fav?' on':''}" data-fav="${p.id}" title="Favori" role="button">${p.fav?'★':'☆'}</span></button>`;
+  });
+  h += '<div class="menu-sep"></div>'
+    + '<button role="menuitem" data-new="1" class="vrow muted"><span class="mk">+</span><span class="nm">Nouveau profil</span></button>'
+    + '<button role="menuitem" data-manage="1" class="vrow muted"><span class="mk">⋯</span><span class="nm">Gérer les profils…</span></button>';
+  voiceMenu.innerHTML = h;
+}
+function toggleVoiceMenu(show){
+  const open = show!=null ? show : voiceMenu.classList.contains('hidden');
+  if(open) renderVoiceMenu();
+  voiceMenu.classList.toggle('hidden', !open);
+  voiceBtn.setAttribute('aria-expanded', open?'true':'false');
+}
+voiceBtn.onclick = e=>{ e.stopPropagation(); toggleVoiceMenu(); };
+voiceMenu.addEventListener('click', e=>{
+  const fav = e.target.closest('[data-fav]');
+  if(fav){ e.stopPropagation(); const p=state.profiles.find(x=>x.id===fav.dataset.fav); if(p){ p.fav=!p.fav; persist(); renderVoiceMenu(); } return; }
+  const b = e.target.closest('button'); if(!b) return;
+  if(b.dataset.pick){ state.activeId=b.dataset.pick; persist(); refreshVoice(); toggleVoiceMenu(false); }
+  else if(b.dataset.new){ toggleVoiceMenu(false); pfCreate(); openProfiles(); }
+  else if(b.dataset.manage){ toggleVoiceMenu(false); openProfiles(); }
+});
+document.addEventListener('click', e=>{ if(!e.target.closest('#voice-wrap')) toggleVoiceMenu(false); });
+document.addEventListener('keydown', e=>{ if(e.key==='Escape') toggleVoiceMenu(false); });
+
+let pfEditId = null;
+function renderPfSelect(){
+  $('#pf-select').innerHTML = state.profiles.map(p=>`<option value="${p.id}">${esc(p.name)}${p.fav?' ★':''}</option>`).join('');
+  $('#pf-select').value = pfEditId;
+}
+function loadPfFields(){
+  const p = state.profiles.find(x=>x.id===pfEditId) || state.profiles[0]; pfEditId = p.id;
+  $('#pf-select').value = p.id;
+  $('#pf-name').value = p.name;
+  $('#pf-fav').checked = !!p.fav;
+  $('#pf-profile').value = p.profile;
+  renderToneFields(p.tones);
+}
+function commitPfFields(){
+  const p = state.profiles.find(x=>x.id===pfEditId); if(!p) return;
+  p.name = $('#pf-name').value.trim() || 'Sans nom';
+  p.fav = $('#pf-fav').checked;
+  p.profile = $('#pf-profile').value.trim() || DEFAULT_PROFILE;
+  p.tones = normTones(readToneFields());
+  const opt = [...$('#pf-select').options].find(o=>o.value===p.id);
+  if(opt) opt.textContent = p.name + (p.fav?' ★':'');
+  persist(); refreshVoice();
+}
+function pfCreate(){
+  const p = { id:uid(), name:'Nouveau profil', profile:DEFAULT_PROFILE, tones:cloneTones(), fav:false };
+  state.profiles.push(p); pfEditId = p.id; persist(); return p;
+}
+function openProfiles(){
+  if(pfEditId==null || !state.profiles.some(p=>p.id===pfEditId)) pfEditId = state.activeId;
+  renderPfSelect(); loadPfFields();
+  $('#profiles').classList.remove('hidden');
+}
+$('#pf-select').onchange = ()=>{ pfEditId = $('#pf-select').value; loadPfFields(); };
+$('#profiles').addEventListener('input', e=>{ if(e.target.id!=='pf-select') commitPfFields(); });
+$('#profiles').addEventListener('change', e=>{ if(e.target.id==='pf-fav') commitPfFields(); });
+$('#pf-new').onclick = ()=>{ pfCreate(); renderPfSelect(); loadPfFields(); };
+$('#pf-dup').onclick = ()=>{
+  const s = state.profiles.find(x=>x.id===pfEditId); if(!s) return;
+  const p = { id:uid(), name:s.name+' (copie)', profile:s.profile, tones:normTones(s.tones), fav:false };
+  state.profiles.push(p); pfEditId = p.id; persist(); renderPfSelect(); loadPfFields();
+};
+$('#pf-del').onclick = ()=>{
+  if(state.profiles.length<=1){ alert('Garde au moins un profil de voix.'); return; }
+  const s = state.profiles.find(x=>x.id===pfEditId); if(!s) return;
+  if(!confirm('Supprimer le profil « '+s.name+' » ?')) return;
+  state.profiles = state.profiles.filter(x=>x.id!==pfEditId);
+  if(state.activeId===pfEditId) state.activeId = state.profiles[0].id;
+  pfEditId = state.profiles[0].id; persist(); refreshVoice(); renderPfSelect(); loadPfFields();
+};
+$('#pf-export').onclick = ()=>{
+  const p = state.profiles.find(x=>x.id===pfEditId); if(!p) return;
+  const name = (p.name||'profil').replace(/[\\/:*?"<>|]+/g,' ').replace(/\s+/g,'-').slice(0,60) || 'profil';
+  download(name+'.plume.json', JSON.stringify({ name:p.name, profile:p.profile, tones:p.tones }, null, 2), 'application/json');
+};
+$('#pf-import').onclick = ()=> $('#pf-file').click();
+$('#pf-file').onchange = ()=>{
+  const f = $('#pf-file').files[0]; if(!f) return;
+  const r = new FileReader();
+  r.onload = ()=>{
+    try{
+      const d = JSON.parse(r.result), arr = Array.isArray(d) ? d : [d]; let last=null;
+      arr.forEach(x=>{ if(x && (x.profile||x.tones||x.name)){ const p={ id:uid(), name:(x.name||'Profil importé').toString().trim()||'Profil importé', profile:(x.profile||DEFAULT_PROFILE).toString(), tones:normTones(x.tones), fav:false }; state.profiles.push(p); last=p.id; } });
+      if(last){ pfEditId=last; persist(); renderPfSelect(); loadPfFields(); }
+      else alert('Aucun profil valide dans ce fichier.');
+    }catch(err){ alert('Fichier illisible : '+err.message); }
+  };
+  r.readAsText(f); $('#pf-file').value='';
+};
+$('#pf-done').onclick = ()=>{ commitPfFields(); $('#profiles').classList.add('hidden'); };
+
 /* ---------- Init ---------- */
 load();
 editor.value = state.doc || '';
 prevState = snapshot(); updateHistoryUI();
 setSplit(state.split); setZoom(state.zoom);
-renderPreview(); counts(); refreshFooter();
+renderPreview(); counts(); refreshFooter(); refreshVoice();
 window.addEventListener('load', renderPreview);
 if(!state.key) setTimeout(openSettings, 350);
 </script>
