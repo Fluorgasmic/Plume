@@ -10,6 +10,7 @@
 - **Vocabulaire** propose des synonymes cliquables : un clic remplace le terme dans la proposition, le mot changé est **surligné en temps réel**, puis « Appliquer » injecte le passage retouché.
 - La réponse de l'IA est **streamée** : le texte s'affiche au fur et à mesure plutôt qu'après la réponse complète.
 - **Annuler / Rétablir** (boutons ↶ ↷ ou `Ctrl/Cmd+Z` et `Ctrl/Cmd+Maj+Z`) couvrent aussi bien la frappe que les révisions et le formatage appliqués.
+- **Ouvrir** un fichier Markdown/texte, et **exporter** au choix en **Markdown (.md)**, **Texte (.txt)**, **Page web (.html)** ou **Word (.doc)** (ouvrable dans Word et LibreOffice). Le nom de fichier reprend le premier titre du document.
 
 > **Vitesse :** la latence dépend surtout du modèle distant. Pour des réponses plus rapides, choisis un modèle « léger » (`*-flash`, `*-mini`, `claude-haiku-*`).
 - La proposition s'affiche dans le panneau de droite avec le détail des modifications. **Rien n'est modifié tant que tu ne cliques pas sur « Appliquer ».**

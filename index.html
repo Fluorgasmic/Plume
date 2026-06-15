@@ -56,6 +56,21 @@
   .btn.ghost:hover{background:#EDEBE4}
   .btn.icon{padding:7px 9px}
   .btn[disabled]{opacity:.45; cursor:not-allowed}
+  .btn svg{width:16px; height:16px; display:block}
+  #act-settings{border-color:var(--line-strong)}
+  .menu-wrap{position:relative; display:inline-flex}
+  .menu{
+    position:absolute; top:calc(100% + 6px); right:0; z-index:60; min-width:184px;
+    background:var(--paper-raised); border:1px solid var(--line-strong); border-radius:10px;
+    box-shadow:var(--shadow); padding:6px; display:flex; flex-direction:column; gap:2px;
+  }
+  .menu button{
+    display:flex; align-items:center; justify-content:space-between; gap:14px;
+    padding:8px 10px; border-radius:6px; font-size:13px; font-weight:500; color:var(--ink); text-align:left;
+  }
+  .menu button:hover{background:var(--accent-soft); color:var(--accent)}
+  .menu button span{font-family:'JetBrains Mono',monospace; font-size:11.5px; color:var(--ink-soft)}
+  .menu button:hover span{color:var(--accent)}
   .seg{display:inline-flex; border:1px solid var(--line-strong); border-radius:var(--r); overflow:hidden}
   .seg button{padding:6px 11px; font-size:12.5px; color:var(--ink-soft)}
   .seg button.on{background:var(--accent-soft); color:var(--accent); font-weight:600}
@@ -216,10 +231,27 @@
   </div>
   <div class="divider"></div>
   <div class="toolgroup">
-    <button class="btn icon ghost" id="act-export" title="Télécharger en .md">↓</button>
-    <button class="btn icon ghost" id="act-settings" title="Réglages">⚙</button>
+    <button class="btn icon ghost" id="act-open" title="Ouvrir un fichier Markdown">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+    </button>
+    <div class="menu-wrap">
+      <button class="btn icon ghost" id="act-export" title="Enregistrer / Exporter" aria-haspopup="true" aria-expanded="false">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+      </button>
+      <div class="menu hidden" id="export-menu" role="menu">
+        <button role="menuitem" data-fmt="md">Markdown <span>.md</span></button>
+        <button role="menuitem" data-fmt="txt">Texte brut <span>.txt</span></button>
+        <button role="menuitem" data-fmt="html">Page web <span>.html</span></button>
+        <button role="menuitem" data-fmt="doc">Word <span>.doc</span></button>
+      </div>
+    </div>
+    <button class="btn ghost" id="act-settings" title="Réglages">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+      Réglages
+    </button>
   </div>
 </header>
+<input type="file" id="file-input" accept=".md,.markdown,.txt,text/markdown,text/plain" hidden>
 
 <main>
   <div class="panes">
@@ -902,13 +934,60 @@ function scheduleAuto(){
   autoT = setTimeout(()=>{ if(state.auto && state.key) runRevision('correct'); }, 1600);
 }
 
-/* ---------- Export ---------- */
-$('#act-export').onclick = ()=>{
-  const blob = new Blob([editor.value],{type:'text/markdown'});
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'document.md'; a.click(); URL.revokeObjectURL(a.href);
+/* ---------- Ouvrir un fichier ---------- */
+const fileInput = $('#file-input');
+$('#act-open').onclick = ()=> fileInput.click();
+fileInput.onchange = ()=>{
+  const f = fileInput.files && fileInput.files[0]; if(!f) return;
+  if(editor.value.trim() && !confirm('Remplacer le contenu actuel par « '+f.name+' » ? (Annulable avec Ctrl+Z)')){ fileInput.value=''; return; }
+  const reader = new FileReader();
+  reader.onload = ()=>{ programmatic = true; editor.value = reader.result || ''; editor.selectionStart = editor.selectionEnd = 0; onInput(); editor.focus(); };
+  reader.readAsText(f);
+  fileInput.value = ''; // permet de rouvrir le même fichier ensuite
 };
+
+/* ---------- Export ---------- */
+function download(filename, content, mime){
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([content], {type:mime}));
+  a.download = filename; a.click(); URL.revokeObjectURL(a.href);
+}
+function renderedHTML(){ return (window.marked && window.DOMPurify) ? DOMPurify.sanitize(marked.parse(editor.value)) : esc(editor.value); }
+function baseName(){
+  const m = editor.value.match(/^\s*#\s+(.+)$/m);   // 1er titre H1 comme nom de fichier, sinon « document »
+  return (m ? m[1] : 'document').trim().replace(/[\\/:*?"<>|]+/g,' ').replace(/\s+/g,'-').slice(0,60) || 'document';
+}
+function htmlPage(){
+  return '<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"><title>'+esc(baseName())+'</title>'
+    + '<style>body{font-family:Georgia,"Times New Roman",serif;max-width:720px;margin:48px auto;padding:0 20px;line-height:1.65;color:#1b1a17}'
+    + 'h1,h2,h3{line-height:1.25}blockquote{border-left:3px solid #ccc;padding-left:14px;color:#555;font-style:italic}'
+    + 'code,pre{font-family:Consolas,monospace;background:#f0eee8}pre{padding:12px;border-radius:6px;overflow:auto}code{padding:1px 5px;border-radius:4px}</style>'
+    + '</head><body>'+renderedHTML()+'</body></html>';
+}
+function wordDoc(){ // HTML reconnu par Word/LibreOffice : conserve titres, gras, listes, citations…
+  return '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">'
+    + '<head><meta charset="utf-8"><title>'+esc(baseName())+'</title></head><body>'+renderedHTML()+'</body></html>';
+}
+function exportAs(fmt){
+  const n = baseName();
+  if(fmt==='md')   download(n+'.md',   editor.value, 'text/markdown');
+  else if(fmt==='txt')  download(n+'.txt',  editor.value, 'text/plain');
+  else if(fmt==='html') download(n+'.html', htmlPage(), 'text/html');
+  else if(fmt==='doc')  download(n+'.doc',  wordDoc(), 'application/msword');
+}
+const exportMenu = $('#export-menu'), exportBtn = $('#act-export');
+function toggleExportMenu(show){
+  const open = show!=null ? show : exportMenu.classList.contains('hidden');
+  exportMenu.classList.toggle('hidden', !open);
+  exportBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+exportBtn.onclick = e=>{ e.stopPropagation(); toggleExportMenu(); };
+exportMenu.addEventListener('click', e=>{
+  const b = e.target.closest('button'); if(!b) return;
+  exportAs(b.dataset.fmt); toggleExportMenu(false);
+});
+document.addEventListener('click', e=>{ if(!e.target.closest('.menu-wrap')) toggleExportMenu(false); });
+document.addEventListener('keydown', e=>{ if(e.key==='Escape') toggleExportMenu(false); });
 
 /* ---------- Réglages ---------- */
 function renderToneFields(){
