@@ -9,6 +9,7 @@
 - **Profils de voix** : registre + 3 tons regroupés par client/contexte, **commutables en un clic** depuis la barre (menu déroulant, favoris épinglés en tête). Gestionnaire dédié pour créer, dupliquer, supprimer et **exporter/importer** un profil (`.plume.json`). Les réglages techniques (fournisseur, modèle, clé) restent séparés dans ⚙.
 - **Réviser le style** propose **3 variantes** de reformulation, une par ton du profil actif.
 - **Vocabulaire** propose des synonymes cliquables : un clic remplace le terme dans la proposition, le mot changé est **surligné en temps réel**, puis « Appliquer » injecte le passage retouché.
+- **Consigne ponctuelle** : un champ en haut du panneau pour une instruction « one-shot » (ex. « plus percutant », « sans jargon ») appliquée à la prochaine révision, sans toucher au profil. Éphémère — jamais sauvegardée.
 - La réponse de l'IA est **streamée** : le texte s'affiche au fur et à mesure plutôt qu'après la réponse complète.
 - **Annuler / Rétablir** (boutons ↶ ↷ ou `Ctrl/Cmd+Z` et `Ctrl/Cmd+Maj+Z`) couvrent aussi bien la frappe que les révisions et le formatage appliqués.
 - **Ouvrir** un fichier Markdown/texte, et **exporter** au choix en **Markdown (.md)**, **Texte (.txt)**, **Page web (.html)** ou **Word (.doc)** (ouvrable dans Word et LibreOffice). Le nom de fichier reprend le premier titre du document.

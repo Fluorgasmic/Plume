@@ -142,6 +142,12 @@
   .rev-head h2{font-family:'Newsreader',serif; font-weight:600; font-size:16px}
   .rev-head .count{margin-left:auto; font-size:11px; color:var(--ink-soft)}
   .rev-actions{display:flex; gap:6px; padding:10px 14px; flex-wrap:wrap; border-bottom:1px solid var(--line)}
+  .rev-consigne{display:flex; align-items:center; gap:6px; padding:10px 14px; border-bottom:1px solid var(--line)}
+  .rev-consigne input{flex:1; min-width:0; padding:7px 10px; border:1px solid var(--line-strong); border-radius:var(--r); font-family:inherit; font-size:12.5px; background:#fff; color:var(--ink)}
+  .rev-consigne input.active{border-color:var(--accent); background:var(--accent-soft)}
+  .rev-consigne input::placeholder{color:#A8A59C}
+  .rev-consigne button{flex:0 0 auto; width:26px; height:26px; border-radius:6px; color:var(--ink-soft); font-size:17px; line-height:1; display:inline-flex; align-items:center; justify-content:center}
+  .rev-consigne button:hover{background:#EDEBE4; color:var(--ink)}
   .rev-body{flex:1; overflow-y:auto; padding:6px 0}
   .empty{padding:34px 22px; color:var(--ink-soft); font-size:13.5px; line-height:1.6}
   .empty b{color:var(--ink); font-weight:600}
@@ -309,6 +315,10 @@ Ton texte ici…"></textarea>
     <div class="rev-head">
       <h2>Révision</h2>
       <span class="count" id="rev-scope"></span>
+    </div>
+    <div class="rev-consigne">
+      <input type="text" id="consigne" placeholder="Consigne ponctuelle (facultatif) — ex. « plus percutant »">
+      <button id="consigne-clear" class="hidden" title="Effacer la consigne" aria-label="Effacer la consigne">&times;</button>
     </div>
     <div class="rev-body" id="rev-body">
       <div class="empty">
@@ -817,7 +827,10 @@ async function runRevision(mode){
   markTarget(tgt);
   body.innerHTML = srcBanner(tgt) + '<div class="proposal"><div class="pl"><span class="spin"></span>Génération en cours…</div><div class="proposed-text" id="live"></div></div>';
 
-  const sys = getActive().profile + '\n\nTu suis EXACTEMENT le format de réponse demandé, sans rien ajouter avant ni après les balises.';
+  const consigne = ($('#consigne').value || '').trim();
+  const sys = getActive().profile
+    + (consigne ? '\n\nConsigne ponctuelle de l\'utilisateur pour CETTE révision, à respecter en priorité sans changer le format de réponse : ' + consigne : '')
+    + '\n\nTu suis EXACTEMENT le format de réponse demandé, sans rien ajouter avant ni après les balises.';
   let user;
   if(mode==='correct'){
     user = `Corrige uniquement l'orthographe, la grammaire, la conjugaison et la ponctuation du texte ci-dessous, sans reformuler au-delà du nécessaire.
@@ -993,6 +1006,16 @@ $('#act-vocab').onclick = ()=>runRevision('vocab');
 document.addEventListener('keydown', e=>{
   if((e.metaKey||e.ctrlKey) && e.key==='Enter'){ e.preventDefault(); runRevision('correct'); }
 });
+
+/* ---------- Consigne ponctuelle (éphémère, jamais sauvegardée) ---------- */
+const consigneInput = $('#consigne'), consigneClear = $('#consigne-clear');
+function refreshConsigne(){
+  const has = !!consigneInput.value.trim();
+  consigneInput.classList.toggle('active', has);
+  consigneClear.classList.toggle('hidden', !has);
+}
+consigneInput.addEventListener('input', refreshConsigne);
+consigneClear.onclick = ()=>{ consigneInput.value=''; refreshConsigne(); consigneInput.focus(); };
 
 /* ---------- Auto-vérification ---------- */
 let autoT;
