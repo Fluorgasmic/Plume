@@ -502,16 +502,16 @@ async function callLLM(system, user){
   if(p==='anthropic'){
     url='https://api.anthropic.com/v1/messages';
     headers={'content-type':'application/json','x-api-key':state.key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'};
-    body={ model:state.model, max_tokens:1500, system, messages:[{role:'user',content:user}] };
+    body={ model:state.model, max_tokens:4000, system, messages:[{role:'user',content:user}] };
   } else if(p==='gemini'){
     url='https://generativelanguage.googleapis.com/v1beta/models/'+encodeURIComponent(state.model)+':generateContent';
     headers={'content-type':'application/json','x-goog-api-key':state.key};
-    body={ system_instruction:{parts:[{text:system}]}, contents:[{role:'user',parts:[{text:user}]}], generationConfig:{maxOutputTokens:2000} };
+    body={ system_instruction:{parts:[{text:system}]}, contents:[{role:'user',parts:[{text:user}]}], generationConfig:{maxOutputTokens:4000} };
   } else {
     url = OPENAI_COMPAT[p];
     if(!url) throw new Error('Fournisseur inconnu : '+p);
     headers={'content-type':'application/json','authorization':'Bearer '+state.key};
-    body={ model:state.model, messages:[{role:'system',content:system},{role:'user',content:user}] };
+    body={ model:state.model, max_tokens:4000, messages:[{role:'system',content:system},{role:'user',content:user}] };
   }
   const r = await fetch(url,{method:'POST',headers,body:JSON.stringify(body)});
   if(!r.ok){ const t = await r.text(); throw new Error('HTTP '+r.status+' '+t.slice(0,160)); }
@@ -519,6 +519,14 @@ async function callLLM(system, user){
   if(p==='anthropic') return (d.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('\n');
   if(p==='gemini') return (d.candidates?.[0]?.content?.parts||[]).map(x=>x.text||'').join('\n');
   return d.choices?.[0]?.message?.content || '';
+}
+function stripWrap(s){ // retire une éventuelle paire de parenthèses/guillemets encadrant tout le texte
+  s = (s||'').trim();
+  if(s.length>1){
+    const a=s[0], z=s[s.length-1];
+    if((a==='(' && z===')')||(a==='"' && z==='"')||(a==='«' && z==='»')||(a==='“' && z==='”')) s = s.slice(1,-1).trim();
+  }
+  return s;
 }
 function parseResponse(mode, raw){
   const txt = raw.replace(/```[a-z]*\n?/gi,'').replace(/```/g,'').trim();
@@ -545,12 +553,21 @@ function parseResponse(mode, raw){
       const b = block.split(/<<<[A-Z]+>>>/)[0].trim(); if(!b) return;
       const lines = b.split('\n');
       let angle = '';
-      const m = lines[0].trim().match(/^\[(.+)\]$/);
-      if(m){ angle = m[1].trim(); lines.shift(); }
-      const text = lines.join('\n').trim();
+      // ignore d'éventuelles lignes parasites ("Variante 2", numéros) avant le contenu utile
+      while(lines.length && lines[0].trim()==='') lines.shift();
+      if(lines.length){
+        const first = lines[0].trim();
+        let m = first.match(/^Angle\s*:\s*(.+)$/i) || first.match(/^\[(.+)\]$/);
+        if(m){ angle = m[1].trim(); lines.shift(); }
+        else if(/^variante\s*\d*\s*[:.\-]?\s*$/i.test(first)){ lines.shift(); }
+        // repli: une 1re ligne courte sans ponctuation finale ressemble à un libellé d'angle
+        else if(lines.length>1 && first.length<=45 && !/[.!?:;]$/.test(first)){ angle = first; lines.shift(); }
+      }
+      let text = lines.join('\n').trim();
+      text = stripWrap(text);
       if(text) out.alternatives.push({ angle, text });
     });
-    if(!out.alternatives.length){ out.alternatives.push({ angle:'', text:(out.revised||txt) }); } // repli
+    if(!out.alternatives.length){ out.alternatives.push({ angle:'', text:stripWrap(out.revised||txt) }); } // repli
   } else {
     out.changes = [];
     const cb = txt.split('<<<CHANGES>>>')[1];
@@ -570,12 +587,21 @@ function parseResponse(mode, raw){
 const body = $('#rev-body');
 function setStatus(html, err){ body.innerHTML = '<div class="status'+(err?' err':'')+'">'+html+'</div>'; }
 function setScope(t){ $('#rev-scope').textContent = t; }
+// remet la zone visée en surbrillance dans l'éditeur, pour garder le repère visuel
+function markTarget(tgt){ try{ editor.focus(); editor.setSelectionRange(tgt.start, tgt.end); }catch(e){} }
+function srcBanner(tgt){
+  const scope = tgt.isSel ? 'sélection' : 'paragraphe courant';
+  let t = tgt.text.trim(); if(t.length>260) t = t.slice(0,260)+'…';
+  return `<div class="proposal" style="padding-bottom:10px"><div class="pl">Texte d'origine · ${scope}</div>`
+    + `<div class="proposed-text" style="background:var(--paper); color:var(--ink-soft); font-style:italic">${esc(t)}</div></div>`;
+}
 
 async function runRevision(mode){
   const tgt = getTarget();
   if(!tgt.text.trim()){ setStatus('Rien à réviser : le texte est vide.', true); return; }
   setScope(tgt.isSel ? 'sélection' : 'paragraphe courant');
-  setStatus('<span class="spin"></span>Révision en cours…');
+  markTarget(tgt);
+  body.innerHTML = srcBanner(tgt) + '<div class="status"><span class="spin"></span>Révision en cours…</div>';
 
   const sys = state.profile + '\n\nTu suis EXACTEMENT le format de réponse demandé, sans rien ajouter avant ni après les balises.';
   let user;
@@ -593,20 +619,20 @@ Une ligne par modification. Le type vaut ortho ou gram. S'il n'y a aucune correc
 Texte:
 """${tgt.text}"""`;
   } else if(mode==='style'){
-    user = `Propose TROIS reformulations distinctes du texte ci-dessous selon les consignes de registre. Renforce la précision, la vigueur des verbes et la position de l'information forte, sans trahir le sens ni la voix. Chaque variante doit explorer un angle différent (ex. plus concis, plus incarné, plus formel) tout en restant fidèle au fond.
+    user = `Propose TROIS reformulations distinctes du texte ci-dessous selon les consignes de registre. Renforce la précision, la vigueur des verbes et la position de l'information forte, sans trahir le sens ni la voix. Chaque variante explore un angle différent (par exemple plus concis, plus incarné, plus formel) tout en restant fidèle au fond.
 
-Réponds exactement dans ce format, sans rien d'autre:
+Répète EXACTEMENT ce bloc trois fois, une fois par variante, sans aucun autre texte avant, entre ou après:
 <<<ALT>>>
-[angle en 2 à 4 mots]
-(la variante, telle quelle, sur autant de lignes qu'il faut)
-<<<ALT>>>
-[autre angle]
-(deuxième variante)
-<<<ALT>>>
-[autre angle]
-(troisième variante)
+Angle: deux à quatre mots décrivant l'approche
+puis le texte complet de la variante, à la ligne suivante
 
-Texte:
+Règles de forme impératives:
+- n'entoure jamais la variante de parenthèses, de guillemets ni de crochets;
+- ne numérote pas les variantes;
+- la ligne "Angle:" ne contient que le libellé, pas le texte;
+- recopie la variante intégralement, sans la tronquer.
+
+Texte à reformuler:
 """${tgt.text}"""`;
   } else { // vocab
     user = `Pour le passage ci-dessous, propose des variantes de vocabulaire plus justes ou plus soutenues, fidèles au sens et au registre.
@@ -635,7 +661,7 @@ Passage:
 function esc(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
 function renderResult(mode, data, tgt){
-  let h = '';
+  let h = srcBanner(tgt);
   if(mode==='style' && Array.isArray(data.alternatives) && data.alternatives.length){
     data.alternatives.forEach((alt,i)=>{
       h += `<div class="proposal"><div class="pl">Variante ${i+1}${alt.angle?' · '+esc(alt.angle):''}</div>
@@ -650,6 +676,7 @@ function renderResult(mode, data, tgt){
       btn.onclick = ()=>{ applyRange(tgt.start, tgt.end, data.alternatives[+btn.dataset.alt].text); setStatus('Variante appliquée.'); setScope(''); };
     });
     const ig0 = $('#ignore'); if(ig0) ig0.onclick = ()=>{ setStatus('Propositions ignorées.'); setScope(''); };
+    markTarget(tgt);
     return;
   }
   if(data.revised){
@@ -681,6 +708,7 @@ function renderResult(mode, data, tgt){
   const ap = $('#apply');
   if(ap) ap.onclick = ()=>{ applyRange(tgt.start, tgt.end, data.revised); setStatus('Proposition appliquée.'); setScope(''); };
   const ig = $('#ignore'); if(ig) ig.onclick = ()=>{ setStatus('Proposition ignorée.'); setScope(''); };
+  markTarget(tgt);
 }
 
 $('#act-correct').onclick = ()=>runRevision('correct');
