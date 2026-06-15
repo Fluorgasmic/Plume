@@ -7,6 +7,11 @@
 - Éditeur Markdown avec aperçu en temps réel, barre de formatage, zoom et vue partagée redimensionnable.
 - Sélectionne un passage (ou laisse le curseur dans un paragraphe), puis lance **Corriger**, **Réviser le style** ou **Vocabulaire**.
 - **Réviser le style** propose **3 variantes** de reformulation (angles différents : plus concis, plus incarné, plus formel…), chacune applicable d'un clic.
+- **Vocabulaire** propose des synonymes cliquables : un clic remplace le terme dans la proposition, puis « Appliquer » injecte le passage retouché.
+- La réponse de l'IA est **streamée** : le texte s'affiche au fur et à mesure plutôt qu'après la réponse complète.
+- **Annuler / Rétablir** (boutons ↶ ↷ ou `Ctrl/Cmd+Z` et `Ctrl/Cmd+Maj+Z`) couvrent aussi bien la frappe que les révisions et le formatage appliqués.
+
+> **Vitesse :** la latence dépend surtout du modèle distant. Pour des réponses plus rapides, choisis un modèle « léger » (`*-flash`, `*-mini`, `claude-haiku-*`).
 - La proposition s'affiche dans le panneau de droite avec le détail des modifications. **Rien n'est modifié tant que tu ne cliques pas sur « Appliquer ».**
 - Le document est sauvegardé automatiquement dans le navigateur (`localStorage`).
 

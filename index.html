@@ -206,6 +206,11 @@
   </div>
   <div class="divider"></div>
   <div class="toolgroup">
+    <button class="btn icon ghost" id="act-undo" title="Annuler (Ctrl+Z)" disabled>↶</button>
+    <button class="btn icon ghost" id="act-redo" title="Rétablir (Ctrl+Maj+Z)" disabled>↷</button>
+  </div>
+  <div class="divider"></div>
+  <div class="toolgroup">
     <button class="btn icon ghost" id="act-export" title="Télécharger en .md">↓</button>
     <button class="btn icon ghost" id="act-settings" title="Réglages">⚙</button>
   </div>
@@ -380,18 +385,52 @@ function counts(){
   $('#stat-words').textContent = w + (w>1?' mots':' mot');
   $('#stat-chars').textContent = editor.value.length + ' signes';
 }
+/* ---------- Historique (undo / redo) ---------- */
+const HISTORY_MAX = 120;
+let undoStack = [], redoStack = [];
+let prevState = { v:'', s:0, e:0 };   // dernier état validé
+let typingTimer = null;               // regroupe les frappes en « rafales »
+let programmatic = false;             // marque les modifs faites par le code (révision, formatage)
+function snapshot(){ return { v:editor.value, s:editor.selectionStart, e:editor.selectionEnd }; }
+function pushUndo(st){ undoStack.push(st); if(undoStack.length>HISTORY_MAX) undoStack.shift(); redoStack.length=0; updateHistoryUI(); }
+function restoreState(st){
+  editor.value = st.v;
+  editor.selectionStart = st.s; editor.selectionEnd = st.e;
+  if(typingTimer){ clearTimeout(typingTimer); typingTimer=null; }
+  state.doc = editor.value; renderPreview(); counts(); persist();
+  prevState = snapshot(); updateHistoryUI(); editor.focus();
+}
+function undo(){ if(!undoStack.length) return; redoStack.push(snapshot()); restoreState(undoStack.pop()); }
+function redo(){ if(!redoStack.length) return; undoStack.push(snapshot()); restoreState(redoStack.pop()); }
+function updateHistoryUI(){
+  const u=$('#act-undo'), r=$('#act-redo');
+  if(u) u.disabled = !undoStack.length;
+  if(r) r.disabled = !redoStack.length;
+}
+
 let saveT;
 function onInput(){
+  // historique : modif programmatique = une étape distincte ; frappe = regroupée par rafale
+  if(programmatic){
+    pushUndo(prevState); programmatic = false;
+    if(typingTimer){ clearTimeout(typingTimer); typingTimer=null; }
+  } else {
+    if(!typingTimer) pushUndo(prevState);
+    clearTimeout(typingTimer);
+    typingTimer = setTimeout(()=>{ typingTimer=null; }, 600);
+  }
   state.doc = editor.value; renderPreview(); counts();
   $('#stat-save').innerHTML = '<span class="dot" style="background:#A6711F"></span>Enregistrement…';
   clearTimeout(saveT);
   saveT = setTimeout(()=>{ persist(); $('#stat-save').innerHTML='<span class="dot"></span>Enregistré localement'; }, 500);
+  prevState = snapshot();
   scheduleAuto();
 }
 editor.addEventListener('input', onInput);
 
 /* ---------- Barre de formatage ---------- */
 function applyFmt(start, end, text, selStart, selEnd){
+  programmatic = true;
   editor.value = editor.value.slice(0,start) + text + editor.value.slice(end);
   editor.selectionStart = selStart; editor.selectionEnd = selEnd;
   onInput(); editor.focus();
@@ -433,10 +472,17 @@ $('#fmtbar').addEventListener('click', e=>{
 });
 document.addEventListener('keydown', e=>{
   if(e.metaKey||e.ctrlKey){
-    if(e.key==='b'){ e.preventDefault(); FMT.bold(); }
-    else if(e.key==='i'){ e.preventDefault(); FMT.italic(); }
+    const k = e.key.toLowerCase();
+    const ae = document.activeElement;
+    const inOtherField = ae && ae!==editor && (ae.tagName==='INPUT' || ae.tagName==='TEXTAREA');
+    if(k==='b'){ e.preventDefault(); FMT.bold(); }
+    else if(k==='i'){ e.preventDefault(); FMT.italic(); }
+    else if(k==='z' && !e.shiftKey){ if(inOtherField) return; e.preventDefault(); undo(); }
+    else if((k==='z' && e.shiftKey) || k==='y'){ if(inOtherField) return; e.preventDefault(); redo(); }
   }
 });
+$('#act-undo').onclick = undo;
+$('#act-redo').onclick = redo;
 
 /* ---------- Vue partagée ---------- */
 const gutter = $('#gutter'), panes = $('.panes');
@@ -492,22 +538,27 @@ function getTarget(){
   return { text: v.slice(start,end).trim().length ? v.slice(start,end) : v, start, end, isSel:false };
 }
 function applyRange(start, end, replacement){
+  programmatic = true;
   editor.value = editor.value.slice(0,start) + replacement + editor.value.slice(end);
   editor.selectionStart = start; editor.selectionEnd = start + replacement.length;
   onInput(); editor.focus();
 }
 
 /* ---------- Appel LLM ---------- */
-async function callLLM(system, user){
+// Si onChunk est fourni, la réponse est streamée (SSE) et onChunk(texteCumulé) est appelé au fil de l'eau.
+async function callLLM(system, user, onChunk){
   if(!state.key) throw new Error('Aucune clé API. Ouvre les réglages.');
   const p = state.provider;
+  const stream = typeof onChunk === 'function';
   let url, headers, body;
   if(p==='anthropic'){
     url='https://api.anthropic.com/v1/messages';
     headers={'content-type':'application/json','x-api-key':state.key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'};
     body={ model:state.model, max_tokens:4000, system, messages:[{role:'user',content:user}] };
+    if(stream) body.stream = true;
   } else if(p==='gemini'){
-    url='https://generativelanguage.googleapis.com/v1beta/models/'+encodeURIComponent(state.model)+':generateContent';
+    const method = stream ? 'streamGenerateContent?alt=sse' : 'generateContent';
+    url='https://generativelanguage.googleapis.com/v1beta/models/'+encodeURIComponent(state.model)+':'+method;
     headers={'content-type':'application/json','x-goog-api-key':state.key};
     body={ system_instruction:{parts:[{text:system}]}, contents:[{role:'user',parts:[{text:user}]}], generationConfig:{maxOutputTokens:4000} };
   } else {
@@ -515,13 +566,45 @@ async function callLLM(system, user){
     if(!url) throw new Error('Fournisseur inconnu : '+p);
     headers={'content-type':'application/json','authorization':'Bearer '+state.key};
     body={ model:state.model, max_tokens:4000, messages:[{role:'system',content:system},{role:'user',content:user}] };
+    if(stream) body.stream = true;
   }
   const r = await fetch(url,{method:'POST',headers,body:JSON.stringify(body)});
   if(!r.ok){ const t = await r.text(); throw new Error('HTTP '+r.status+' '+t.slice(0,160)); }
-  const d = await r.json();
-  if(p==='anthropic') return (d.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('\n');
-  if(p==='gemini') return (d.candidates?.[0]?.content?.parts||[]).map(x=>x.text||'').join('\n');
-  return d.choices?.[0]?.message?.content || '';
+
+  if(!stream || !r.body){
+    const d = await r.json();
+    if(p==='anthropic') return (d.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('\n');
+    if(p==='gemini') return (d.candidates?.[0]?.content?.parts||[]).map(x=>x.text||'').join('\n');
+    return d.choices?.[0]?.message?.content || '';
+  }
+
+  // Lecture du flux SSE (ligne « data: {json} » pour les trois familles d'API)
+  const extract = j=>{
+    if(p==='anthropic') return (j.type==='content_block_delta' && j.delta && j.delta.text) || '';
+    if(p==='gemini') return (j.candidates?.[0]?.content?.parts||[]).map(x=>x.text||'').join('');
+    return j.choices?.[0]?.delta?.content || '';
+  };
+  const reader = r.body.getReader(), dec = new TextDecoder();
+  let buf='', full='';
+  for(;;){
+    const { value, done } = await reader.read(); if(done) break;
+    buf += dec.decode(value, {stream:true});
+    let nl;
+    while((nl = buf.indexOf('\n')) >= 0){
+      const line = buf.slice(0, nl).replace(/\r$/,'').trim(); buf = buf.slice(nl+1);
+      if(!line || !line.startsWith('data:')) continue;
+      const data = line.slice(5).trim();
+      if(data === '[DONE]') continue;
+      let j; try{ j = JSON.parse(data); }catch(_){ continue; }
+      const piece = extract(j);
+      if(piece){ full += piece; try{ onChunk(full); }catch(_){} }
+    }
+  }
+  return full;
+}
+function liveClean(t){ // affichage « en cours » : retire les balises de format pour ne montrer que la prose
+  return (t||'').replace(/<<<[^>]*>>>/g,'').replace(/^\s*Angle\s*:.*$/gim,'')
+    .replace(/^.*:::.*$/gm,'').replace(/\n{3,}/g,'\n\n').trim();
 }
 function stripWrap(s){ // retire une éventuelle paire de parenthèses/guillemets encadrant tout le texte
   s = (s||'').trim();
@@ -604,7 +687,7 @@ async function runRevision(mode){
   if(!tgt.text.trim()){ setStatus('Rien à réviser : le texte est vide.', true); return; }
   setScope(tgt.isSel ? 'sélection' : 'paragraphe courant');
   markTarget(tgt);
-  body.innerHTML = srcBanner(tgt) + '<div class="status"><span class="spin"></span>Révision en cours…</div>';
+  body.innerHTML = srcBanner(tgt) + '<div class="proposal"><div class="pl"><span class="spin"></span>Génération en cours…</div><div class="proposed-text" id="live"></div></div>';
 
   const sys = state.profile + '\n\nTu suis EXACTEMENT le format de réponse demandé, sans rien ajouter avant ni après les balises.';
   let user;
@@ -652,8 +735,14 @@ Passage:
 """${tgt.text}"""`;
   }
 
+  const onChunk = full=>{
+    const el = $('#live'); if(!el) return;
+    el.textContent = liveClean(full);
+    body.scrollTop = body.scrollHeight; // garde le texte en cours visible
+  };
   try{
-    const raw = await callLLM(sys, user);
+    let raw = await callLLM(sys, user, onChunk);
+    if(!raw.trim()) raw = await callLLM(sys, user); // repli non-streamé si aucun fragment reçu
     const data = parseResponse(mode, raw);
     renderResult(mode, data, tgt);
   }catch(err){
@@ -796,6 +885,7 @@ function refreshFooter(){
 /* ---------- Init ---------- */
 load();
 editor.value = state.doc || '';
+prevState = snapshot(); updateHistoryUI();
 setSplit(state.split); setZoom(state.zoom);
 renderPreview(); counts(); refreshFooter();
 window.addEventListener('load', renderPreview);
