@@ -297,7 +297,10 @@ Ton texte ici…"></textarea>
             <option value="xai">xAI (Grok)</option>
           </select>
         </div>
-        <div><input type="text" id="set-model" placeholder="modèle"></div>
+        <div>
+          <select id="set-model-sel"></select>
+          <input type="text" id="set-model" placeholder="nom exact du modèle" style="margin-top:8px; display:none">
+        </div>
       </div>
       <div class="hint" id="model-hint"></div>
     </div>
@@ -338,15 +341,15 @@ const $ = s => document.querySelector(s);
 const LS = 'plume.v1';
 
 const PROVIDERS = {
-  anthropic:{ default:'claude-sonnet-4-6', hint:'Ex. claude-sonnet-4-6, claude-opus-4-8, claude-haiku-4-5-20251001.' },
-  openai:{ default:'gpt-4o', hint:'Ex. gpt-4o, gpt-4o-mini.' },
-  mistral:{ default:'mistral-large-latest', hint:'Ex. mistral-large-latest, mistral-small-latest.' },
-  gemini:{ default:'gemini-2.5-flash', hint:'Ex. gemini-2.5-flash, gemini-2.5-pro, gemini-3-flash-preview. Restreins la clé à l\'API Gemini dans AI Studio.' },
-  openrouter:{ default:'qwen/qwen-2.5-72b-instruct', hint:'Passerelle multi-modèles : une seule clé donne accès à Qwen, Llama, DeepSeek, Perplexity, etc. Ex. qwen/qwen-2.5-72b-instruct, deepseek/deepseek-chat, meta-llama/llama-3.3-70b-instruct.' },
-  qwen:{ default:'qwen-plus', hint:'API DashScope (endpoint international). Ex. qwen-plus, qwen-max, qwen-turbo.' },
-  perplexity:{ default:'sonar-pro', hint:'Ex. sonar, sonar-pro, sonar-reasoning. Modèle orienté recherche web : moins adapté à la pure correction.' },
-  deepseek:{ default:'deepseek-chat', hint:'Ex. deepseek-chat, deepseek-reasoner.' },
-  xai:{ default:'grok-2-latest', hint:'Ex. grok-2-latest, grok-beta.' }
+  anthropic:{ default:'claude-sonnet-4-6', models:['claude-opus-4-8','claude-sonnet-4-6','claude-haiku-4-5-20251001'], hint:'Claude. Haiku = le plus rapide.' },
+  openai:{ default:'gpt-4o', models:['gpt-4o','gpt-4o-mini','gpt-4.1','gpt-4.1-mini'], hint:'OpenAI. Les variantes « mini » sont plus rapides.' },
+  mistral:{ default:'mistral-large-latest', models:['mistral-large-latest','mistral-small-latest'], hint:'Mistral. « small » = plus rapide.' },
+  gemini:{ default:'gemini-2.5-flash', models:['gemini-2.5-flash','gemini-2.5-pro','gemini-3-flash-preview'], hint:'Gemini. « flash » = plus rapide. Restreins la clé à l\'API Gemini dans AI Studio.' },
+  openrouter:{ default:'qwen/qwen-2.5-72b-instruct', models:['qwen/qwen-2.5-72b-instruct','deepseek/deepseek-chat','meta-llama/llama-3.3-70b-instruct','google/gemini-2.5-flash','anthropic/claude-sonnet-4-6'], hint:'Passerelle multi-modèles : une seule clé pour Qwen, Llama, DeepSeek, etc.' },
+  qwen:{ default:'qwen-plus', models:['qwen-plus','qwen-max','qwen-turbo'], hint:'API DashScope (endpoint international). « turbo » = plus rapide.' },
+  perplexity:{ default:'sonar-pro', models:['sonar','sonar-pro','sonar-reasoning'], hint:'Orienté recherche web : moins adapté à la pure correction.' },
+  deepseek:{ default:'deepseek-chat', models:['deepseek-chat','deepseek-reasoner'], hint:'DeepSeek.' },
+  xai:{ default:'grok-2-latest', models:['grok-2-latest','grok-beta'], hint:'xAI (Grok).' }
 };
 
 // Fournisseurs compatibles avec l'API « chat completions » d'OpenAI : même corps de requête, seul l'endpoint change.
@@ -385,13 +388,14 @@ function normTones(t){
 }
 
 let state = {
-  provider:'anthropic', model:PROVIDERS.anthropic.default,
+  provider:'anthropic', model:PROVIDERS.anthropic.default, models:{},
   key:'', profile:DEFAULT_PROFILE, tones:cloneTones(), auto:false, doc:'', split:50, zoom:1
 };
 
 function load(){
   try{ const s = JSON.parse(localStorage.getItem(LS)); if(s) state = {...state, ...s}; }catch(e){}
   state.tones = normTones(state.tones);
+  if(!state.models || typeof state.models!=='object') state.models = {};
 }
 function persist(){ localStorage.setItem(LS, JSON.stringify(state)); }
 
@@ -749,11 +753,15 @@ Règles de forme impératives:
 Texte à reformuler:
 """${tgt.text}"""`;
   } else { // vocab
-    user = `Pour le passage ci-dessous, propose des variantes de vocabulaire plus justes ou plus soutenues, fidèles au sens et au registre.
+    user = `Pour le passage ci-dessous, propose pour les termes pertinents des variantes de vocabulaire plus justes ou plus soutenues, fidèles au sens et au registre.
 
-Réponds exactement dans ce format:
-<<<REVISED>>>
-(le passage éventuellement ajusté; s'il n'y a rien à changer, recopie-le tel quel)
+Règles impératives:
+- chaque "terme" doit apparaître TEL QUEL (même casse, mêmes mots) dans le passage;
+- inclus dans le terme son déterminant et tout mot dont l'accord dépend de lui (article, adjectif épithète), afin que la substitution reste grammaticale;
+- chaque option est une substitution prête à l'emploi, accordée en genre et en nombre pour remplacer le terme SANS aucune autre retouche de la phrase (ex. « un affleurement de rochers ::: une éminence rocheuse | un promontoire rocheux »);
+- ne propose pas d'option identique au terme.
+
+Réponds exactement dans ce format, sans rien d'autre:
 <<<VOCAB>>>
 terme ::: option1 | option2 | option3
 
@@ -800,7 +808,7 @@ function renderResult(mode, data, tgt){
     return;
   }
   if(mode==='vocab' && Array.isArray(data.vocab)){
-    const base = data.revised || tgt.text; // texte d'origine, jamais muté : sert de repère de positions
+    const base = tgt.text; // on part TOUJOURS du texte d'origine : c'est là que les termes apparaissent tels quels
     const groups = data.vocab.map(v=>({ word:v.word, value:v.word, options:(v.options||[]) }));
     const indexOfCI = (hay, needle, from)=>{ const i=hay.indexOf(needle, from); return i>=0 ? i : hay.toLowerCase().indexOf((needle||'').toLowerCase(), from); };
     // reconstruit la proposition à partir des positions d'origine : chaque terme retenu est inséré (et surligné s'il diffère)
@@ -917,9 +925,23 @@ function readToneFields(){
     instr: row.querySelector('.tone-instr').value
   }));
 }
+const CUSTOM = '__custom__';
+// remplit le menu des modèles du fournisseur p et y sélectionne `current` (sinon « personnalisé »)
+function populateModels(p, current){
+  const sel = $('#set-model-sel'), models = PROVIDERS[p].models || [];
+  sel.innerHTML = models.map(m=>`<option value="${esc(m)}">${esc(m)}</option>`).join('')
+    + `<option value="${CUSTOM}">Autre (saisir le nom)…</option>`;
+  if(current && models.includes(current)){ sel.value = current; $('#set-model').style.display='none'; }
+  else { sel.value = CUSTOM; $('#set-model').value = current || ''; $('#set-model').style.display=''; }
+}
+function selectedModel(p){
+  const v = $('#set-model-sel').value;
+  if(v===CUSTOM) return $('#set-model').value.trim() || PROVIDERS[p].default;
+  return v;
+}
 function openSettings(){
   $('#set-provider').value = state.provider;
-  $('#set-model').value = state.model;
+  populateModels(state.provider, state.models[state.provider] || state.model);
   $('#set-key').value = state.key;
   $('#set-profile').value = state.profile;
   $('#set-auto').checked = state.auto;
@@ -931,12 +953,19 @@ $('#act-settings').onclick = openSettings;
 $('#set-cancel').onclick = ()=> $('#settings').classList.add('hidden');
 $('#set-provider').onchange = e=>{
   const p = e.target.value;
-  $('#set-model').value = PROVIDERS[p].default;
+  populateModels(p, state.models[p] || PROVIDERS[p].default);
   $('#model-hint').textContent = PROVIDERS[p].hint;
 };
+$('#set-model-sel').onchange = e=>{
+  const custom = e.target.value===CUSTOM;
+  $('#set-model').style.display = custom ? '' : 'none';
+  if(custom) $('#set-model').focus();
+};
 $('#set-save').onclick = ()=>{
-  state.provider = $('#set-provider').value;
-  state.model = $('#set-model').value.trim() || PROVIDERS[state.provider].default;
+  const p = $('#set-provider').value;
+  state.provider = p;
+  state.model = selectedModel(p);
+  state.models = {...state.models, [p]:state.model}; // mémorise le modèle par fournisseur
   state.key = $('#set-key').value.trim();
   state.profile = $('#set-profile').value.trim() || DEFAULT_PROFILE;
   state.tones = normTones(readToneFields());

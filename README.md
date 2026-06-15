@@ -17,7 +17,7 @@
 
 ## Fournisseurs et modèles
 
-Tu fournis ta propre clé API dans les réglages (⚙). Fournisseurs pris en charge :
+Tu fournis ta propre clé API dans les réglages (⚙). Chaque fournisseur a son **menu de modèles** (plus une saisie libre pour un modèle non listé), et le choix est **mémorisé par fournisseur**. Fournisseurs pris en charge :
 
 | Fournisseur | Exemples de modèles |
 |---|---|
