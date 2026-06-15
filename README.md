@@ -6,6 +6,7 @@
 
 - Éditeur Markdown avec aperçu en temps réel, barre de formatage, zoom et vue partagée redimensionnable.
 - Sélectionne un passage (ou laisse le curseur dans un paragraphe), puis lance **Corriger**, **Réviser le style** ou **Vocabulaire**.
+- **Réviser le style** propose **3 variantes** de reformulation (angles différents : plus concis, plus incarné, plus formel…), chacune applicable d'un clic.
 - La proposition s'affiche dans le panneau de droite avec le détail des modifications. **Rien n'est modifié tant que tu ne cliques pas sur « Appliquer ».**
 - Le document est sauvegardé automatiquement dans le navigateur (`localStorage`).
 

@@ -539,6 +539,18 @@ function parseResponse(mode, raw){
         if(word && opts.length) out.vocab.push({ word, options:opts });
       });
     }
+  } else if(mode==='style'){
+    out.alternatives = [];
+    txt.split('<<<ALT>>>').slice(1).forEach(block=>{
+      const b = block.split(/<<<[A-Z]+>>>/)[0].trim(); if(!b) return;
+      const lines = b.split('\n');
+      let angle = '';
+      const m = lines[0].trim().match(/^\[(.+)\]$/);
+      if(m){ angle = m[1].trim(); lines.shift(); }
+      const text = lines.join('\n').trim();
+      if(text) out.alternatives.push({ angle, text });
+    });
+    if(!out.alternatives.length){ out.alternatives.push({ angle:'', text:(out.revised||txt) }); } // repli
   } else {
     out.changes = [];
     const cb = txt.split('<<<CHANGES>>>')[1];
@@ -549,8 +561,8 @@ function parseResponse(mode, raw){
         if(p.length>=3) out.changes.push({ type:p[0], before:p[1], after:p[2], note:p[3]||'' });
       });
     }
+    if(!out.revised) out.revised = txt; // repli si le modèle ignore le format
   }
-  if(!out.revised && mode!=='vocab') out.revised = txt; // repli si le modèle ignore le format
   return out;
 }
 
@@ -581,15 +593,18 @@ Une ligne par modification. Le type vaut ortho ou gram. S'il n'y a aucune correc
 Texte:
 """${tgt.text}"""`;
   } else if(mode==='style'){
-    user = `Révise le style du texte ci-dessous selon les consignes de registre. Renforce la précision, la vigueur des verbes et la position de l'information forte, sans trahir le sens ni la voix.
+    user = `Propose TROIS reformulations distinctes du texte ci-dessous selon les consignes de registre. Renforce la précision, la vigueur des verbes et la position de l'information forte, sans trahir le sens ni la voix. Chaque variante doit explorer un angle différent (ex. plus concis, plus incarné, plus formel) tout en restant fidèle au fond.
 
-Réponds exactement dans ce format:
-<<<REVISED>>>
-(le texte révisé, tel quel, sur autant de lignes qu'il faut)
-<<<CHANGES>>>
-type ::: avant ::: après ::: courte justification
-
-Une ligne par modification notable. Le type vaut style, gram ou ortho.
+Réponds exactement dans ce format, sans rien d'autre:
+<<<ALT>>>
+[angle en 2 à 4 mots]
+(la variante, telle quelle, sur autant de lignes qu'il faut)
+<<<ALT>>>
+[autre angle]
+(deuxième variante)
+<<<ALT>>>
+[autre angle]
+(troisième variante)
 
 Texte:
 """${tgt.text}"""`;
@@ -621,6 +636,22 @@ function esc(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').repla
 
 function renderResult(mode, data, tgt){
   let h = '';
+  if(mode==='style' && Array.isArray(data.alternatives) && data.alternatives.length){
+    data.alternatives.forEach((alt,i)=>{
+      h += `<div class="proposal"><div class="pl">Variante ${i+1}${alt.angle?' · '+esc(alt.angle):''}</div>
+        <div class="proposed-text">${esc(alt.text)}</div>
+        <div class="apply-row">
+          <button class="btn primary" data-alt="${i}" style="flex:1">Appliquer</button>
+        </div></div>`;
+    });
+    h += `<div style="padding:12px 16px"><button class="btn ghost" id="ignore" style="width:100%; justify-content:center">Ignorer</button></div>`;
+    body.innerHTML = h;
+    body.querySelectorAll('[data-alt]').forEach(btn=>{
+      btn.onclick = ()=>{ applyRange(tgt.start, tgt.end, data.alternatives[+btn.dataset.alt].text); setStatus('Variante appliquée.'); setScope(''); };
+    });
+    const ig0 = $('#ignore'); if(ig0) ig0.onclick = ()=>{ setStatus('Propositions ignorées.'); setScope(''); };
+    return;
+  }
   if(data.revised){
     h += `<div class="proposal"><div class="pl">Proposition</div>
       <div class="proposed-text">${esc(data.revised)}</div>
