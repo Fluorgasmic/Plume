@@ -54,6 +54,8 @@
   .btn.primary:hover{background:#23324f}
   .btn.ghost{border-color:var(--line-strong); background:transparent}
   .btn.ghost:hover{background:#EDEBE4}
+  .btn.act{background:var(--accent); color:#fff; border-color:transparent}
+  .btn.act:hover{background:#23324f}
   .btn.icon{padding:7px 9px}
   .btn[disabled]{opacity:.45; cursor:not-allowed}
   .btn svg{width:16px; height:16px; display:block}
@@ -142,12 +144,13 @@
   .rev-head h2{font-family:'Newsreader',serif; font-weight:600; font-size:16px}
   .rev-head .count{margin-left:auto; font-size:11px; color:var(--ink-soft)}
   .rev-actions{display:flex; gap:6px; padding:10px 14px; flex-wrap:wrap; border-bottom:1px solid var(--line)}
-  .rev-consigne{display:flex; align-items:center; gap:6px; padding:10px 14px; border-bottom:1px solid var(--line)}
-  .rev-consigne input{flex:1; min-width:0; padding:7px 10px; border:1px solid var(--line-strong); border-radius:var(--r); font-family:inherit; font-size:12.5px; background:#fff; color:var(--ink)}
-  .rev-consigne input.active{border-color:var(--accent); background:var(--accent-soft)}
-  .rev-consigne input::placeholder{color:#A8A59C}
-  .rev-consigne button{flex:0 0 auto; width:26px; height:26px; border-radius:6px; color:var(--ink-soft); font-size:17px; line-height:1; display:inline-flex; align-items:center; justify-content:center}
-  .rev-consigne button:hover{background:#EDEBE4; color:var(--ink)}
+  .refine{padding:14px 16px; border-top:1px solid var(--line)}
+  .refine-h{font-size:12px; color:var(--ink-soft); margin-bottom:8px}
+  .refine-row{display:flex; gap:8px}
+  .refine-row input{flex:1; min-width:0; padding:8px 10px; border:1px solid var(--line-strong); border-radius:var(--r); font-family:inherit; font-size:12.5px; background:#fff; color:var(--ink)}
+  .refine-row input::placeholder{color:#A8A59C}
+  .refine-row input:focus-visible{outline:2px solid var(--accent); outline-offset:1px}
+  .refine-row .btn{flex:0 0 auto}
   .rev-body{flex:1; overflow-y:auto; padding:6px 0}
   .empty{padding:34px 22px; color:var(--ink-soft); font-size:13.5px; line-height:1.6}
   .empty b{color:var(--ink); font-weight:600}
@@ -234,7 +237,7 @@
   <div class="spacer"></div>
 
   <div class="toolgroup">
-    <button class="btn primary" id="act-correct" title="Orthographe et grammaire (Ctrl+Entrée)">Corriger</button>
+    <button class="btn ghost act" id="act-correct" title="Orthographe et grammaire (Ctrl+Entrée)">Corriger</button>
     <button class="btn ghost" id="act-style" title="Reformulation au registre choisi">Réviser le style</button>
     <button class="btn ghost" id="act-vocab" title="Propositions de vocabulaire sur la sélection">Vocabulaire</button>
   </div>
@@ -315,10 +318,6 @@ Ton texte ici…"></textarea>
     <div class="rev-head">
       <h2>Révision</h2>
       <span class="count" id="rev-scope"></span>
-    </div>
-    <div class="rev-consigne">
-      <input type="text" id="consigne" placeholder="Consigne ponctuelle (facultatif) — ex. « plus percutant »">
-      <button id="consigne-clear" class="hidden" title="Effacer la consigne" aria-label="Effacer la consigne">&times;</button>
     </div>
     <div class="rev-body" id="rev-body">
       <div class="empty">
@@ -820,14 +819,15 @@ function srcBanner(tgt){
     + `<div class="proposed-text" style="background:var(--paper); color:var(--ink-soft); font-style:italic">${esc(t)}</div></div>`;
 }
 
-async function runRevision(mode){
-  const tgt = getTarget();
+async function runRevision(mode, consigne='', fixedTgt=null){
+  setActiveAction(mode);
+  const tgt = fixedTgt || getTarget();
   if(!tgt.text.trim()){ setStatus('Rien à réviser : le texte est vide.', true); return; }
   setScope(tgt.isSel ? 'sélection' : 'paragraphe courant');
   markTarget(tgt);
   body.innerHTML = srcBanner(tgt) + '<div class="proposal"><div class="pl"><span class="spin"></span>Génération en cours…</div><div class="proposed-text" id="live"></div></div>';
 
-  const consigne = ($('#consigne').value || '').trim();
+  consigne = (consigne || '').trim();
   const sys = getActive().profile
     + (consigne ? '\n\nConsigne ponctuelle de l\'utilisateur pour CETTE révision, à respecter en priorité sans changer le format de réponse : ' + consigne : '')
     + '\n\nTu suis EXACTEMENT le format de réponse demandé, sans rien ajouter avant ni après les balises.';
@@ -893,7 +893,7 @@ Passage:
     let raw = await callLLM(sys, user, onChunk);
     if(!raw.trim()) raw = await callLLM(sys, user); // repli non-streamé si aucun fragment reçu
     const data = parseResponse(mode, raw);
-    renderResult(mode, data, tgt);
+    renderResult(mode, data, tgt, consigne);
   }catch(err){
     setStatus('La révision a échoué : '+err.message+'<br><br>Vérifie la clé, le modèle et le fournisseur dans les réglages.', true);
   }
@@ -901,7 +901,20 @@ Passage:
 
 function esc(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
-function renderResult(mode, data, tgt){
+// pied de résultats : si aucune proposition ne convient, on donne une consigne et on relance le MÊME mode sur la MÊME zone
+function refineFooter(consigne){
+  return `<div class="refine"><div class="refine-h">Aucune proposition ne convient&nbsp;? Donne une consigne et relance.</div>`
+    + `<div class="refine-row"><input id="refine-input" placeholder="ex. « plus court », « ton plus direct », « sans jargon »" value="${esc(consigne||'')}">`
+    + `<button class="btn primary" id="refine-go">Relancer</button></div></div>`;
+}
+function wireRefine(mode, tgt){
+  const go = $('#refine-go'), inp = $('#refine-input'); if(!go || !inp) return;
+  const run = ()=> runRevision(mode, inp.value.trim(), tgt);
+  go.onclick = run;
+  inp.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); run(); } });
+}
+
+function renderResult(mode, data, tgt, consigne){
   let h = srcBanner(tgt);
   if(mode==='style' && Array.isArray(data.alternatives) && data.alternatives.length){
     data.alternatives.forEach((alt,i)=>{
@@ -911,13 +924,14 @@ function renderResult(mode, data, tgt){
           <button class="btn primary" data-alt="${i}" style="flex:1">Appliquer</button>
         </div></div>`;
     });
-    h += `<div style="padding:12px 16px"><button class="btn ghost" id="ignore" style="width:100%; justify-content:center">Ignorer</button></div>`;
+    h += `<div style="padding:12px 16px 4px"><button class="btn ghost" id="ignore" style="width:100%; justify-content:center">Ignorer</button></div>`;
+    h += refineFooter(consigne);
     body.innerHTML = h;
     body.querySelectorAll('[data-alt]').forEach(btn=>{
       btn.onclick = ()=>{ applyRange(tgt.start, tgt.end, data.alternatives[+btn.dataset.alt].text); setStatus('Variante appliquée.'); setScope(''); };
     });
     const ig0 = $('#ignore'); if(ig0) ig0.onclick = ()=>{ setStatus('Propositions ignorées.'); setScope(''); };
-    markTarget(tgt);
+    wireRefine(mode, tgt); markTarget(tgt);
     return;
   }
   if(mode==='vocab' && Array.isArray(data.vocab)){
@@ -959,6 +973,7 @@ function renderResult(mode, data, tgt){
       g.options.forEach((o,oi)=> h += `<span class="chip" data-g="${gi}" data-o="${oi}">${esc(o)}</span>`);
       h += `</div>`;
     });
+    h += refineFooter(consigne);
     body.innerHTML = h;
     const txtEl = $('#voc-text');
     body.querySelectorAll('.chip[data-g]').forEach(chip=>{
@@ -971,7 +986,7 @@ function renderResult(mode, data, tgt){
     });
     const apv = $('#apply'); if(apv) apv.onclick = ()=>{ applyRange(tgt.start, tgt.end, built.plain); setStatus('Proposition appliquée.'); setScope(''); };
     const igv = $('#ignore'); if(igv) igv.onclick = ()=>{ setStatus('Proposition ignorée.'); setScope(''); };
-    markTarget(tgt);
+    wireRefine(mode, tgt); markTarget(tgt);
     return;
   }
   if(data.revised){
@@ -992,30 +1007,25 @@ function renderResult(mode, data, tgt){
   } else if(data.revised && mode!=='vocab'){
     h += `<div class="status">Aucune modification détaillée retournée.</div>`;
   }
+  h += refineFooter(consigne);
   body.innerHTML = h || '<div class="status">Pas de proposition.</div>';
 
   const ap = $('#apply');
   if(ap) ap.onclick = ()=>{ applyRange(tgt.start, tgt.end, data.revised); setStatus('Proposition appliquée.'); setScope(''); };
   const ig = $('#ignore'); if(ig) ig.onclick = ()=>{ setStatus('Proposition ignorée.'); setScope(''); };
-  markTarget(tgt);
+  wireRefine(mode, tgt); markTarget(tgt);
 }
 
+function setActiveAction(mode){
+  [['correct','#act-correct'],['style','#act-style'],['vocab','#act-vocab']]
+    .forEach(([m,sel])=> $(sel).classList.toggle('act', m===mode));
+}
 $('#act-correct').onclick = ()=>runRevision('correct');
 $('#act-style').onclick = ()=>runRevision('style');
 $('#act-vocab').onclick = ()=>runRevision('vocab');
 document.addEventListener('keydown', e=>{
   if((e.metaKey||e.ctrlKey) && e.key==='Enter'){ e.preventDefault(); runRevision('correct'); }
 });
-
-/* ---------- Consigne ponctuelle (éphémère, jamais sauvegardée) ---------- */
-const consigneInput = $('#consigne'), consigneClear = $('#consigne-clear');
-function refreshConsigne(){
-  const has = !!consigneInput.value.trim();
-  consigneInput.classList.toggle('active', has);
-  consigneClear.classList.toggle('hidden', !has);
-}
-consigneInput.addEventListener('input', refreshConsigne);
-consigneClear.onclick = ()=>{ consigneInput.value=''; refreshConsigne(); consigneInput.focus(); };
 
 /* ---------- Auto-vérification ---------- */
 let autoT;
