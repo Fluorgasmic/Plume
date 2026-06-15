@@ -151,6 +151,15 @@
   .refine-row input::placeholder{color:#A8A59C}
   .refine-row input:focus-visible{outline:2px solid var(--accent); outline-offset:1px}
   .refine-row .btn{flex:0 0 auto}
+  .len-presets{display:flex; flex-wrap:wrap; gap:6px; margin:4px 0 10px}
+  .len-presets .chip{padding:5px 10px; border:1px solid var(--line-strong); border-radius:20px; font-size:12.5px; background:#fff; color:var(--ink)}
+  .len-presets .chip:hover{border-color:var(--accent); color:var(--accent)}
+  .len-presets .chip.on{border-color:var(--accent); background:var(--accent-soft); color:var(--accent); font-weight:600}
+  .len-row{display:flex; align-items:center; gap:8px; margin-bottom:4px}
+  .len-row input{width:96px; padding:8px 10px; border:1px solid var(--line-strong); border-radius:var(--r); font-family:inherit; font-size:13px; background:#fff; color:var(--ink)}
+  .len-unit{font-size:12.5px; color:var(--ink-soft)}
+  .sel-stat{color:var(--accent); font-weight:500}
+  .sel-stat.over{color:var(--correct)}
   .rev-body{flex:1; overflow-y:auto; padding:6px 0}
   .empty{padding:34px 22px; color:var(--ink-soft); font-size:13.5px; line-height:1.6}
   .empty b{color:var(--ink); font-weight:600}
@@ -240,6 +249,7 @@
     <button class="btn ghost act" id="act-correct" title="Orthographe et grammaire (Ctrl+Entrée)">Corriger</button>
     <button class="btn ghost" id="act-style" title="Reformulation au registre choisi">Réviser le style</button>
     <button class="btn ghost" id="act-vocab" title="Propositions de vocabulaire sur la sélection">Vocabulaire</button>
+    <button class="btn ghost" id="act-length" title="Ajuster la longueur de la sélection (titre, meta, post…)">Longueur</button>
   </div>
   <div class="divider"></div>
   <div class="seg" id="view-seg">
@@ -332,6 +342,7 @@ Ton texte ici…"></textarea>
 <footer>
   <span id="stat-words">0 mot</span>
   <span id="stat-chars">0 signe</span>
+  <span id="stat-sel" class="sel-stat hidden"></span>
   <span id="stat-model"></span>
   <span class="save" id="stat-save"><span class="dot"></span>Enregistré localement</span>
 </footer>
@@ -521,7 +532,23 @@ function counts(){
   const w = t ? t.split(/\s+/).length : 0;
   $('#stat-words').textContent = w + (w>1?' mots':' mot');
   $('#stat-chars').textContent = editor.value.length + ' signes';
+  updateSelStat();
 }
+// repères de longueur courants pour le copywriting (signes)
+const LEN_MARKS = [{n:60,t:'titre SEO'},{n:155,t:'meta'},{n:280,t:'post'}];
+function updateSelStat(){
+  const el = $('#stat-sel'); if(!el) return;
+  const s = editor.selectionStart, e = editor.selectionEnd;
+  if(e>s && document.activeElement===editor){
+    const sub = editor.value.slice(s,e), n = sub.length;
+    const w = sub.trim() ? sub.trim().split(/\s+/).length : 0;
+    const mark = LEN_MARKS.find(m=> n<=m.n) || LEN_MARKS[LEN_MARKS.length-1];
+    el.textContent = `sélection : ${n} signes · ${w} mot${w>1?'s':''} · ${mark.t} ${mark.n}`;
+    el.classList.toggle('over', n>mark.n);
+    el.classList.remove('hidden');
+  } else el.classList.add('hidden');
+}
+document.addEventListener('selectionchange', ()=>{ if(document.activeElement===editor) updateSelStat(); });
 /* ---------- Historique (undo / redo) ---------- */
 const HISTORY_MAX = 120;
 let undoStack = [], redoStack = [];
@@ -819,7 +846,7 @@ function srcBanner(tgt){
     + `<div class="proposed-text" style="background:var(--paper); color:var(--ink-soft); font-style:italic">${esc(t)}</div></div>`;
 }
 
-async function runRevision(mode, consigne='', fixedTgt=null){
+async function runRevision(mode, consigne='', fixedTgt=null, lenTarget=0){
   setActiveAction(mode);
   const tgt = fixedTgt || getTarget();
   if(!tgt.text.trim()){ setStatus('Rien à réviser : le texte est vide.', true); return; }
@@ -865,6 +892,15 @@ Règles de forme impératives:
 
 Texte à reformuler:
 """${tgt.text}"""`;
+  } else if(mode==='length'){
+    user = `Réécris le texte ci-dessous pour qu'il tienne en AU PLUS ${lenTarget} signes (espaces compris), au plus près possible de cette cible. Condense s'il est trop long, étoffe légèrement s'il est trop court. Préserve le sens, les faits et la voix; reste naturel, ne tronque pas en milieu de phrase.
+
+Réponds exactement dans ce format:
+<<<REVISED>>>
+(le texte ajusté, tel quel, sur autant de lignes qu'il faut)
+
+Texte (${tgt.text.length} signes) :
+"""${tgt.text}"""`;
   } else { // vocab
     user = `Pour le passage ci-dessous, propose pour les termes pertinents des variantes de vocabulaire plus justes ou plus soutenues, fidèles au sens et au registre.
 
@@ -893,7 +929,7 @@ Passage:
     let raw = await callLLM(sys, user, onChunk);
     if(!raw.trim()) raw = await callLLM(sys, user); // repli non-streamé si aucun fragment reçu
     const data = parseResponse(mode, raw);
-    renderResult(mode, data, tgt, consigne);
+    renderResult(mode, data, tgt, consigne, lenTarget);
   }catch(err){
     setStatus('La révision a échoué : '+err.message+'<br><br>Vérifie la clé, le modèle et le fournisseur dans les réglages.', true);
   }
@@ -907,14 +943,14 @@ function refineFooter(consigne){
     + `<div class="refine-row"><input id="refine-input" placeholder="ex. « plus court », « ton plus direct », « sans jargon »" value="${esc(consigne||'')}">`
     + `<button class="btn primary" id="refine-go">Relancer</button></div></div>`;
 }
-function wireRefine(mode, tgt){
+function wireRefine(mode, tgt, lenTarget){
   const go = $('#refine-go'), inp = $('#refine-input'); if(!go || !inp) return;
-  const run = ()=> runRevision(mode, inp.value.trim(), tgt);
+  const run = ()=> runRevision(mode, inp.value.trim(), tgt, lenTarget);
   go.onclick = run;
   inp.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); run(); } });
 }
 
-function renderResult(mode, data, tgt, consigne){
+function renderResult(mode, data, tgt, consigne, lenTarget){
   let h = srcBanner(tgt);
   if(mode==='style' && Array.isArray(data.alternatives) && data.alternatives.length){
     data.alternatives.forEach((alt,i)=>{
@@ -990,10 +1026,12 @@ function renderResult(mode, data, tgt, consigne){
     return;
   }
   if(data.revised){
-    h += `<div class="proposal"><div class="pl">Proposition</div>
+    const lenInfo = (mode==='length') ? ` — ${tgt.text.length} → ${data.revised.length} signes (cible ${lenTarget})` : '';
+    h += `<div class="proposal"><div class="pl">Proposition${lenInfo}</div>
       <div class="proposed-text">${esc(data.revised)}</div>
       <div class="apply-row">
         <button class="btn primary" id="apply">Appliquer</button>
+        ${mode==='length' ? '<button class="btn ghost" id="len-change">Changer la cible</button>' : ''}
         <button class="btn ghost" id="ignore">Ignorer</button>
       </div></div>`;
   }
@@ -1004,7 +1042,7 @@ function renderResult(mode, data, tgt, consigne){
         <div class="c"><span class="bf">${esc(c.before)}</span> &rarr; <span class="af">${esc(c.after)}</span>
         ${c.note?`<span class="note">${esc(c.note)}</span>`:''}</div></div>`;
     });
-  } else if(data.revised && mode!=='vocab'){
+  } else if(data.revised && mode==='correct'){
     h += `<div class="status">Aucune modification détaillée retournée.</div>`;
   }
   h += refineFooter(consigne);
@@ -1013,16 +1051,43 @@ function renderResult(mode, data, tgt, consigne){
   const ap = $('#apply');
   if(ap) ap.onclick = ()=>{ applyRange(tgt.start, tgt.end, data.revised); setStatus('Proposition appliquée.'); setScope(''); };
   const ig = $('#ignore'); if(ig) ig.onclick = ()=>{ setStatus('Proposition ignorée.'); setScope(''); };
-  wireRefine(mode, tgt); markTarget(tgt);
+  const lc = $('#len-change'); if(lc) lc.onclick = ()=> openLengthForm(tgt);
+  wireRefine(mode, tgt, lenTarget); markTarget(tgt);
 }
 
 function setActiveAction(mode){
-  [['correct','#act-correct'],['style','#act-style'],['vocab','#act-vocab']]
+  [['correct','#act-correct'],['style','#act-style'],['vocab','#act-vocab'],['length','#act-length']]
     .forEach(([m,sel])=> $(sel).classList.toggle('act', m===mode));
 }
 $('#act-correct').onclick = ()=>runRevision('correct');
 $('#act-style').onclick = ()=>runRevision('style');
 $('#act-vocab').onclick = ()=>runRevision('vocab');
+$('#act-length').onclick = ()=> openLengthForm();
+
+// « Longueur » : on choisit d'abord une cible (présets ou libre), puis on génère
+function openLengthForm(fixedTgt){
+  const tgt = fixedTgt || getTarget();
+  if(!tgt.text.trim()){ setStatus('Rien à ajuster : le texte est vide.', true); return; }
+  setActiveAction('length');
+  setScope(tgt.isSel ? 'sélection' : 'paragraphe courant');
+  markTarget(tgt);
+  const len = tgt.text.length;
+  const suggested = Math.max(20, Math.round(len*0.8/5)*5);
+  let h = srcBanner(tgt);
+  h += `<div class="proposal"><div class="pl">Longueur cible — ${len} signes actuellement</div>`
+    + `<div class="len-presets">`
+    + LEN_MARKS.map(m=>`<button class="chip" data-n="${m.n}">${m.t} · ${m.n}</button>`).join('')
+    + `</div>`
+    + `<div class="len-row"><input type="number" id="len-target" min="10" step="5" value="${suggested}"> <span class="len-unit">signes au maximum</span></div>`
+    + `<div class="apply-row"><button class="btn primary" id="len-go" style="flex:1">Générer</button></div></div>`;
+  body.innerHTML = h;
+  body.querySelectorAll('.len-presets .chip').forEach(c=> c.onclick = ()=>{
+    $('#len-target').value = c.dataset.n;
+    body.querySelectorAll('.len-presets .chip').forEach(x=>x.classList.toggle('on', x===c));
+  });
+  $('#len-go').onclick = ()=>{ const n = parseInt($('#len-target').value,10)||0; if(n>=10) runRevision('length','',tgt,n); };
+  markTarget(tgt);
+}
 document.addEventListener('keydown', e=>{
   if((e.metaKey||e.ctrlKey) && e.key==='Enter'){ e.preventDefault(); runRevision('correct'); }
 });
