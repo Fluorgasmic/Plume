@@ -104,6 +104,7 @@
   .pane-label-row{display:flex; align-items:center; justify-content:space-between}
   .lisib-tools{display:flex; gap:6px}
   .r-spell{text-decoration:underline; text-decoration-style:wavy; text-decoration-color:var(--correct); text-underline-offset:2px}
+  .r-tic{background:#EADFF2; border-radius:3px; padding:0 1px; cursor:help}
   .lisib-toggle{font-family:'Inter',sans-serif; font-size:10px; letter-spacing:.06em; text-transform:uppercase; color:var(--ink-soft); border:1px solid var(--line-strong); border-radius:20px; padding:3px 11px}
   .lisib-toggle:hover{color:var(--accent); border-color:var(--accent)}
   .lisib-toggle.on{background:var(--accent-soft); color:var(--accent); border-color:var(--accent); font-weight:600}
@@ -335,7 +336,7 @@ Ton texte ici…"></textarea>
     </div>
     <div class="gutter" id="gutter" title="Glisser pour redimensionner"></div>
     <div class="pane preview">
-      <div class="pane-label pane-label-row"><span>Aperçu</span><span class="lisib-tools"><button id="toggle-spell" class="lisib-toggle" title="Souligner les fautes d'orthographe (dictionnaire local)">Orthographe</button><button id="toggle-lisib" class="lisib-toggle" title="Analyse de lisibilité (phrases longues, adverbes…)">Lisibilité</button></span></div>
+      <div class="pane-label pane-label-row"><span>Aperçu</span><span class="lisib-tools"><button id="toggle-tics" class="lisib-toggle" title="Repérer les tics de langage (anglicismes, jargon, clichés)">Tics</button><button id="toggle-spell" class="lisib-toggle" title="Souligner les fautes d'orthographe (dictionnaire local)">Orthographe</button><button id="toggle-lisib" class="lisib-toggle" title="Analyse de lisibilité (phrases longues, adverbes…)">Lisibilité</button></span></div>
       <div id="preview"></div>
     </div>
   </div>
@@ -512,7 +513,7 @@ function normTones(t){
 let state = {
   provider:'anthropic', model:PROVIDERS.anthropic.default, models:{},
   key:'', profile:DEFAULT_PROFILE, tones:cloneTones(),
-  profiles:[], activeId:'', auto:false, lisib:false, spell:false, doc:'', split:50, zoom:1
+  profiles:[], activeId:'', auto:false, lisib:true, spell:true, tics:false, doc:'', split:50, zoom:1
 };
 const uid = ()=> 'p'+Math.random().toString(36).slice(2,9)+Date.now().toString(36).slice(-3);
 
@@ -531,6 +532,8 @@ function load(){
     fav: !!p.fav
   }));
   if(!state.activeId || !state.profiles.some(p=>p.id===state.activeId)) state.activeId = state.profiles[0].id;
+  // une fois : active Lisibilité + Orthographe par défaut (y compris pour les installs existantes)
+  if(state.uiDefaults !== 1){ state.lisib = true; state.spell = true; state.uiDefaults = 1; }
 }
 function getActive(){ return state.profiles.find(p=>p.id===state.activeId) || state.profiles[0]; }
 function persist(){ localStorage.setItem(LS, JSON.stringify(state)); }
@@ -539,16 +542,37 @@ function persist(){ localStorage.setItem(LS, JSON.stringify(state)); }
 const editor = $('#editor'), preview = $('#preview');
 
 function renderPreview(){
-  if(state.lisib || state.spell){ preview.innerHTML = analyzeHTML(editor.value); return; }
+  if(state.lisib || state.spell || state.tics){ preview.innerHTML = analyzeHTML(editor.value); return; }
   const md = editor.value;
   if(window.marked && window.DOMPurify){ preview.innerHTML = DOMPurify.sanitize(marked.parse(md)); }
   else{ preview.textContent = md; }
 }
 
-/* ---------- Analyse de lisibilité + orthographe (locale) ---------- */
+/* ---------- Analyse de lisibilité + orthographe + tics (locale) ---------- */
 const RE_WORD = /[A-Za-zÀ-ÖØ-öø-ÿ0-9'’\-]+/g;
-const RE_ADV1 = /^[A-Za-zÀ-ÖØ-öø-ÿ]{3,}ment$/;
-const RE_TOKEN = /[A-Za-zÀ-ÖØ-öø-ÿ]+|[^A-Za-zÀ-ÖØ-öø-ÿ]+/g;
+const RE_ADVG = /(?<![A-Za-zÀ-ÖØ-öø-ÿ])[A-Za-zÀ-ÖØ-öø-ÿ]{4,}ment(?![A-Za-zÀ-ÖØ-öø-ÿ])/g;
+const RE_WORDG = /(?<![A-Za-zÀ-ÖØ-öø-ÿ])[A-Za-zÀ-ÖØ-öø-ÿ’'\-]+(?![A-Za-zÀ-ÖØ-öø-ÿ])/g;
+// Tics de langage FR : anglicismes, jargon corporate, clichés. [expression, suggestion/note]
+const TIC_DEFS = [
+  ['au final','finalement, en définitive'],['en termes de','pour, côté'],['au niveau de','pour, concernant'],
+  ['de par','par, du fait de'],['suite à','à la suite de, après'],['malgré que','bien que'],
+  ['voire même','voire'],['comme par exemple','comme, ou par exemple'],['au jour d’aujourd’hui','aujourd’hui'],
+  ['à l’heure actuelle','aujourd’hui'],['force est de constater','(cliché)'],['dans le cadre de','pour, lors de'],
+  ['mettre en place','instaurer, créer'],['solution innovante','(cliché marketing)'],['clé en main','(cliché)'],
+  ['incontournable','(cliché)'],['plus que jamais','(cliché)'],['à 360 degrés','(jargon)'],
+  ['impacter','agir sur, toucher'],['solutionner','résoudre'],['disruptif','de rupture'],['disruption','rupture'],
+  ['process','procédé, démarche'],['feedback','retour'],['challenge','défi'],['challenger','remettre en question'],
+  ['benchmark','comparatif, étalon'],['deadline','échéance, date limite'],['asap','dès que possible'],
+  ['scaler','passer à l’échelle'],['pitcher','présenter'],['game changer','tournant, révolution'],
+  ['win-win','gagnant-gagnant'],['quick win','gain rapide'],['low cost','économique'],['must','indispensable'],
+  ['timing','moment, calendrier'],['mindset','état d’esprit'],['workflow','flux de travail'],
+  ['littéralement','(souvent abusif)'],['véritable','(intensif creux)'],['tout simplement','(remplissage)']
+];
+function ticRe(p){
+  let s = p.replace(/[.*+?^${}()|[\]\\]/g,'\\$&').replace(/\s+/g,'\\s+').replace(/[’']/g,'[’\']');
+  return new RegExp('(?<![A-Za-zÀ-ÖØ-öø-ÿ])'+s+'(?![A-Za-zÀ-ÖØ-öø-ÿ])','gi');
+}
+const TICS = TIC_DEFS.map(([p,sug])=>({ re:ticRe(p), sug }));
 function countWords(s){ return (s.match(RE_WORD) || []).length; }
 function splitSentences(par){
   const out = []; const re = /[^.!?…]+[.!?…]+|\S[^.!?…]*$/g; let m;
@@ -560,31 +584,37 @@ function checkWord(w){
   if(/^[A-ZÀ-Þ]/.test(w)) return true;            // ignore les capitalisés (noms propres, débuts de phrase)
   return spell.correct(w) || spell.correct(w.toLowerCase());
 }
-function renderSentence(sent){          // tokenise et balise chaque mot (adverbe et/ou faute)
-  return sent.replace(RE_TOKEN, tok=>{
-    if(!/[A-Za-zÀ-ÖØ-öø-ÿ]/.test(tok)) return esc(tok);
-    const cls = [];
-    if(state.lisib && RE_ADV1.test(tok)) cls.push('r-adv');
-    if(state.spell && spell && !checkWord(tok)) cls.push('r-spell');
-    return cls.length ? `<span class="${cls.join(' ')}">${esc(tok)}</span>` : esc(tok);
-  });
+// applique des plages de surlignage sans chevauchement (priorité au premier/au plus long)
+function emitRanges(sent, ranges){
+  ranges.sort((a,b)=> a.s-b.s || (b.e-b.s)-(a.e-a.s));
+  let out='', cur=0;
+  for(const r of ranges){
+    if(r.s < cur) continue;
+    out += esc(sent.slice(cur, r.s));
+    out += `<span class="${r.cls}"${r.title?` title="${esc(r.title)}"`:''}>${esc(sent.slice(r.s, r.e))}</span>`;
+    cur = r.e;
+  }
+  return out + esc(sent.slice(cur));
+}
+function highlightSentence(sent){
+  const ranges=[]; let adv=0, mis=0, tic=0, m;
+  if(state.lisib){ RE_ADVG.lastIndex=0; while((m=RE_ADVG.exec(sent))){ ranges.push({s:m.index,e:m.index+m[0].length,cls:'r-adv'}); adv++; } }
+  if(state.tics){ for(const t of TICS){ t.re.lastIndex=0; while((m=t.re.exec(sent))){ ranges.push({s:m.index,e:m.index+m[0].length,cls:'r-tic',title:'tic — préférer : '+t.sug}); tic++; } } }
+  if(state.spell && spell){ RE_WORDG.lastIndex=0; while((m=RE_WORDG.exec(sent))){ const w=m[0]; if(!checkWord(w)){ ranges.push({s:m.index,e:m.index+w.length,cls:'r-spell'}); mis++; } } }
+  return { html: emitRanges(sent, ranges), adv, mis, tic };
 }
 function statCard(v, l){ return `<div class="r-card"><div class="rv">${v}</div><div class="rl">${l}</div></div>`; }
 function analyzeHTML(text){
   if(!text.trim()) return '<p style="color:var(--ink-soft)">Rien à analyser pour l\'instant.</p>';
-  let totalWords=0, sentCount=0, longCount=0, advCount=0, misspelled=0, bodyHTML='';
+  let totalWords=0, sentCount=0, longCount=0, advCount=0, misCount=0, ticCount=0, bodyHTML='';
   text.split(/\n/).forEach(par=>{
     if(!par.trim()){ bodyHTML += '<div style="height:.55em"></div>'; return; }
     let pHTML = '';
     splitSentences(par).forEach(sent=>{
       const w = countWords(sent); totalWords += w; sentCount++;
       let cls=''; if(w>=25){ cls='r-vhard'; longCount++; } else if(w>=18){ cls='r-hard'; longCount++; }
-      (sent.match(RE_WORD)||[]).forEach(tok=>{
-        if(RE_ADV1.test(tok)) advCount++;
-        if(state.spell && spell && !checkWord(tok)) misspelled++;
-      });
-      const inner = renderSentence(sent);
-      pHTML += cls ? `<span class="${cls}">${inner}</span>` : inner;
+      const r = highlightSentence(sent); advCount+=r.adv; misCount+=r.mis; ticCount+=r.tic;
+      pHTML += cls ? `<span class="${cls}">${r.html}</span>` : r.html;
     });
     bodyHTML += `<p>${pHTML}</p>`;
   });
@@ -593,11 +623,13 @@ function analyzeHTML(text){
   const verdict = avg<=12 ? 'très lisible' : avg<=18 ? 'lisible' : avg<=24 ? 'dense' : 'difficile';
   let cards = statCard(totalWords,'mots') + statCard(sentCount,'phrases') + statCard(avg,'mots/phrase') + statCard('~'+mins+' min','lecture');
   if(state.lisib) cards += statCard(longCount,'phrases longues') + statCard(advCount,'adverbes');
-  if(state.spell && spell) cards += statCard(misspelled,'fautes ?');
+  if(state.spell && spell) cards += statCard(misCount,'fautes ?');
+  if(state.tics) cards += statCard(ticCount,'tics');
   let legend = '';
   if(state.lisib) legend += '<span class="r-hard">phrase longue (18+ mots)</span><span class="r-vhard">très longue (25+)</span><span><span class="r-adv">adverbe en -ment</span></span>';
   if(state.spell && spell) legend += '<span><span class="r-spell">mot inconnu</span></span>';
   if(state.spell && !spell) legend += '<span>dictionnaire en cours de chargement…</span>';
+  if(state.tics) legend += '<span><span class="r-tic">tic de langage</span> (survol = suggestion)</span>';
   const head = `<div class="r-stats">${cards}</div>`
     + (state.lisib ? `<div class="r-verdict">Lisibilité&nbsp;: <b>${verdict}</b></div>` : '')
     + (legend ? `<div class="r-legend">${legend}</div>` : '');
@@ -1159,6 +1191,11 @@ $('#toggle-lisib').onclick = ()=>{
   $('#toggle-lisib').classList.toggle('on', state.lisib);
   renderPreview();
 };
+$('#toggle-tics').onclick = ()=>{
+  state.tics = !state.tics; persist();
+  $('#toggle-tics').classList.toggle('on', state.tics);
+  renderPreview();
+};
 $('#toggle-spell').onclick = async ()=>{
   const btn = $('#toggle-spell');
   if(!state.spell && !spell){
@@ -1440,6 +1477,7 @@ prevState = snapshot(); updateHistoryUI();
 setSplit(state.split); setZoom(state.zoom);
 $('#toggle-lisib').classList.toggle('on', state.lisib);
 $('#toggle-spell').classList.toggle('on', state.spell);
+$('#toggle-tics').classList.toggle('on', state.tics);
 renderPreview(); counts(); refreshFooter(); refreshVoice();
 if(state.spell) loadSpell().then(renderPreview).catch(()=>{});  // recharge le dico si l'option était active
 window.addEventListener('load', renderPreview);
