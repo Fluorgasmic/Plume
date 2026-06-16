@@ -101,6 +101,20 @@
     font-size:10.5px; letter-spacing:.09em; text-transform:uppercase; color:var(--ink-soft);
     padding:9px 22px 0;
   }
+  .pane-label-row{display:flex; align-items:center; justify-content:space-between}
+  .lisib-toggle{font-family:'Inter',sans-serif; font-size:10px; letter-spacing:.06em; text-transform:uppercase; color:var(--ink-soft); border:1px solid var(--line-strong); border-radius:20px; padding:3px 11px}
+  .lisib-toggle:hover{color:var(--accent); border-color:var(--accent)}
+  .lisib-toggle.on{background:var(--accent-soft); color:var(--accent); border-color:var(--accent); font-weight:600}
+  .r-stats{display:flex; flex-wrap:wrap; gap:8px; margin-bottom:10px}
+  .r-card{background:#fff; border:1px solid var(--line); border-radius:8px; padding:7px 12px; min-width:72px}
+  .r-card .rv{font-family:'Inter',sans-serif; font-weight:600; font-size:15.5px; color:var(--ink)}
+  .r-card .rl{font-family:'Inter',sans-serif; font-size:10px; letter-spacing:.04em; text-transform:uppercase; color:var(--ink-soft)}
+  .r-verdict{font-family:'Inter',sans-serif; font-size:13px; color:var(--ink-soft); margin-bottom:9px}
+  .r-verdict b{color:var(--ink)}
+  .r-legend{font-family:'Inter',sans-serif; font-size:11px; display:flex; gap:9px; flex-wrap:wrap; align-items:center; margin-bottom:16px; color:var(--ink-soft)}
+  .r-hard{background:#F4E9C4; border-radius:3px; padding:0 1px}
+  .r-vhard{background:#F2D6CE; border-radius:3px; padding:0 1px}
+  .r-adv{border-bottom:2px solid var(--accent)}
   .fmtbar{
     display:flex; align-items:center; gap:3px; flex-wrap:wrap;
     padding:8px 20px 6px; border-bottom:1px solid var(--line);
@@ -249,7 +263,7 @@
     <button class="btn ghost act" id="act-correct" title="Orthographe et grammaire (Ctrl+Entrée)">Corriger</button>
     <button class="btn ghost" id="act-style" title="Reformulation au registre choisi">Réviser le style</button>
     <button class="btn ghost" id="act-vocab" title="Propositions de vocabulaire sur la sélection">Vocabulaire</button>
-    <button class="btn ghost" id="act-length" title="Ajuster la longueur de la sélection (titre, meta, post…)">Longueur</button>
+    <button class="btn ghost" id="act-length" title="Ajuster la longueur de la sélection (titre, meta, post…)">Réviser la longueur</button>
   </div>
   <div class="divider"></div>
   <div class="seg" id="view-seg">
@@ -319,7 +333,7 @@ Ton texte ici…"></textarea>
     </div>
     <div class="gutter" id="gutter" title="Glisser pour redimensionner"></div>
     <div class="pane preview">
-      <div class="pane-label">Aperçu</div>
+      <div class="pane-label pane-label-row"><span>Aperçu</span><button id="toggle-lisib" class="lisib-toggle" title="Analyse de lisibilité (phrases longues, adverbes…)">Lisibilité</button></div>
       <div id="preview"></div>
     </div>
   </div>
@@ -496,7 +510,7 @@ function normTones(t){
 let state = {
   provider:'anthropic', model:PROVIDERS.anthropic.default, models:{},
   key:'', profile:DEFAULT_PROFILE, tones:cloneTones(),
-  profiles:[], activeId:'', auto:false, doc:'', split:50, zoom:1
+  profiles:[], activeId:'', auto:false, lisib:false, doc:'', split:50, zoom:1
 };
 const uid = ()=> 'p'+Math.random().toString(36).slice(2,9)+Date.now().toString(36).slice(-3);
 
@@ -523,9 +537,45 @@ function persist(){ localStorage.setItem(LS, JSON.stringify(state)); }
 const editor = $('#editor'), preview = $('#preview');
 
 function renderPreview(){
+  if(state.lisib){ preview.innerHTML = analyzeHTML(editor.value); return; }
   const md = editor.value;
   if(window.marked && window.DOMPurify){ preview.innerHTML = DOMPurify.sanitize(marked.parse(md)); }
   else{ preview.textContent = md; }
+}
+
+/* ---------- Analyse de lisibilité (locale, façon Hemingway) ---------- */
+const RE_ADV = /\b[A-Za-zÀ-ÖØ-öø-ÿ]{3,}ment\b/g;
+function countWords(s){ return (s.match(/[A-Za-zÀ-ÖØ-öø-ÿ0-9'’\-]+/g) || []).length; }
+function splitSentences(par){
+  const out = []; const re = /[^.!?…]+[.!?…]+|\S[^.!?…]*$/g; let m;
+  while((m = re.exec(par))){ if(m[0].trim()) out.push(m[0]); }
+  return out.length ? out : [par];
+}
+function statCard(v, l){ return `<div class="r-card"><div class="rv">${v}</div><div class="rl">${l}</div></div>`; }
+function analyzeHTML(text){
+  if(!text.trim()) return '<p style="color:var(--ink-soft)">Rien à analyser pour l\'instant.</p>';
+  let totalWords=0, sentCount=0, longCount=0, advCount=0, bodyHTML='';
+  text.split(/\n/).forEach(par=>{
+    if(!par.trim()){ bodyHTML += '<div style="height:.55em"></div>'; return; }
+    let pHTML = '';
+    splitSentences(par).forEach(sent=>{
+      const w = countWords(sent); totalWords += w; sentCount++;
+      let cls=''; if(w>=25){ cls='r-vhard'; longCount++; } else if(w>=18){ cls='r-hard'; longCount++; }
+      advCount += (sent.match(RE_ADV)||[]).length;
+      const inner = esc(sent).replace(RE_ADV, m=>`<span class="r-adv">${m}</span>`);
+      pHTML += cls ? `<span class="${cls}">${inner}</span>` : inner;
+    });
+    bodyHTML += `<p>${pHTML}</p>`;
+  });
+  const avg = sentCount ? Math.round(totalWords/sentCount) : 0;
+  const mins = Math.max(1, Math.round(totalWords/200));
+  const verdict = avg<=12 ? 'très lisible' : avg<=18 ? 'lisible' : avg<=24 ? 'dense' : 'difficile';
+  const stats = `<div class="r-stats">`
+    + statCard(totalWords,'mots') + statCard(sentCount,'phrases') + statCard(avg,'mots/phrase')
+    + statCard('~'+mins+' min','lecture') + statCard(longCount,'phrases longues') + statCard(advCount,'adverbes')
+    + `</div><div class="r-verdict">Lisibilité&nbsp;: <b>${verdict}</b></div>`
+    + `<div class="r-legend"><span class="r-hard">phrase longue (18+ mots)</span><span class="r-vhard">très longue (25+)</span><span><span class="r-adv">adverbe en -ment</span></span></div>`;
+  return stats + `<div class="r-body">${bodyHTML}</div>`;
 }
 function counts(){
   const t = editor.value.trim();
@@ -1063,6 +1113,11 @@ $('#act-correct').onclick = ()=>runRevision('correct');
 $('#act-style').onclick = ()=>runRevision('style');
 $('#act-vocab').onclick = ()=>runRevision('vocab');
 $('#act-length').onclick = ()=> openLengthForm();
+$('#toggle-lisib').onclick = ()=>{
+  state.lisib = !state.lisib; persist();
+  $('#toggle-lisib').classList.toggle('on', state.lisib);
+  renderPreview();
+};
 
 // « Longueur » : on choisit d'abord une cible (présets ou libre), puis on génère
 function openLengthForm(fixedTgt){
@@ -1330,6 +1385,7 @@ load();
 editor.value = state.doc || '';
 prevState = snapshot(); updateHistoryUI();
 setSplit(state.split); setZoom(state.zoom);
+$('#toggle-lisib').classList.toggle('on', state.lisib);
 renderPreview(); counts(); refreshFooter(); refreshVoice();
 window.addEventListener('load', renderPreview);
 if(!state.key) setTimeout(openSettings, 350);
