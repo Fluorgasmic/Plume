@@ -104,7 +104,6 @@
   .pane-label-row{display:flex; align-items:center; justify-content:space-between}
   .lisib-tools{display:flex; gap:6px}
   .r-spell{text-decoration:underline; text-decoration-style:wavy; text-decoration-color:var(--correct); text-underline-offset:2px}
-  .r-tic{background:#EADFF2; border-radius:3px; padding:0 1px; cursor:help}
   .lisib-toggle{font-family:'Inter',sans-serif; font-size:10px; letter-spacing:.06em; text-transform:uppercase; color:var(--ink-soft); border:1px solid var(--line-strong); border-radius:20px; padding:3px 11px}
   .lisib-toggle:hover{color:var(--accent); border-color:var(--accent)}
   .lisib-toggle.on{background:var(--accent-soft); color:var(--accent); border-color:var(--accent); font-weight:600}
@@ -267,6 +266,7 @@
     <button class="btn ghost" id="act-style" title="Reformulation au registre choisi">Réviser le style</button>
     <button class="btn ghost" id="act-vocab" title="Propositions de vocabulaire sur la sélection">Vocabulaire</button>
     <button class="btn ghost" id="act-length" title="Ajuster la longueur de la sélection (titre, meta, post…)">Réviser la longueur</button>
+    <button class="btn ghost" id="act-tics" title="Repérer les tics de langage (anglicismes, jargon, clichés) — via l'IA">Tics</button>
   </div>
   <div class="divider"></div>
   <div class="seg" id="view-seg">
@@ -336,7 +336,7 @@ Ton texte ici…"></textarea>
     </div>
     <div class="gutter" id="gutter" title="Glisser pour redimensionner"></div>
     <div class="pane preview">
-      <div class="pane-label pane-label-row"><span>Aperçu</span><span class="lisib-tools"><button id="toggle-tics" class="lisib-toggle" title="Repérer les tics de langage (anglicismes, jargon, clichés)">Tics</button><button id="toggle-spell" class="lisib-toggle" title="Souligner les fautes d'orthographe (dictionnaire local)">Orthographe</button><button id="toggle-lisib" class="lisib-toggle" title="Analyse de lisibilité (phrases longues, adverbes…)">Lisibilité</button></span></div>
+      <div class="pane-label pane-label-row"><span>Aperçu</span><span class="lisib-tools"><button id="toggle-spell" class="lisib-toggle" title="Souligner les fautes d'orthographe (dictionnaire local)">Orthographe</button><button id="toggle-lisib" class="lisib-toggle" title="Analyse de lisibilité (phrases longues, adverbes…)">Lisibilité</button></span></div>
       <div id="preview"></div>
     </div>
   </div>
@@ -513,7 +513,7 @@ function normTones(t){
 let state = {
   provider:'anthropic', model:PROVIDERS.anthropic.default, models:{},
   key:'', profile:DEFAULT_PROFILE, tones:cloneTones(),
-  profiles:[], activeId:'', auto:false, lisib:true, spell:true, tics:false, doc:'', split:50, zoom:1
+  profiles:[], activeId:'', auto:false, lisib:true, spell:true, doc:'', split:50, zoom:1
 };
 const uid = ()=> 'p'+Math.random().toString(36).slice(2,9)+Date.now().toString(36).slice(-3);
 
@@ -542,7 +542,7 @@ function persist(){ localStorage.setItem(LS, JSON.stringify(state)); }
 const editor = $('#editor'), preview = $('#preview');
 
 function renderPreview(){
-  if(state.lisib || state.spell || state.tics){ preview.innerHTML = analyzeHTML(editor.value); return; }
+  if(state.lisib || state.spell){ preview.innerHTML = analyzeHTML(editor.value); return; }
   const md = editor.value;
   if(window.marked && window.DOMPurify){ preview.innerHTML = DOMPurify.sanitize(marked.parse(md)); }
   else{ preview.textContent = md; }
@@ -552,27 +552,6 @@ function renderPreview(){
 const RE_WORD = /[A-Za-zÀ-ÖØ-öø-ÿ0-9'’\-]+/g;
 const RE_ADVG = /(?<![A-Za-zÀ-ÖØ-öø-ÿ])[A-Za-zÀ-ÖØ-öø-ÿ]{4,}ment(?![A-Za-zÀ-ÖØ-öø-ÿ])/g;
 const RE_WORDG = /(?<![A-Za-zÀ-ÖØ-öø-ÿ])[A-Za-zÀ-ÖØ-öø-ÿ’'\-]+(?![A-Za-zÀ-ÖØ-öø-ÿ])/g;
-// Tics de langage FR : anglicismes, jargon corporate, clichés. [expression, suggestion/note]
-const TIC_DEFS = [
-  ['au final','finalement, en définitive'],['en termes de','pour, côté'],['au niveau de','pour, concernant'],
-  ['de par','par, du fait de'],['suite à','à la suite de, après'],['malgré que','bien que'],
-  ['voire même','voire'],['comme par exemple','comme, ou par exemple'],['au jour d’aujourd’hui','aujourd’hui'],
-  ['à l’heure actuelle','aujourd’hui'],['force est de constater','(cliché)'],['dans le cadre de','pour, lors de'],
-  ['mettre en place','instaurer, créer'],['solution innovante','(cliché marketing)'],['clé en main','(cliché)'],
-  ['incontournable','(cliché)'],['plus que jamais','(cliché)'],['à 360 degrés','(jargon)'],
-  ['impacter','agir sur, toucher'],['solutionner','résoudre'],['disruptif','de rupture'],['disruption','rupture'],
-  ['process','procédé, démarche'],['feedback','retour'],['challenge','défi'],['challenger','remettre en question'],
-  ['benchmark','comparatif, étalon'],['deadline','échéance, date limite'],['asap','dès que possible'],
-  ['scaler','passer à l’échelle'],['pitcher','présenter'],['game changer','tournant, révolution'],
-  ['win-win','gagnant-gagnant'],['quick win','gain rapide'],['low cost','économique'],['must','indispensable'],
-  ['timing','moment, calendrier'],['mindset','état d’esprit'],['workflow','flux de travail'],
-  ['littéralement','(souvent abusif)'],['véritable','(intensif creux)'],['tout simplement','(remplissage)']
-];
-function ticRe(p){
-  let s = p.replace(/[.*+?^${}()|[\]\\]/g,'\\$&').replace(/\s+/g,'\\s+').replace(/[’']/g,'[’\']');
-  return new RegExp('(?<![A-Za-zÀ-ÖØ-öø-ÿ])'+s+'(?![A-Za-zÀ-ÖØ-öø-ÿ])','gi');
-}
-const TICS = TIC_DEFS.map(([p,sug])=>({ re:ticRe(p), sug }));
 function countWords(s){ return (s.match(RE_WORD) || []).length; }
 function splitSentences(par){
   const out = []; const re = /[^.!?…]+[.!?…]+|\S[^.!?…]*$/g; let m;
@@ -597,23 +576,22 @@ function emitRanges(sent, ranges){
   return out + esc(sent.slice(cur));
 }
 function highlightSentence(sent){
-  const ranges=[]; let adv=0, mis=0, tic=0, m;
+  const ranges=[]; let adv=0, mis=0, m;
   if(state.lisib){ RE_ADVG.lastIndex=0; while((m=RE_ADVG.exec(sent))){ ranges.push({s:m.index,e:m.index+m[0].length,cls:'r-adv'}); adv++; } }
-  if(state.tics){ for(const t of TICS){ t.re.lastIndex=0; while((m=t.re.exec(sent))){ ranges.push({s:m.index,e:m.index+m[0].length,cls:'r-tic',title:'tic — préférer : '+t.sug}); tic++; } } }
   if(state.spell && spell){ RE_WORDG.lastIndex=0; while((m=RE_WORDG.exec(sent))){ const w=m[0]; if(!checkWord(w)){ ranges.push({s:m.index,e:m.index+w.length,cls:'r-spell'}); mis++; } } }
-  return { html: emitRanges(sent, ranges), adv, mis, tic };
+  return { html: emitRanges(sent, ranges), adv, mis };
 }
 function statCard(v, l){ return `<div class="r-card"><div class="rv">${v}</div><div class="rl">${l}</div></div>`; }
 function analyzeHTML(text){
   if(!text.trim()) return '<p style="color:var(--ink-soft)">Rien à analyser pour l\'instant.</p>';
-  let totalWords=0, sentCount=0, longCount=0, advCount=0, misCount=0, ticCount=0, bodyHTML='';
+  let totalWords=0, sentCount=0, longCount=0, advCount=0, misCount=0, bodyHTML='';
   text.split(/\n/).forEach(par=>{
     if(!par.trim()){ bodyHTML += '<div style="height:.55em"></div>'; return; }
     let pHTML = '';
     splitSentences(par).forEach(sent=>{
       const w = countWords(sent); totalWords += w; sentCount++;
       let cls=''; if(w>=25){ cls='r-vhard'; longCount++; } else if(w>=18){ cls='r-hard'; longCount++; }
-      const r = highlightSentence(sent); advCount+=r.adv; misCount+=r.mis; ticCount+=r.tic;
+      const r = highlightSentence(sent); advCount+=r.adv; misCount+=r.mis;
       pHTML += cls ? `<span class="${cls}">${r.html}</span>` : r.html;
     });
     bodyHTML += `<p>${pHTML}</p>`;
@@ -624,12 +602,10 @@ function analyzeHTML(text){
   let cards = statCard(totalWords,'mots') + statCard(sentCount,'phrases') + statCard(avg,'mots/phrase') + statCard('~'+mins+' min','lecture');
   if(state.lisib) cards += statCard(longCount,'phrases longues') + statCard(advCount,'adverbes');
   if(state.spell && spell) cards += statCard(misCount,'fautes ?');
-  if(state.tics) cards += statCard(ticCount,'tics');
   let legend = '';
   if(state.lisib) legend += '<span class="r-hard">phrase longue (18+ mots)</span><span class="r-vhard">très longue (25+)</span><span><span class="r-adv">adverbe en -ment</span></span>';
   if(state.spell && spell) legend += '<span><span class="r-spell">mot inconnu</span></span>';
   if(state.spell && !spell) legend += '<span>dictionnaire en cours de chargement…</span>';
-  if(state.tics) legend += '<span><span class="r-tic">tic de langage</span> (survol = suggestion)</span>';
   const head = `<div class="r-stats">${cards}</div>`
     + (state.lisib ? `<div class="r-verdict">Lisibilité&nbsp;: <b>${verdict}</b></div>` : '')
     + (legend ? `<div class="r-legend">${legend}</div>` : '');
@@ -908,7 +884,7 @@ function parseResponse(mode, raw){
   if(revSplit!=null){
     out.revised = revSplit.split(/<<<(?:CHANGES|VOCAB)>>>/)[0].trim();
   }
-  if(mode==='vocab'){
+  if(mode==='vocab' || mode==='tics'){
     out.vocab = [];
     const vb = txt.split('<<<VOCAB>>>')[1];
     if(vb){
@@ -1024,6 +1000,23 @@ Réponds exactement dans ce format:
 
 Texte (${tgt.text.length} signes) :
 """${tgt.text}"""`;
+  } else if(mode==='tics'){
+    user = `Repère dans le texte ci-dessous les tics de langage : anglicismes inutiles, jargon corporate, clichés, formules creuses, tournures lourdes ou redondantes. Juge en CONTEXTE, pas mécaniquement.
+
+Règles impératives:
+- ne signale que de vrais tics nuisibles dans CE contexte; sois exigeant, évite les faux positifs; un terme technique justifié n'est pas un tic;
+- chaque "terme" doit apparaître TEL QUEL (même casse, mêmes mots) dans le texte, déterminant inclus si l'accord en dépend;
+- chaque option est une reformulation prête à l'emploi, grammaticalement correcte dans la phrase, fidèle au sens et au registre;
+- s'il n'y a aucun tic, laisse la section VOCAB vide.
+
+Réponds exactement dans ce format, sans rien d'autre:
+<<<VOCAB>>>
+terme ::: option1 | option2
+
+Une ligne par tic repéré.
+
+Texte:
+"""${tgt.text}"""`;
   } else { // vocab
     user = `Pour le passage ci-dessous, propose pour les termes pertinents des variantes de vocabulaire plus justes ou plus soutenues, fidèles au sens et au registre.
 
@@ -1093,7 +1086,11 @@ function renderResult(mode, data, tgt, consigne, lenTarget){
     wireRefine(mode, tgt); markTarget(tgt);
     return;
   }
-  if(mode==='vocab' && Array.isArray(data.vocab)){
+  if((mode==='vocab' || mode==='tics') && Array.isArray(data.vocab)){
+    if(!data.vocab.length){
+      h += `<div class="status">${mode==='tics' ? 'Aucun tic de langage repéré dans cette sélection.' : 'Aucune proposition de vocabulaire.'}</div>` + refineFooter(consigne);
+      body.innerHTML = h; wireRefine(mode, tgt); markTarget(tgt); return;
+    }
     const base = tgt.text; // on part TOUJOURS du texte d'origine : c'est là que les termes apparaissent tels quels
     const groups = data.vocab.map(v=>({ word:v.word, value:v.word, options:(v.options||[]) }));
     const indexOfCI = (hay, needle, from)=>{ const i=hay.indexOf(needle, from); return i>=0 ? i : hay.toLowerCase().indexOf((needle||'').toLowerCase(), from); };
@@ -1120,7 +1117,7 @@ function renderResult(mode, data, tgt, consigne, lenTarget){
       return {html, plain};
     }
     let built = buildVocab();
-    h += `<div class="proposal"><div class="pl">Proposition</div>
+    h += `<div class="proposal"><div class="pl">${mode==='tics' ? esc(groups.length+' tic'+(groups.length>1?'s':'')+' repéré'+(groups.length>1?'s':'')+' — clique une reformulation') : 'Proposition'}</div>
       <div class="proposed-text" id="voc-text">${built.html}</div>
       <div class="apply-row">
         <button class="btn primary" id="apply">Appliquer</button>
@@ -1179,21 +1176,17 @@ function renderResult(mode, data, tgt, consigne, lenTarget){
 }
 
 function setActiveAction(mode){
-  [['correct','#act-correct'],['style','#act-style'],['vocab','#act-vocab'],['length','#act-length']]
+  [['correct','#act-correct'],['style','#act-style'],['vocab','#act-vocab'],['length','#act-length'],['tics','#act-tics']]
     .forEach(([m,sel])=> $(sel).classList.toggle('act', m===mode));
 }
 $('#act-correct').onclick = ()=>runRevision('correct');
 $('#act-style').onclick = ()=>runRevision('style');
 $('#act-vocab').onclick = ()=>runRevision('vocab');
+$('#act-tics').onclick = ()=>runRevision('tics');
 $('#act-length').onclick = ()=> openLengthForm();
 $('#toggle-lisib').onclick = ()=>{
   state.lisib = !state.lisib; persist();
   $('#toggle-lisib').classList.toggle('on', state.lisib);
-  renderPreview();
-};
-$('#toggle-tics').onclick = ()=>{
-  state.tics = !state.tics; persist();
-  $('#toggle-tics').classList.toggle('on', state.tics);
   renderPreview();
 };
 $('#toggle-spell').onclick = async ()=>{
@@ -1477,7 +1470,6 @@ prevState = snapshot(); updateHistoryUI();
 setSplit(state.split); setZoom(state.zoom);
 $('#toggle-lisib').classList.toggle('on', state.lisib);
 $('#toggle-spell').classList.toggle('on', state.spell);
-$('#toggle-tics').classList.toggle('on', state.tics);
 renderPreview(); counts(); refreshFooter(); refreshVoice();
 if(state.spell) loadSpell().then(renderPreview).catch(()=>{});  // recharge le dico si l'option était active
 window.addEventListener('load', renderPreview);
