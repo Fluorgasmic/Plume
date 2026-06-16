@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: https:; connect-src https://api.anthropic.com https://api.openai.com https://api.mistral.ai https://generativelanguage.googleapis.com https://api.perplexity.ai https://dashscope-intl.aliyuncs.com https://dashscope.aliyuncs.com https://api.deepseek.com https://api.x.ai https://openrouter.ai; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: https:; connect-src https://api.anthropic.com https://api.openai.com https://api.mistral.ai https://generativelanguage.googleapis.com https://api.perplexity.ai https://dashscope-intl.aliyuncs.com https://dashscope.aliyuncs.com https://api.deepseek.com https://api.x.ai https://openrouter.ai https://cdn.jsdelivr.net; base-uri 'none'; form-action 'none'">
 <title>Plume — éditeur Markdown avec révision</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -102,6 +102,8 @@
     padding:9px 22px 0;
   }
   .pane-label-row{display:flex; align-items:center; justify-content:space-between}
+  .lisib-tools{display:flex; gap:6px}
+  .r-spell{text-decoration:underline; text-decoration-style:wavy; text-decoration-color:var(--correct); text-underline-offset:2px}
   .lisib-toggle{font-family:'Inter',sans-serif; font-size:10px; letter-spacing:.06em; text-transform:uppercase; color:var(--ink-soft); border:1px solid var(--line-strong); border-radius:20px; padding:3px 11px}
   .lisib-toggle:hover{color:var(--accent); border-color:var(--accent)}
   .lisib-toggle.on{background:var(--accent-soft); color:var(--accent); border-color:var(--accent); font-weight:600}
@@ -333,7 +335,7 @@ Ton texte ici…"></textarea>
     </div>
     <div class="gutter" id="gutter" title="Glisser pour redimensionner"></div>
     <div class="pane preview">
-      <div class="pane-label pane-label-row"><span>Aperçu</span><button id="toggle-lisib" class="lisib-toggle" title="Analyse de lisibilité (phrases longues, adverbes…)">Lisibilité</button></div>
+      <div class="pane-label pane-label-row"><span>Aperçu</span><span class="lisib-tools"><button id="toggle-spell" class="lisib-toggle" title="Souligner les fautes d'orthographe (dictionnaire local)">Orthographe</button><button id="toggle-lisib" class="lisib-toggle" title="Analyse de lisibilité (phrases longues, adverbes…)">Lisibilité</button></span></div>
       <div id="preview"></div>
     </div>
   </div>
@@ -510,7 +512,7 @@ function normTones(t){
 let state = {
   provider:'anthropic', model:PROVIDERS.anthropic.default, models:{},
   key:'', profile:DEFAULT_PROFILE, tones:cloneTones(),
-  profiles:[], activeId:'', auto:false, lisib:false, doc:'', split:50, zoom:1
+  profiles:[], activeId:'', auto:false, lisib:false, spell:false, doc:'', split:50, zoom:1
 };
 const uid = ()=> 'p'+Math.random().toString(36).slice(2,9)+Date.now().toString(36).slice(-3);
 
@@ -537,32 +539,51 @@ function persist(){ localStorage.setItem(LS, JSON.stringify(state)); }
 const editor = $('#editor'), preview = $('#preview');
 
 function renderPreview(){
-  if(state.lisib){ preview.innerHTML = analyzeHTML(editor.value); return; }
+  if(state.lisib || state.spell){ preview.innerHTML = analyzeHTML(editor.value); return; }
   const md = editor.value;
   if(window.marked && window.DOMPurify){ preview.innerHTML = DOMPurify.sanitize(marked.parse(md)); }
   else{ preview.textContent = md; }
 }
 
-/* ---------- Analyse de lisibilité (locale, façon Hemingway) ---------- */
-const RE_ADV = /\b[A-Za-zÀ-ÖØ-öø-ÿ]{3,}ment\b/g;
-function countWords(s){ return (s.match(/[A-Za-zÀ-ÖØ-öø-ÿ0-9'’\-]+/g) || []).length; }
+/* ---------- Analyse de lisibilité + orthographe (locale) ---------- */
+const RE_WORD = /[A-Za-zÀ-ÖØ-öø-ÿ0-9'’\-]+/g;
+const RE_ADV1 = /^[A-Za-zÀ-ÖØ-öø-ÿ]{3,}ment$/;
+const RE_TOKEN = /[A-Za-zÀ-ÖØ-öø-ÿ]+|[^A-Za-zÀ-ÖØ-öø-ÿ]+/g;
+function countWords(s){ return (s.match(RE_WORD) || []).length; }
 function splitSentences(par){
   const out = []; const re = /[^.!?…]+[.!?…]+|\S[^.!?…]*$/g; let m;
   while((m = re.exec(par))){ if(m[0].trim()) out.push(m[0]); }
   return out.length ? out : [par];
 }
+function checkWord(w){
+  if(!spell || w.length<=1 || /\d/.test(w)) return true;
+  if(/^[A-ZÀ-Þ]/.test(w)) return true;            // ignore les capitalisés (noms propres, débuts de phrase)
+  return spell.correct(w) || spell.correct(w.toLowerCase());
+}
+function renderSentence(sent){          // tokenise et balise chaque mot (adverbe et/ou faute)
+  return sent.replace(RE_TOKEN, tok=>{
+    if(!/[A-Za-zÀ-ÖØ-öø-ÿ]/.test(tok)) return esc(tok);
+    const cls = [];
+    if(state.lisib && RE_ADV1.test(tok)) cls.push('r-adv');
+    if(state.spell && spell && !checkWord(tok)) cls.push('r-spell');
+    return cls.length ? `<span class="${cls.join(' ')}">${esc(tok)}</span>` : esc(tok);
+  });
+}
 function statCard(v, l){ return `<div class="r-card"><div class="rv">${v}</div><div class="rl">${l}</div></div>`; }
 function analyzeHTML(text){
   if(!text.trim()) return '<p style="color:var(--ink-soft)">Rien à analyser pour l\'instant.</p>';
-  let totalWords=0, sentCount=0, longCount=0, advCount=0, bodyHTML='';
+  let totalWords=0, sentCount=0, longCount=0, advCount=0, misspelled=0, bodyHTML='';
   text.split(/\n/).forEach(par=>{
     if(!par.trim()){ bodyHTML += '<div style="height:.55em"></div>'; return; }
     let pHTML = '';
     splitSentences(par).forEach(sent=>{
       const w = countWords(sent); totalWords += w; sentCount++;
       let cls=''; if(w>=25){ cls='r-vhard'; longCount++; } else if(w>=18){ cls='r-hard'; longCount++; }
-      advCount += (sent.match(RE_ADV)||[]).length;
-      const inner = esc(sent).replace(RE_ADV, m=>`<span class="r-adv">${m}</span>`);
+      (sent.match(RE_WORD)||[]).forEach(tok=>{
+        if(RE_ADV1.test(tok)) advCount++;
+        if(state.spell && spell && !checkWord(tok)) misspelled++;
+      });
+      const inner = renderSentence(sent);
       pHTML += cls ? `<span class="${cls}">${inner}</span>` : inner;
     });
     bodyHTML += `<p>${pHTML}</p>`;
@@ -570,12 +591,32 @@ function analyzeHTML(text){
   const avg = sentCount ? Math.round(totalWords/sentCount) : 0;
   const mins = Math.max(1, Math.round(totalWords/200));
   const verdict = avg<=12 ? 'très lisible' : avg<=18 ? 'lisible' : avg<=24 ? 'dense' : 'difficile';
-  const stats = `<div class="r-stats">`
-    + statCard(totalWords,'mots') + statCard(sentCount,'phrases') + statCard(avg,'mots/phrase')
-    + statCard('~'+mins+' min','lecture') + statCard(longCount,'phrases longues') + statCard(advCount,'adverbes')
-    + `</div><div class="r-verdict">Lisibilité&nbsp;: <b>${verdict}</b></div>`
-    + `<div class="r-legend"><span class="r-hard">phrase longue (18+ mots)</span><span class="r-vhard">très longue (25+)</span><span><span class="r-adv">adverbe en -ment</span></span></div>`;
-  return stats + `<div class="r-body">${bodyHTML}</div>`;
+  let cards = statCard(totalWords,'mots') + statCard(sentCount,'phrases') + statCard(avg,'mots/phrase') + statCard('~'+mins+' min','lecture');
+  if(state.lisib) cards += statCard(longCount,'phrases longues') + statCard(advCount,'adverbes');
+  if(state.spell && spell) cards += statCard(misspelled,'fautes ?');
+  let legend = '';
+  if(state.lisib) legend += '<span class="r-hard">phrase longue (18+ mots)</span><span class="r-vhard">très longue (25+)</span><span><span class="r-adv">adverbe en -ment</span></span>';
+  if(state.spell && spell) legend += '<span><span class="r-spell">mot inconnu</span></span>';
+  if(state.spell && !spell) legend += '<span>dictionnaire en cours de chargement…</span>';
+  const head = `<div class="r-stats">${cards}</div>`
+    + (state.lisib ? `<div class="r-verdict">Lisibilité&nbsp;: <b>${verdict}</b></div>` : '')
+    + (legend ? `<div class="r-legend">${legend}</div>` : '');
+  return head + `<div class="r-body">${bodyHTML}</div>`;
+}
+
+/* ---------- Dictionnaire orthographique (chargé à la demande) ---------- */
+let spell = null, spellLoading = false;
+async function loadSpell(){
+  if(spell || spellLoading) return;
+  spellLoading = true;
+  try{
+    const [mod, aff, dic] = await Promise.all([
+      import('https://cdn.jsdelivr.net/npm/nspell@2/+esm'),
+      fetch('https://cdn.jsdelivr.net/npm/dictionary-fr/index.aff').then(r=>r.text()),
+      fetch('https://cdn.jsdelivr.net/npm/dictionary-fr/index.dic').then(r=>r.text())
+    ]);
+    spell = (mod.default || mod)(aff, dic);
+  } finally { spellLoading = false; }
 }
 function counts(){
   const t = editor.value.trim();
@@ -1118,6 +1159,18 @@ $('#toggle-lisib').onclick = ()=>{
   $('#toggle-lisib').classList.toggle('on', state.lisib);
   renderPreview();
 };
+$('#toggle-spell').onclick = async ()=>{
+  const btn = $('#toggle-spell');
+  if(!state.spell && !spell){
+    btn.textContent = 'Chargement…';
+    try{ await loadSpell(); }
+    catch(e){ btn.textContent = 'Orthographe'; setStatus('Dictionnaire indisponible : '+e.message, true); return; }
+    btn.textContent = 'Orthographe';
+  }
+  state.spell = !state.spell; persist();
+  btn.classList.toggle('on', state.spell);
+  renderPreview();
+};
 
 // « Longueur » : on choisit d'abord une cible (présets ou libre), puis on génère
 function openLengthForm(fixedTgt){
@@ -1386,7 +1439,9 @@ editor.value = state.doc || '';
 prevState = snapshot(); updateHistoryUI();
 setSplit(state.split); setZoom(state.zoom);
 $('#toggle-lisib').classList.toggle('on', state.lisib);
+$('#toggle-spell').classList.toggle('on', state.spell);
 renderPreview(); counts(); refreshFooter(); refreshVoice();
+if(state.spell) loadSpell().then(renderPreview).catch(()=>{});  // recharge le dico si l'option était active
 window.addEventListener('load', renderPreview);
 if(!state.key) setTimeout(openSettings, 350);
 </script>
