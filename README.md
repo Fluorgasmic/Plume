@@ -19,6 +19,7 @@
 - **Relancer avec une consigne** : sous les propositions, si aucune ne convient, un champ permet de donner une instruction « one-shot » (ex. « plus court », « sans jargon ») et de régénérer le même mode sur la même sélection. Éphémère — jamais sauvegardée.
 - La réponse de l'IA est **streamée** : le texte s'affiche au fur et à mesure plutôt qu'après la réponse complète.
 - **Annuler / Rétablir** (boutons ↶ ↷ ou `Ctrl/Cmd+Z` et `Ctrl/Cmd+Maj+Z`) couvrent aussi bien la frappe que les révisions et le formatage appliqués.
+- **Apparence** (Réglages) : thème **Clair**, **Sombre** ou **Système** (suit les préférences de l'OS).
 - **Ouvrir** un fichier Markdown/texte, et **exporter** au choix en **Markdown (.md)**, **Texte (.txt)**, **Page web (.html)** ou **Word (.doc)** (ouvrable dans Word et LibreOffice). Le nom de fichier reprend le premier titre du document.
 
 > **Vitesse :** la latence dépend surtout du modèle distant. Pour des réponses plus rapides, choisis un modèle « léger » (`*-flash`, `*-mini`, `claude-haiku-*`).
