@@ -104,6 +104,7 @@
   .pane-label-row{display:flex; align-items:center; justify-content:space-between}
   .lisib-tools{display:flex; gap:6px}
   .r-spell{text-decoration:underline; text-decoration-style:wavy; text-decoration-color:var(--correct); text-underline-offset:2px}
+  .r-found{background:#EADFF2; border-radius:3px; padding:0 1px}
   .lisib-toggle{font-family:'Inter',sans-serif; font-size:10px; letter-spacing:.06em; text-transform:uppercase; color:var(--ink-soft); border:1px solid var(--line-strong); border-radius:20px; padding:3px 11px}
   .lisib-toggle:hover{color:var(--accent); border-color:var(--accent)}
   .lisib-toggle.on{background:var(--accent-soft); color:var(--accent); border-color:var(--accent); font-weight:600}
@@ -542,7 +543,7 @@ function persist(){ localStorage.setItem(LS, JSON.stringify(state)); }
 const editor = $('#editor'), preview = $('#preview');
 
 function renderPreview(){
-  if(state.lisib || state.spell){ preview.innerHTML = analyzeHTML(editor.value); return; }
+  if(state.lisib || state.spell || foundRes.length){ preview.innerHTML = analyzeHTML(editor.value); return; }
   const md = editor.value;
   if(window.marked && window.DOMPurify){ preview.innerHTML = DOMPurify.sanitize(marked.parse(md)); }
   else{ preview.textContent = md; }
@@ -563,6 +564,17 @@ function checkWord(w){
   if(/^[A-ZÀ-Þ]/.test(w)) return true;            // ignore les capitalisés (noms propres, débuts de phrase)
   return spell.correct(w) || spell.correct(w.toLowerCase());
 }
+// termes repérés par la dernière passe Vocabulaire/Tics, surlignés dans l'aperçu
+let foundTerms = [], foundRes = [];
+function phraseRe(p){
+  const s = (p||'').replace(/[.*+?^${}()|[\]\\]/g,'\\$&').replace(/\s+/g,'\\s+').replace(/[’']/g,"[’']");
+  return new RegExp('(?<![A-Za-zÀ-ÖØ-öø-ÿ])'+s+'(?![A-Za-zÀ-ÖØ-öø-ÿ])','gi');
+}
+function applyFound(terms){
+  foundTerms = (terms||[]).filter(Boolean);
+  foundRes = foundTerms.map(phraseRe);
+  renderPreview();
+}
 // applique des plages de surlignage sans chevauchement (priorité au premier/au plus long)
 function emitRanges(sent, ranges){
   ranges.sort((a,b)=> a.s-b.s || (b.e-b.s)-(a.e-a.s));
@@ -579,6 +591,7 @@ function highlightSentence(sent){
   const ranges=[]; let adv=0, mis=0, m;
   if(state.lisib){ RE_ADVG.lastIndex=0; while((m=RE_ADVG.exec(sent))){ ranges.push({s:m.index,e:m.index+m[0].length,cls:'r-adv'}); adv++; } }
   if(state.spell && spell){ RE_WORDG.lastIndex=0; while((m=RE_WORDG.exec(sent))){ const w=m[0]; if(!checkWord(w)){ ranges.push({s:m.index,e:m.index+w.length,cls:'r-spell'}); mis++; } } }
+  for(const re of foundRes){ re.lastIndex=0; while((m=re.exec(sent))){ ranges.push({s:m.index,e:m.index+m[0].length,cls:'r-found'}); } }
   return { html: emitRanges(sent, ranges), adv, mis };
 }
 function statCard(v, l){ return `<div class="r-card"><div class="rv">${v}</div><div class="rl">${l}</div></div>`; }
@@ -606,6 +619,7 @@ function analyzeHTML(text){
   if(state.lisib) legend += '<span class="r-hard">phrase longue (18+ mots)</span><span class="r-vhard">très longue (25+)</span><span><span class="r-adv">adverbe en -ment</span></span>';
   if(state.spell && spell) legend += '<span><span class="r-spell">mot inconnu</span></span>';
   if(state.spell && !spell) legend += '<span>dictionnaire en cours de chargement…</span>';
+  if(foundRes.length) legend += '<span><span class="r-found">terme repéré</span> → reformule dans le panneau de droite</span>';
   const head = `<div class="r-stats">${cards}</div>`
     + (state.lisib ? `<div class="r-verdict">Lisibilité&nbsp;: <b>${verdict}</b></div>` : '')
     + (legend ? `<div class="r-legend">${legend}</div>` : '');
@@ -1083,13 +1097,14 @@ function renderResult(mode, data, tgt, consigne, lenTarget){
       btn.onclick = ()=>{ applyRange(tgt.start, tgt.end, data.alternatives[+btn.dataset.alt].text); setStatus('Variante appliquée.'); setScope(''); };
     });
     const ig0 = $('#ignore'); if(ig0) ig0.onclick = ()=>{ setStatus('Propositions ignorées.'); setScope(''); };
+    applyFound([]);
     wireRefine(mode, tgt); markTarget(tgt);
     return;
   }
   if((mode==='vocab' || mode==='tics') && Array.isArray(data.vocab)){
     if(!data.vocab.length){
       h += `<div class="status">${mode==='tics' ? 'Aucun tic de langage repéré dans cette sélection.' : 'Aucune proposition de vocabulaire.'}</div>` + refineFooter(consigne);
-      body.innerHTML = h; wireRefine(mode, tgt); markTarget(tgt); return;
+      body.innerHTML = h; applyFound([]); wireRefine(mode, tgt); markTarget(tgt); return;
     }
     const base = tgt.text; // on part TOUJOURS du texte d'origine : c'est là que les termes apparaissent tels quels
     const groups = data.vocab.map(v=>({ word:v.word, value:v.word, options:(v.options||[]) }));
@@ -1140,8 +1155,9 @@ function renderResult(mode, data, tgt, consigne, lenTarget){
         body.querySelectorAll('.chip[data-g="'+gi+'"]').forEach(c=>c.classList.toggle('sel', c===chip));
       };
     });
-    const apv = $('#apply'); if(apv) apv.onclick = ()=>{ applyRange(tgt.start, tgt.end, built.plain); setStatus('Proposition appliquée.'); setScope(''); };
-    const igv = $('#ignore'); if(igv) igv.onclick = ()=>{ setStatus('Proposition ignorée.'); setScope(''); };
+    const apv = $('#apply'); if(apv) apv.onclick = ()=>{ applyRange(tgt.start, tgt.end, built.plain); applyFound([]); setStatus('Proposition appliquée.'); setScope(''); };
+    const igv = $('#ignore'); if(igv) igv.onclick = ()=>{ applyFound([]); setStatus('Proposition ignorée.'); setScope(''); };
+    applyFound(groups.map(g=>g.word));   // surligne les termes repérés dans l'aperçu
     wireRefine(mode, tgt); markTarget(tgt);
     return;
   }
@@ -1172,6 +1188,7 @@ function renderResult(mode, data, tgt, consigne, lenTarget){
   if(ap) ap.onclick = ()=>{ applyRange(tgt.start, tgt.end, data.revised); setStatus('Proposition appliquée.'); setScope(''); };
   const ig = $('#ignore'); if(ig) ig.onclick = ()=>{ setStatus('Proposition ignorée.'); setScope(''); };
   const lc = $('#len-change'); if(lc) lc.onclick = ()=> openLengthForm(tgt);
+  applyFound([]);
   wireRefine(mode, tgt, lenTarget); markTarget(tgt);
 }
 
