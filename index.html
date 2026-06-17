@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: https:; connect-src https://api.anthropic.com https://api.openai.com https://api.mistral.ai https://generativelanguage.googleapis.com https://api.perplexity.ai https://dashscope-intl.aliyuncs.com https://dashscope.aliyuncs.com https://api.deepseek.com https://api.x.ai https://openrouter.ai https://cdn.jsdelivr.net; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: https:; connect-src https://api.anthropic.com https://api.openai.com https://api.mistral.ai https://generativelanguage.googleapis.com https://api.perplexity.ai https://dashscope-intl.aliyuncs.com https://dashscope.aliyuncs.com https://api.deepseek.com https://api.x.ai https://openrouter.ai https://cdn.jsdelivr.net; worker-src blob: https://cdn.jsdelivr.net; base-uri 'none'; form-action 'none'">
 <title>Plume — éditeur Markdown avec révision</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -438,6 +438,11 @@ Ton texte ici…"></textarea>
     <div class="field">
       <label for="pf-profile">Registre (consignes au modèle)</label>
       <textarea id="pf-profile"></textarea>
+      <div style="display:flex; align-items:center; gap:10px; margin-top:8px">
+        <button class="btn ghost" id="pf-doc">Importer un doc de marque (PDF, texte)…</button>
+        <span class="hint" id="pf-doc-status" style="margin:0"></span>
+      </div>
+      <div class="hint" style="margin-top:6px">L'IA résume le document en consignes de registre. PDF texte uniquement (un PDF scanné ne contient pas de texte exploitable).</div>
     </div>
 
     <div class="field">
@@ -459,6 +464,7 @@ Ton texte ici…"></textarea>
   </div>
 </div>
 <input type="file" id="pf-file" accept="application/json,.json" hidden>
+<input type="file" id="pf-doc-file" accept="application/pdf,.pdf,.txt,.md,.markdown,text/plain" hidden>
 
 <script>
 const $ = s => document.querySelector(s);
@@ -1440,6 +1446,7 @@ function pfCreate(){
 function openProfiles(){
   if(pfEditId==null || !state.profiles.some(p=>p.id===pfEditId)) pfEditId = state.activeId;
   renderPfSelect(); loadPfFields();
+  const ds=$('#pf-doc-status'); if(ds) ds.textContent='';
   $('#profiles').classList.remove('hidden');
 }
 $('#pf-select').onchange = ()=>{ pfEditId = $('#pf-select').value; loadPfFields(); };
@@ -1479,6 +1486,63 @@ $('#pf-file').onchange = ()=>{
   r.readAsText(f); $('#pf-file').value='';
 };
 $('#pf-done').onclick = ()=>{ commitPfFields(); $('#profiles').classList.add('hidden'); };
+
+/* ---------- Import d'un document de marque (PDF / texte) → registre distillé par l'IA ---------- */
+let pdfjsLib = null;
+async function loadPdfjs(){
+  if(pdfjsLib) return pdfjsLib;
+  const mod = await import('https://cdn.jsdelivr.net/npm/pdfjs-dist@4/+esm');
+  mod.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4/build/pdf.worker.min.mjs';
+  pdfjsLib = mod; return mod;
+}
+async function extractPdfText(buf){
+  const pdfjs = await loadPdfjs();
+  const doc = await pdfjs.getDocument({ data:buf }).promise;
+  const pages = Math.min(doc.numPages, 40);
+  let out = '';
+  for(let i=1;i<=pages;i++){
+    const page = await doc.getPage(i);
+    const c = await page.getTextContent();
+    out += c.items.map(it=>it.str).join(' ') + '\n\n';
+  }
+  return out.trim();
+}
+async function distillVoice(text){
+  const clipped = text.slice(0, 12000);
+  const sys = 'Tu es expert en identité de marque et en rédaction. Tu transformes une charte / un document de ton de voix en CONSIGNES DE RÉVISION concises et opérationnelles, destinées à piloter un correcteur IA.';
+  const user = `À partir du document ci-dessous (ton de voix d'une marque), rédige un profil de registre prêt à l'emploi. 10 à 18 lignes maximum, puces autorisées : qui parle et à qui, registre et posture, tournures/mots à privilégier, tics et formules à bannir, ponctuation, longueur de phrase. Pas d'introduction ni de conclusion, uniquement les consignes.\n\nDocument :\n"""${clipped}"""`;
+  return (await callLLM(sys, user)).trim();
+}
+function pfDocStatus(msg, err){ const el=$('#pf-doc-status'); el.textContent=msg||''; el.style.color = err ? 'var(--correct)' : 'var(--ink-soft)'; }
+$('#pf-doc').onclick = ()=> $('#pf-doc-file').click();
+$('#pf-doc-file').onchange = async ()=>{
+  const f = $('#pf-doc-file').files[0]; if(!f) return;
+  $('#pf-doc-file').value = '';
+  if(!state.key){ pfDocStatus('Renseigne d\'abord ta clé API (Réglages).', true); return; }
+  const btn = $('#pf-doc'); btn.disabled = true;
+  try{
+    pfDocStatus('Lecture du document…');
+    let text = '';
+    if(/\.pdf$/i.test(f.name) || f.type==='application/pdf'){
+      text = await extractPdfText(await f.arrayBuffer());
+      if(text.replace(/\s/g,'').length < 40){
+        pfDocStatus('Ce PDF semble scanné (aucun texte). Copie-colle son contenu dans le registre.', true);
+        return;
+      }
+    } else {
+      text = await f.text();
+    }
+    const cur = $('#pf-profile').value.trim();
+    if(cur && !confirm('Remplacer le registre actuel par celui distillé du document ?')){ pfDocStatus(''); return; }
+    pfDocStatus('Distillation par l\'IA…');
+    const profile = await distillVoice(text);
+    if(!profile){ pfDocStatus('Le modèle n\'a rien renvoyé. Réessaie.', true); return; }
+    $('#pf-profile').value = profile; commitPfFields();
+    pfDocStatus('Registre généré depuis « '+f.name+' ». Ajuste-le si besoin.');
+  }catch(err){
+    pfDocStatus('Échec : '+err.message, true);
+  } finally { btn.disabled = false; }
+};
 
 /* ---------- Init ---------- */
 load();

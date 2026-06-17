@@ -7,6 +7,7 @@
 - Éditeur Markdown avec aperçu en temps réel, barre de formatage, zoom et vue partagée redimensionnable.
 - Sélectionne un passage (ou laisse le curseur dans un paragraphe), puis lance **Corriger**, **Réviser le style** ou **Vocabulaire**.
 - **Profils de voix** : registre + 3 tons regroupés par client/contexte, **commutables en un clic** depuis la barre (menu déroulant, favoris épinglés en tête). Gestionnaire dédié pour créer, dupliquer, supprimer et **exporter/importer** un profil (`.plume.json`). Les réglages techniques (fournisseur, modèle, clé) restent séparés dans ⚙.
+- **Import d'un doc de marque** : dans l'éditeur de profil, importe une charte de **ton de voix (PDF texte ou .txt/.md)** ; l'IA la **distille en consignes de registre** prêtes à l'emploi. (PDF scanné non géré — copie-colle alors le texte. Le PDF est extrait localement via pdf.js.)
 - **Réviser le style** propose **3 variantes** de reformulation, une par ton du profil actif.
 - **Vocabulaire** propose des synonymes cliquables : un clic remplace le terme dans la proposition, le mot changé est **surligné en temps réel**, puis « Appliquer » injecte le passage retouché.
 - **Réviser la longueur** : ajuste la sélection à une cible de signes (présets titre SEO 60 / meta 155 / post 280, ou valeur libre) — condense ou étoffe sans trahir le sens. Le pied de page affiche en direct la **longueur de la sélection** et le repère le plus proche.
