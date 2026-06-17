@@ -254,6 +254,8 @@
   .tone-row .tone-instr{flex:1; min-width:0}
   .modal-foot{display:flex; gap:10px; justify-content:flex-end; padding:14px 22px 22px; border-top:1px solid var(--line); margin-top:6px}
 
+  body.no-panel aside{display:none !important}
+  #toggle-panel.on{background:var(--accent-soft); color:var(--accent)}
   @media (max-width:880px){
     aside{position:fixed; right:0; top:54px; bottom:30px; z-index:30; box-shadow:var(--shadow)}
     .pane.preview{display:none}
@@ -298,6 +300,12 @@
   <div class="toolgroup">
     <button class="btn icon ghost" id="act-undo" title="Annuler (Ctrl+Z)" disabled>↶</button>
     <button class="btn icon ghost" id="act-redo" title="Rétablir (Ctrl+Maj+Z)" disabled>↷</button>
+  </div>
+  <div class="divider"></div>
+  <div class="toolgroup">
+    <button class="btn icon ghost" id="toggle-panel" title="Afficher / masquer le panneau de révision" aria-pressed="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"></rect><line x1="15" y1="4" x2="15" y2="20"></line></svg>
+    </button>
   </div>
   <div class="divider"></div>
   <div class="toolgroup">
@@ -542,7 +550,7 @@ function normTones(t){
 let state = {
   provider:'anthropic', model:PROVIDERS.anthropic.default, models:{},
   key:'', profile:DEFAULT_PROFILE, tones:cloneTones(),
-  profiles:[], activeId:'', auto:false, lisib:true, spell:true, theme:'light', doc:'', split:50, zoom:1
+  profiles:[], activeId:'', auto:false, lisib:true, spell:true, theme:'light', panelHidden:false, doc:'', split:50, zoom:1
 };
 const uid = ()=> 'p'+Math.random().toString(36).slice(2,9)+Date.now().toString(36).slice(-3);
 
@@ -603,40 +611,58 @@ function applyFound(terms){
   foundRes = foundTerms.map(phraseRe);
   renderPreview();
 }
-// applique des plages de surlignage sans chevauchement (priorité au premier/au plus long)
-function emitRanges(sent, ranges){
-  ranges.sort((a,b)=> a.s-b.s || (b.e-b.s)-(a.e-a.s));
-  let out='', cur=0;
-  for(const r of ranges){
-    if(r.s < cur) continue;
-    out += esc(sent.slice(cur, r.s));
-    out += `<span class="${r.cls}"${r.title?` title="${esc(r.title)}"`:''}>${esc(sent.slice(r.s, r.e))}</span>`;
-    cur = r.e;
-  }
-  return out + esc(sent.slice(cur));
+function classesAt(pos, ranges){
+  let c=null;
+  for(const r of ranges){ if(pos>=r.s && pos<r.e){ (c||(c=[])).push(r.cls); } }
+  return c;
 }
-function highlightSentence(sent){
-  const ranges=[]; let adv=0, mis=0, m;
-  if(state.lisib){ RE_ADVG.lastIndex=0; while((m=RE_ADVG.exec(sent))){ ranges.push({s:m.index,e:m.index+m[0].length,cls:'r-adv'}); adv++; } }
-  if(state.spell && spell){ RE_WORDG.lastIndex=0; while((m=RE_WORDG.exec(sent))){ const w=m[0]; if(!checkWord(w)){ ranges.push({s:m.index,e:m.index+w.length,cls:'r-spell'}); mis++; } } }
-  for(const re of foundRes){ re.lastIndex=0; while((m=re.exec(sent))){ ranges.push({s:m.index,e:m.index+m[0].length,cls:'r-found'}); } }
-  return { html: emitRanges(sent, ranges), adv, mis };
+// analyse + surligne les nœuds texte d'un bloc rendu (le gras/les titres sont préservés)
+function annotateBlock(el){
+  const nodes=[]; let full='';
+  (function walk(node){
+    for(const ch of [...node.childNodes]){
+      if(ch.nodeType===3){ nodes.push({node:ch, start:full.length}); full+=ch.nodeValue; }
+      else if(ch.nodeType===1 && ch.nodeName!=='CODE' && ch.nodeName!=='PRE'){ walk(ch); }
+    }
+  })(el);
+  const r0={words:0,sents:0,long:0,adv:0,mis:0,found:0};
+  if(!full.trim()) return r0;
+  const ranges=[]; let m;
+  const sre=/[^.!?…]+[.!?…]+|\S[^.!?…]*$/g;
+  while((m=sre.exec(full))){
+    const sent=m[0], w=countWords(sent); if(!w) continue; r0.words+=w; r0.sents++;
+    if(w>=25){ if(state.lisib) ranges.push({s:m.index,e:m.index+sent.length,cls:'r-vhard'}); r0.long++; }
+    else if(w>=18){ if(state.lisib) ranges.push({s:m.index,e:m.index+sent.length,cls:'r-hard'}); r0.long++; }
+  }
+  if(state.lisib){ RE_ADVG.lastIndex=0; while((m=RE_ADVG.exec(full))){ ranges.push({s:m.index,e:m.index+m[0].length,cls:'r-adv'}); r0.adv++; } }
+  if(state.spell && spell){ RE_WORDG.lastIndex=0; while((m=RE_WORDG.exec(full))){ const w=m[0]; if(!checkWord(w)){ ranges.push({s:m.index,e:m.index+w.length,cls:'r-spell'}); r0.mis++; } } }
+  for(const re of foundRes){ re.lastIndex=0; while((m=re.exec(full))){ ranges.push({s:m.index,e:m.index+m[0].length,cls:'r-found'}); r0.found++; } }
+  if(ranges.length){
+    for(const item of nodes){
+      const txt=item.node.nodeValue, base=item.start; let out='', i=0, changed=false;
+      while(i<txt.length){
+        const cls=classesAt(base+i, ranges); const key=cls?cls.join(' '):'';
+        let j=i+1;
+        while(j<txt.length){ const c2=classesAt(base+j,ranges); if((c2?c2.join(' '):'')!==key) break; j++; }
+        const seg=esc(txt.slice(i,j));
+        if(cls){ out+=`<span class="${key}">${seg}</span>`; changed=true; } else out+=seg;
+        i=j;
+      }
+      if(changed){ const tmp=document.createElement('span'); tmp.innerHTML=out; item.node.replaceWith(...tmp.childNodes); }
+    }
+  }
+  return r0;
 }
 function statCard(v, l){ return `<div class="r-card"><div class="rv">${v}</div><div class="rl">${l}</div></div>`; }
 function analyzeHTML(text){
   if(!text.trim()) return '<p style="color:var(--ink-soft)">Rien à analyser pour l\'instant.</p>';
-  let totalWords=0, sentCount=0, longCount=0, advCount=0, misCount=0, bodyHTML='';
-  text.split(/\n/).forEach(par=>{
-    if(!par.trim()){ bodyHTML += '<div style="height:.55em"></div>'; return; }
-    let pHTML = '';
-    splitSentences(par).forEach(sent=>{
-      const w = countWords(sent); totalWords += w; sentCount++;
-      let cls=''; if(w>=25){ cls='r-vhard'; longCount++; } else if(w>=18){ cls='r-hard'; longCount++; }
-      const r = highlightSentence(sent); advCount+=r.adv; misCount+=r.mis;
-      pHTML += cls ? `<span class="${cls}">${r.html}</span>` : r.html;
-    });
-    bodyHTML += `<p>${pHTML}</p>`;
-  });
+  const container = document.createElement('div');
+  container.innerHTML = (window.marked && window.DOMPurify) ? DOMPurify.sanitize(marked.parse(text)) : esc(text);
+  const sel='p,li,h1,h2,h3,h4,h5,h6,blockquote';
+  let blocks=[...container.querySelectorAll(sel)].filter(el=> !el.querySelector(sel));
+  if(!blocks.length) blocks=[container];
+  let totalWords=0,sentCount=0,longCount=0,advCount=0,misCount=0;
+  blocks.forEach(el=>{ const s=annotateBlock(el); totalWords+=s.words; sentCount+=s.sents; longCount+=s.long; advCount+=s.adv; misCount+=s.mis; });
   const avg = sentCount ? Math.round(totalWords/sentCount) : 0;
   const mins = Math.max(1, Math.round(totalWords/200));
   const verdict = avg<=12 ? 'très lisible' : avg<=18 ? 'lisible' : avg<=24 ? 'dense' : 'difficile';
@@ -651,7 +677,7 @@ function analyzeHTML(text){
   const head = `<div class="r-stats">${cards}</div>`
     + (state.lisib ? `<div class="r-verdict">Lisibilité&nbsp;: <b>${verdict}</b></div>` : '')
     + (legend ? `<div class="r-legend">${legend}</div>` : '');
-  return head + `<div class="r-body">${bodyHTML}</div>`;
+  return head + `<div class="r-body">${container.innerHTML}</div>`;
 }
 
 /* ---------- Dictionnaire orthographique (chargé à la demande) ---------- */
@@ -1234,6 +1260,11 @@ $('#toggle-lisib').onclick = ()=>{
   $('#toggle-lisib').classList.toggle('on', state.lisib);
   renderPreview();
 };
+function applyPanel(){
+  document.body.classList.toggle('no-panel', state.panelHidden);
+  const b=$('#toggle-panel'); b.classList.toggle('on', !state.panelHidden); b.setAttribute('aria-pressed', String(!state.panelHidden));
+}
+$('#toggle-panel').onclick = ()=>{ state.panelHidden = !state.panelHidden; persist(); applyPanel(); };
 $('#toggle-spell').onclick = async ()=>{
   const btn = $('#toggle-spell');
   if(!state.spell && !spell){
@@ -1576,7 +1607,7 @@ $('#pf-doc-file').onchange = async ()=>{
 
 /* ---------- Init ---------- */
 load();
-applyTheme(state.theme);
+applyTheme(state.theme); applyPanel();
 editor.value = state.doc || '';
 prevState = snapshot(); updateHistoryUI();
 setSplit(state.split); setZoom(state.zoom);
