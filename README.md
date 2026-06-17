@@ -8,6 +8,7 @@
 - Sélectionne un passage (ou laisse le curseur dans un paragraphe), puis lance **Corriger**, **Réviser le style** ou **Vocabulaire**.
 - **Profils de voix** : registre + 3 tons regroupés par client/contexte, **commutables en un clic** depuis la barre (menu déroulant, favoris épinglés en tête). Gestionnaire dédié pour créer, dupliquer, supprimer et **exporter/importer** un profil (`.plume.json`). Les réglages techniques (fournisseur, modèle, clé) restent séparés dans ⚙.
 - **Import d'un doc de marque** : dans l'éditeur de profil, importe une charte de **ton de voix (PDF texte ou .txt/.md)** ; l'IA la **distille en consignes de registre** prêtes à l'emploi. (PDF scanné non géré — copie-colle alors le texte. Le PDF est extrait localement via pdf.js.)
+- **Corriger** affiche un **diff mot à mot** : chaque changement s'**accepte ou se refuse** d'un clic (ou Tout accepter / Tout refuser) avant application.
 - **Réviser le style** propose **3 variantes** de reformulation, une par ton du profil actif.
 - **Vocabulaire** propose des synonymes cliquables : un clic remplace le terme dans la proposition, le mot changé est **surligné en temps réel**, puis « Appliquer » injecte le passage retouché.
 - **Réviser la longueur** : ajuste la sélection à une cible de signes (présets titre SEO 60 / meta 155 / post 280, ou valeur libre) — condense ou étoffe sans trahir le sens. Le pied de page affiche en direct la **longueur de la sélection** et le repère le plus proche.
@@ -17,7 +18,7 @@
 
 > Lisibilité et Orthographe sont **activés par défaut** (toggles dans l'en-tête de l'aperçu).
 - **Relancer avec une consigne** : sous les propositions, si aucune ne convient, un champ permet de donner une instruction « one-shot » (ex. « plus court », « sans jargon ») et de régénérer le même mode sur la même sélection. Éphémère — jamais sauvegardée.
-- La réponse de l'IA est **streamée** : le texte s'affiche au fur et à mesure plutôt qu'après la réponse complète.
+- La réponse de l'IA est **streamée** (texte affiché au fil de l'eau). Les révisions tiennent compte du **texte environnant** (lecture seule) pour rester cohérentes, le **prompt système est mis en cache** (premier token plus rapide, coût d'entrée réduit), et la **température est réglée par mode** (0 pour la correction, plus élevée pour le style).
 - **Annuler / Rétablir** (boutons ↶ ↷ ou `Ctrl/Cmd+Z` et `Ctrl/Cmd+Maj+Z`) couvrent aussi bien la frappe que les révisions et le formatage appliqués.
 - **Apparence** (Réglages) : thème **Clair**, **Sombre** ou **Système** (suit les préférences de l'OS).
 - **Ouvrir** un fichier Markdown/texte, et **exporter** au choix en **Markdown (.md)**, **Texte (.txt)**, **Page web (.html)** ou **Word (.doc)** (ouvrable dans Word et LibreOffice). Le nom de fichier reprend le premier titre du document.

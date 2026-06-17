@@ -222,6 +222,13 @@
   .voc .chip.orig.sel{font-style:normal; color:var(--accent)}
   .vsub{border-radius:3px; transition:background .12s}
   .vsub.on{background:var(--accent-soft); color:var(--accent); font-weight:600; padding:0 3px; box-shadow:inset 0 -1px 0 var(--accent)}
+  .dchg{cursor:pointer; border-radius:3px; padding:0 1px}
+  .dchg del{text-decoration:line-through; color:var(--correct)}
+  .dchg ins{text-decoration:none; color:var(--accept)}
+  .dchg.acc{background:rgba(62,125,90,.13)}
+  .dchg.rej{background:rgba(140,138,130,.16)}
+  .dchg.rej del{text-decoration:none; color:var(--ink)}
+  .dchg.rej ins{text-decoration:line-through; opacity:.45}
 
   /* ---- footer ---- */
   footer{
@@ -884,26 +891,32 @@ function applyRange(start, end, replacement){
 
 /* ---------- Appel LLM ---------- */
 // Si onChunk est fourni, la réponse est streamée (SSE) et onChunk(texteCumulé) est appelé au fil de l'eau.
-async function callLLM(system, user, onChunk){
+async function callLLM(system, user, onChunk, temperature){
   if(!state.key) throw new Error('Aucune clé API. Ouvre les réglages.');
   const p = state.provider;
   const stream = typeof onChunk === 'function';
+  const hasT = typeof temperature === 'number';
   let url, headers, body;
   if(p==='anthropic'){
     url='https://api.anthropic.com/v1/messages';
     headers={'content-type':'application/json','x-api-key':state.key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'};
-    body={ model:state.model, max_tokens:4000, system, messages:[{role:'user',content:user}] };
+    // system en bloc avec cache_control : le gros prompt stable (registre+marque) est mis en cache
+    body={ model:state.model, max_tokens:4000, system:[{type:'text', text:system, cache_control:{type:'ephemeral'}}], messages:[{role:'user',content:user}] };
+    if(hasT) body.temperature = temperature;
     if(stream) body.stream = true;
   } else if(p==='gemini'){
     const method = stream ? 'streamGenerateContent?alt=sse' : 'generateContent';
     url='https://generativelanguage.googleapis.com/v1beta/models/'+encodeURIComponent(state.model)+':'+method;
     headers={'content-type':'application/json','x-goog-api-key':state.key};
     body={ system_instruction:{parts:[{text:system}]}, contents:[{role:'user',parts:[{text:user}]}], generationConfig:{maxOutputTokens:4000} };
+    if(hasT) body.generationConfig.temperature = temperature;
   } else {
     url = OPENAI_COMPAT[p];
     if(!url) throw new Error('Fournisseur inconnu : '+p);
     headers={'content-type':'application/json','authorization':'Bearer '+state.key};
+    // OpenAI & compatibles : le cache de prompt s'active automatiquement sur le préfixe stable (système en tête)
     body={ model:state.model, max_tokens:4000, messages:[{role:'system',content:system},{role:'user',content:user}] };
+    if(hasT) body.temperature = temperature;
     if(stream) body.stream = true;
   }
   const r = await fetch(url,{method:'POST',headers,body:JSON.stringify(body)});
@@ -1019,6 +1032,20 @@ function srcBanner(tgt){
   return `<div class="proposal" style="padding-bottom:10px"><div class="pl">Texte d'origine · ${scope}</div>`
     + `<div class="proposed-text" style="background:var(--paper); color:var(--ink-soft); font-style:italic">${esc(t)}</div></div>`;
 }
+// texte environnant en lecture seule, pour que la révision reste cohérente avec le reste
+function buildContext(tgt){
+  const v = editor.value, B = 500;
+  let before = v.slice(Math.max(0, tgt.start-B), tgt.start);
+  let after  = v.slice(tgt.end, tgt.end+B);
+  if(tgt.start-B > 0) before = '…' + before;
+  if(tgt.end+B < v.length) after = after + '…';
+  before = before.trim(); after = after.trim();
+  if(!before && !after) return '';
+  return `Contexte autour du passage — NE PAS le réviser, il sert seulement à garder la cohérence (transitions, non-répétition d'un mot voisin, registre) :\n`
+    + (before ? `[avant] """${before}"""\n` : '')
+    + (after ? `[après] """${after}"""\n` : '')
+    + `\n`;
+}
 
 async function runRevision(mode, consigne='', fixedTgt=null, lenTarget=0){
   setActiveAction(mode);
@@ -1029,9 +1056,13 @@ async function runRevision(mode, consigne='', fixedTgt=null, lenTarget=0){
   body.innerHTML = srcBanner(tgt) + '<div class="proposal"><div class="pl"><span class="spin"></span>Génération en cours…</div><div class="proposed-text" id="live"></div></div>';
 
   consigne = (consigne || '').trim();
+  // prompt système STABLE (mis en cache) : registre + format. La consigne ponctuelle va dans le message utilisateur.
   const sys = activeRegistre()
-    + (consigne ? '\n\nConsigne ponctuelle de l\'utilisateur pour CETTE révision, à respecter en priorité sans changer le format de réponse : ' + consigne : '')
     + '\n\nTu suis EXACTEMENT le format de réponse demandé, sans rien ajouter avant ni après les balises.';
+  const consigneLine = consigne ? `Consigne ponctuelle pour CETTE révision, à respecter en priorité (sans changer le format) : ${consigne}\n\n` : '';
+  const ctx = (mode==='length') ? '' : buildContext(tgt);   // contexte environnant (sauf pour l'ajustement de longueur)
+  const TEMP = { correct:0, length:0.2, tics:0.3, vocab:0.55, style:0.7 };
+  const temp = TEMP[mode];
   let user;
   if(mode==='correct'){
     user = `Corrige uniquement l'orthographe, la grammaire, la conjugaison et la ponctuation du texte ci-dessous, sans reformuler au-delà du nécessaire.
@@ -1039,10 +1070,6 @@ async function runRevision(mode, consigne='', fixedTgt=null, lenTarget=0){
 Réponds exactement dans ce format:
 <<<REVISED>>>
 (le texte corrigé, tel quel, sur autant de lignes qu'il faut)
-<<<CHANGES>>>
-type ::: avant ::: après ::: courte justification
-
-Une ligne par modification. Le type vaut ortho ou gram. S'il n'y a aucune correction, laisse la section CHANGES vide.
 
 Texte:
 """${tgt.text}"""`;
@@ -1110,6 +1137,7 @@ Une ligne par terme concerné.
 Passage:
 """${tgt.text}"""`;
   }
+  user = consigneLine + ctx + user;   // consigne ponctuelle + contexte environnant en tête du message
 
   const onChunk = full=>{
     const el = $('#live'); if(!el) return;
@@ -1117,8 +1145,8 @@ Passage:
     body.scrollTop = body.scrollHeight; // garde le texte en cours visible
   };
   try{
-    let raw = await callLLM(sys, user, onChunk);
-    if(!raw.trim()) raw = await callLLM(sys, user); // repli non-streamé si aucun fragment reçu
+    let raw = await callLLM(sys, user, onChunk, temp);
+    if(!raw.trim()) raw = await callLLM(sys, user, null, temp); // repli non-streamé si aucun fragment reçu
     const data = parseResponse(mode, raw);
     renderResult(mode, data, tgt, consigne, lenTarget);
   }catch(err){
@@ -1141,8 +1169,71 @@ function wireRefine(mode, tgt, lenTarget){
   inp.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); run(); } });
 }
 
+// diff mot à mot (LCS) pour la correction : permet d'accepter/refuser chaque changement
+function diffTokenize(s){ return s.match(/\s+|[^\s]+/g) || []; }
+function diffHunks(orig, rev){
+  const a = diffTokenize(orig), b = diffTokenize(rev);
+  if(a.length*b.length > 400000) return [{type:'chg', before:orig, after:rev}]; // garde-fou perf
+  const n=a.length, m=b.length;
+  const dp = Array.from({length:n+1}, ()=> new Uint16Array(m+1));
+  for(let i=n-1;i>=0;i--) for(let j=m-1;j>=0;j--) dp[i][j] = a[i]===b[j] ? dp[i+1][j+1]+1 : Math.max(dp[i+1][j], dp[i][j+1]);
+  const ops=[]; let i=0,j=0;
+  while(i<n && j<m){
+    if(a[i]===b[j]){ ops.push({t:'eq',v:a[i]}); i++; j++; }
+    else if(dp[i+1][j] >= dp[i][j+1]){ ops.push({t:'del',v:a[i]}); i++; }
+    else { ops.push({t:'ins',v:b[j]}); j++; }
+  }
+  while(i<n) ops.push({t:'del',v:a[i++]});
+  while(j<m) ops.push({t:'ins',v:b[j++]});
+  const hunks=[]; let k=0;
+  while(k<ops.length){
+    if(ops[k].t==='eq'){ let s=''; while(k<ops.length && ops[k].t==='eq'){ s+=ops[k].v; k++; } hunks.push({type:'eq', text:s}); }
+    else { let del='', ins=''; while(k<ops.length && ops[k].t!=='eq'){ if(ops[k].t==='del') del+=ops[k].v; else ins+=ops[k].v; k++; } hunks.push({type:'chg', before:del, after:ins}); }
+  }
+  return hunks;
+}
+
 function renderResult(mode, data, tgt, consigne, lenTarget){
   let h = srcBanner(tgt);
+  if(mode==='correct' && data.revised){
+    const hunks = diffHunks(tgt.text, data.revised);
+    const acc = {};                       // état accepté par index de hunk
+    let nChg = 0;
+    hunks.forEach((hk,k)=>{ if(hk.type==='chg'){ acc[k]=true; nChg++; } });
+    function diffHTML(){
+      return hunks.map((hk,k)=>{
+        if(hk.type==='eq') return esc(hk.text);
+        const on = acc[k];
+        return `<span class="dchg ${on?'acc':'rej'}" data-k="${k}" title="${on?'modification acceptée — clic pour refuser':'modification refusée — clic pour accepter'}">`
+          + (hk.before ? `<del>${esc(hk.before)}</del>` : '')
+          + (hk.after ? `<ins>${esc(hk.after)}</ins>` : '')
+          + `</span>`;
+      }).join('');
+    }
+    function finalText(){ return hunks.map((hk,k)=> hk.type==='eq' ? hk.text : (acc[k] ? hk.after : hk.before)).join(''); }
+    if(!nChg){
+      h += `<div class="status">Aucune correction nécessaire. Le texte est déjà bon.</div>` + refineFooter(consigne);
+      body.innerHTML = h; applyFound([]); wireRefine(mode, tgt); markTarget(tgt); return;
+    }
+    h += `<div class="proposal"><div class="pl">Correction — ${nChg} changement${nChg>1?'s':''} · clique pour accepter/refuser</div>`
+      + `<div class="proposed-text" id="diff-text">${diffHTML()}</div>`
+      + `<div class="apply-row" style="flex-wrap:wrap">`
+      + `<button class="btn ghost" id="diff-all">Tout accepter</button>`
+      + `<button class="btn ghost" id="diff-none">Tout refuser</button>`
+      + `<button class="btn primary" id="apply" style="flex:1">Appliquer</button>`
+      + `<button class="btn ghost" id="ignore">Ignorer</button></div></div>`;
+    h += refineFooter(consigne);
+    body.innerHTML = h;
+    const dt = $('#diff-text');
+    function bind(){ dt.querySelectorAll('.dchg').forEach(sp=> sp.onclick = ()=>{ const k=+sp.dataset.k; acc[k]=!acc[k]; dt.innerHTML = diffHTML(); bind(); }); }
+    bind();
+    $('#diff-all').onclick = ()=>{ hunks.forEach((hk,k)=>{ if(hk.type==='chg') acc[k]=true; }); dt.innerHTML=diffHTML(); bind(); };
+    $('#diff-none').onclick = ()=>{ hunks.forEach((hk,k)=>{ if(hk.type==='chg') acc[k]=false; }); dt.innerHTML=diffHTML(); bind(); };
+    $('#apply').onclick = ()=>{ applyRange(tgt.start, tgt.end, finalText()); applyFound([]); setStatus('Correction appliquée.'); setScope(''); };
+    $('#ignore').onclick = ()=>{ applyFound([]); setStatus('Correction ignorée.'); setScope(''); };
+    wireRefine(mode, tgt); markTarget(tgt);
+    return;
+  }
   if(mode==='style' && Array.isArray(data.alternatives) && data.alternatives.length){
     data.alternatives.forEach((alt,i)=>{
       h += `<div class="proposal"><div class="pl">Variante ${i+1}${alt.angle?' · '+esc(alt.angle):''}</div>
