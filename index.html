@@ -466,13 +466,18 @@ Ton texte ici…"></textarea>
     </div>
 
     <div class="field">
-      <label for="pf-profile">Registre (consignes au modèle)</label>
+      <label for="pf-profile">Instructions de base (tes consignes, jamais écrasées)</label>
       <textarea id="pf-profile"></textarea>
+    </div>
+
+    <div class="field">
+      <label for="pf-brand">Consignes de marque (charte, ton de voix)</label>
+      <textarea id="pf-brand" placeholder="Rempli par l'import d'un document, ou à la main."></textarea>
       <div style="display:flex; align-items:center; gap:10px; margin-top:8px">
         <button class="btn ghost" id="pf-doc">Importer un doc de marque (PDF, texte)…</button>
         <span class="hint" id="pf-doc-status" style="margin:0"></span>
       </div>
-      <div class="hint" style="margin-top:6px">L'IA résume le document en consignes de registre. PDF texte uniquement (un PDF scanné ne contient pas de texte exploitable).</div>
+      <div class="hint" style="margin-top:6px">L'IA résume le document en consignes et les ajoute ici (sans toucher aux instructions de base). PDF texte uniquement.</div>
     </div>
 
     <div class="field">
@@ -565,6 +570,7 @@ function load(){
     id: p.id||uid(),
     name: (p.name||'Sans nom').toString().trim() || 'Sans nom',
     profile: (p.profile||DEFAULT_PROFILE).toString(),
+    brand: (p.brand||'').toString(),
     tones: normTones(p.tones),
     fav: !!p.fav
   }));
@@ -573,6 +579,7 @@ function load(){
   if(state.uiDefaults !== 1){ state.lisib = true; state.spell = true; state.uiDefaults = 1; }
 }
 function getActive(){ return state.profiles.find(p=>p.id===state.activeId) || state.profiles[0]; }
+function activeRegistre(){ const p=getActive(); return (p.profile||'') + (p.brand && p.brand.trim() ? '\n\nConsignes de marque :\n'+p.brand.trim() : ''); }
 function persist(){ localStorage.setItem(LS, JSON.stringify(state)); }
 
 /* ---------- Éditeur & aperçu ---------- */
@@ -1022,7 +1029,7 @@ async function runRevision(mode, consigne='', fixedTgt=null, lenTarget=0){
   body.innerHTML = srcBanner(tgt) + '<div class="proposal"><div class="pl"><span class="spin"></span>Génération en cours…</div><div class="proposed-text" id="live"></div></div>';
 
   consigne = (consigne || '').trim();
-  const sys = getActive().profile
+  const sys = activeRegistre()
     + (consigne ? '\n\nConsigne ponctuelle de l\'utilisateur pour CETTE révision, à respecter en priorité sans changer le format de réponse : ' + consigne : '')
     + '\n\nTu suis EXACTEMENT le format de réponse demandé, sans rien ajouter avant ni après les balises.';
   let user;
@@ -1488,6 +1495,7 @@ function loadPfFields(){
   $('#pf-name').value = p.name;
   $('#pf-fav').checked = !!p.fav;
   $('#pf-profile').value = p.profile;
+  $('#pf-brand').value = p.brand || '';
   renderToneFields(p.tones);
 }
 function commitPfFields(){
@@ -1495,13 +1503,14 @@ function commitPfFields(){
   p.name = $('#pf-name').value.trim() || 'Sans nom';
   p.fav = $('#pf-fav').checked;
   p.profile = $('#pf-profile').value.trim() || DEFAULT_PROFILE;
+  p.brand = $('#pf-brand').value.trim();
   p.tones = normTones(readToneFields());
   const opt = [...$('#pf-select').options].find(o=>o.value===p.id);
   if(opt) opt.textContent = p.name + (p.fav?' ★':'');
   persist(); refreshVoice();
 }
 function pfCreate(){
-  const p = { id:uid(), name:'Nouveau profil', profile:DEFAULT_PROFILE, tones:cloneTones(), fav:false };
+  const p = { id:uid(), name:'Nouveau profil', profile:DEFAULT_PROFILE, brand:'', tones:cloneTones(), fav:false };
   state.profiles.push(p); pfEditId = p.id; persist(); return p;
 }
 function openProfiles(){
@@ -1516,7 +1525,7 @@ $('#profiles').addEventListener('change', e=>{ if(e.target.id==='pf-fav') commit
 $('#pf-new').onclick = ()=>{ pfCreate(); renderPfSelect(); loadPfFields(); };
 $('#pf-dup').onclick = ()=>{
   const s = state.profiles.find(x=>x.id===pfEditId); if(!s) return;
-  const p = { id:uid(), name:s.name+' (copie)', profile:s.profile, tones:normTones(s.tones), fav:false };
+  const p = { id:uid(), name:s.name+' (copie)', profile:s.profile, brand:s.brand||'', tones:normTones(s.tones), fav:false };
   state.profiles.push(p); pfEditId = p.id; persist(); renderPfSelect(); loadPfFields();
 };
 $('#pf-del').onclick = ()=>{
@@ -1530,7 +1539,7 @@ $('#pf-del').onclick = ()=>{
 $('#pf-export').onclick = ()=>{
   const p = state.profiles.find(x=>x.id===pfEditId); if(!p) return;
   const name = (p.name||'profil').replace(/[\\/:*?"<>|]+/g,' ').replace(/\s+/g,'-').slice(0,60) || 'profil';
-  download(name+'.plume.json', JSON.stringify({ name:p.name, profile:p.profile, tones:p.tones }, null, 2), 'application/json');
+  download(name+'.plume.json', JSON.stringify({ name:p.name, profile:p.profile, brand:p.brand||'', tones:p.tones }, null, 2), 'application/json');
 };
 $('#pf-import').onclick = ()=> $('#pf-file').click();
 $('#pf-file').onchange = ()=>{
@@ -1539,7 +1548,7 @@ $('#pf-file').onchange = ()=>{
   r.onload = ()=>{
     try{
       const d = JSON.parse(r.result), arr = Array.isArray(d) ? d : [d]; let last=null;
-      arr.forEach(x=>{ if(x && (x.profile||x.tones||x.name)){ const p={ id:uid(), name:(x.name||'Profil importé').toString().trim()||'Profil importé', profile:(x.profile||DEFAULT_PROFILE).toString(), tones:normTones(x.tones), fav:false }; state.profiles.push(p); last=p.id; } });
+      arr.forEach(x=>{ if(x && (x.profile||x.brand||x.tones||x.name)){ const p={ id:uid(), name:(x.name||'Profil importé').toString().trim()||'Profil importé', profile:(x.profile||DEFAULT_PROFILE).toString(), brand:(x.brand||'').toString(), tones:normTones(x.tones), fav:false }; state.profiles.push(p); last=p.id; } });
       if(last){ pfEditId=last; persist(); renderPfSelect(); loadPfFields(); }
       else alert('Aucun profil valide dans ce fichier.');
     }catch(err){ alert('Fichier illisible : '+err.message); }
@@ -1593,13 +1602,18 @@ $('#pf-doc-file').onchange = async ()=>{
     } else {
       text = await f.text();
     }
-    const cur = $('#pf-profile').value.trim();
-    if(cur && !confirm('Remplacer le registre actuel par celui distillé du document ?')){ pfDocStatus(''); return; }
+    const cur = $('#pf-brand').value.trim();
+    let mode = 'set';
+    if(cur) mode = confirm('Ajouter aux consignes de marque existantes ?\n\nOK = ajouter · Annuler = remplacer') ? 'append' : 'replace';
     pfDocStatus('Distillation par l\'IA…');
-    const profile = await distillVoice(text);
-    if(!profile){ pfDocStatus('Le modèle n\'a rien renvoyé. Réessaie.', true); return; }
-    $('#pf-profile').value = profile; commitPfFields();
-    pfDocStatus('Registre généré depuis « '+f.name+' ». Ajuste-le si besoin.');
+    const distilled = await distillVoice(text);
+    if(!distilled){ pfDocStatus('Le modèle n\'a rien renvoyé. Réessaie.', true); return; }
+    const header = '— ' + f.name + ' —';
+    $('#pf-brand').value = (mode==='append')
+      ? (cur + '\n\n' + header + '\n' + distilled)
+      : (header + '\n' + distilled);
+    commitPfFields();
+    pfDocStatus('Consignes ajoutées depuis « '+f.name+' ». Les instructions de base sont intactes.');
   }catch(err){
     pfDocStatus('Échec : '+err.message, true);
   } finally { btn.disabled = false; }
