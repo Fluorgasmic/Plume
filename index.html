@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: https:; connect-src https://api.anthropic.com https://api.openai.com https://api.mistral.ai https://generativelanguage.googleapis.com https://api.perplexity.ai https://dashscope-intl.aliyuncs.com https://dashscope.aliyuncs.com https://api.deepseek.com https://api.x.ai https://openrouter.ai https://cdn.jsdelivr.net; worker-src blob: https://cdn.jsdelivr.net; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; font-src https://fonts.gstatic.com https://cdn.jsdelivr.net data:; img-src 'self' data: https:; connect-src https://api.anthropic.com https://api.openai.com https://api.mistral.ai https://generativelanguage.googleapis.com https://api.perplexity.ai https://dashscope-intl.aliyuncs.com https://dashscope.aliyuncs.com https://api.deepseek.com https://api.x.ai https://openrouter.ai https://cdn.jsdelivr.net; worker-src blob: https://cdn.jsdelivr.net; base-uri 'none'; form-action 'none'">
 <title>Plume — éditeur Markdown avec révision</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -163,6 +163,9 @@
   #preview pre code{background:none; padding:0}
   #preview a{color:var(--accent)}
   #preview hr{border:none; border-top:1px solid var(--line-strong); margin:1.6em 0}
+  #preview .mermaid-out{margin:0 0 1em; text-align:center}
+  #preview .mermaid-out svg{max-width:100%; height:auto}
+  #preview .katex-display{margin:.8em 0; overflow-x:auto; overflow-y:hidden}
   .hidden{display:none !important}
 
   /* ---- Révision panel ---- */
@@ -592,12 +595,71 @@ function persist(){ localStorage.setItem(LS, JSON.stringify(state)); }
 /* ---------- Éditeur & aperçu ---------- */
 const editor = $('#editor'), preview = $('#preview');
 
+let enhanceT;
 function renderPreview(){
-  if(state.lisib || state.spell || foundRes.length){ preview.innerHTML = analyzeHTML(editor.value); return; }
-  const md = editor.value;
-  if(window.marked && window.DOMPurify){ preview.innerHTML = DOMPurify.sanitize(marked.parse(md)); }
-  else{ preview.textContent = md; }
+  if(state.lisib || state.spell || foundRes.length){ preview.innerHTML = analyzeHTML(editor.value); }
+  else if(window.marked && window.DOMPurify){ preview.innerHTML = DOMPurify.sanitize(marked.parse(editor.value)); }
+  else{ preview.textContent = editor.value; }
+  clearTimeout(enhanceT);
+  if(/\$/.test(editor.value) || /```\s*mermaid/i.test(editor.value)) enhanceT = setTimeout(enhancePreview, 300);
 }
+
+/* ---------- LaTeX (KaTeX) + diagrammes (Mermaid), chargés à la demande ---------- */
+let katexLib = null, mermaidLib = null, mermaidSeq = 0;
+async function loadKatex(){
+  if(katexLib) return katexLib;
+  if(!document.getElementById('katex-css')){
+    const l=document.createElement('link'); l.id='katex-css'; l.rel='stylesheet';
+    l.href='https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css'; document.head.appendChild(l);
+  }
+  const auto = await import('https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.mjs');
+  katexLib = auto.default || auto;
+  return katexLib;
+}
+async function loadMermaid(){
+  if(mermaidLib) return mermaidLib;
+  const mod = await import('https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs');
+  mermaidLib = mod.default || mod;
+  mermaidLib.initialize({ startOnLoad:false, securityLevel:'strict', theme: document.body.classList.contains('theme-dark')?'dark':'neutral' });
+  return mermaidLib;
+}
+async function enhancePreview(){
+  if(/\$/.test(preview.textContent)){
+    try{
+      const render = await loadKatex();
+      render(preview, { delimiters:[
+        {left:'$$',right:'$$',display:true},{left:'\\[',right:'\\]',display:true},
+        {left:'\\(',right:'\\)',display:false},{left:'$',right:'$',display:false}
+      ], throwOnError:false });
+    }catch(e){}
+  }
+  const blocks = preview.querySelectorAll('code.language-mermaid');
+  if(blocks.length){
+    try{
+      const mer = await loadMermaid();
+      for(const code of blocks){
+        try{
+          const { svg } = await mer.render('mmd-'+(++mermaidSeq), code.textContent);
+          const wrap = document.createElement('div'); wrap.className='mermaid-out'; wrap.innerHTML = svg;
+          (code.closest('pre')||code).replaceWith(wrap);
+        }catch(err){ /* diagramme invalide : on laisse le code source */ }
+      }
+    }catch(e){}
+  }
+}
+
+/* ---------- Défilement synchronisé (vue partagée) ---------- */
+let scrollLock = false;
+function viewIsSplit(){ return !$('.pane.edit').classList.contains('hidden') && !$('.pane.preview').classList.contains('hidden'); }
+function syncScroll(src, dst){
+  if(scrollLock || !viewIsSplit()) return;
+  scrollLock = true;
+  const sMax = src.scrollHeight - src.clientHeight;
+  dst.scrollTop = sMax>0 ? (src.scrollTop/sMax) * (dst.scrollHeight - dst.clientHeight) : 0;
+  requestAnimationFrame(()=>{ scrollLock = false; });
+}
+editor.addEventListener('scroll', ()=> syncScroll(editor, preview));
+preview.addEventListener('scroll', ()=> syncScroll(preview, editor));
 
 /* ---------- Analyse de lisibilité + orthographe + tics (locale) ---------- */
 const RE_WORD = /[A-Za-zÀ-ÖØ-öø-ÿ0-9'’\-]+/g;
@@ -676,7 +738,7 @@ function analyzeHTML(text){
   let blocks=[...container.querySelectorAll(sel)].filter(el=> !el.querySelector(sel));
   if(!blocks.length) blocks=[container];
   let totalWords=0,sentCount=0,longCount=0,advCount=0,misCount=0;
-  blocks.forEach(el=>{ const s=annotateBlock(el); totalWords+=s.words; sentCount+=s.sents; longCount+=s.long; advCount+=s.adv; misCount+=s.mis; });
+  blocks.forEach(el=>{ if(/\$/.test(el.textContent)) return; const s=annotateBlock(el); totalWords+=s.words; sentCount+=s.sents; longCount+=s.long; advCount+=s.adv; misCount+=s.mis; });
   const avg = sentCount ? Math.round(totalWords/sentCount) : 0;
   const mins = Math.max(1, Math.round(totalWords/200));
   const verdict = avg<=12 ? 'très lisible' : avg<=18 ? 'lisible' : avg<=24 ? 'dense' : 'difficile';
