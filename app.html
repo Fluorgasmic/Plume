@@ -32,7 +32,7 @@
     --correct:#E59595; --style:#D9B36A; --accept:#82C2A0;
     --surface:#1E1D1A; --hover:#2a2925; --code:#232220; --placeholder:#5a5852;
     --tag-correct-bg:rgba(229,149,149,.16); --tag-style-bg:rgba(217,179,106,.16);
-    --hl-hard:rgba(220,182,108,.35); --hl-vhard:rgba(231,124,124,.35); --hl-found:rgba(182,150,230,.35);
+    --hl-hard:rgba(230,200,120,.45); --hl-vhard:rgba(231,124,124,.45); --hl-found:rgba(182,150,230,.40);
     --shadow:0 16px 32px -16px rgba(0,0,0,.5);
     --bg-soft:#232220;
   }
@@ -65,8 +65,11 @@
     background:var(--paper-raised); border-bottom:1px solid var(--line);
   }
   .brand{display:flex; align-items:center; gap:9px}
-  .brand-icon{width:22px; height:22px; background:#11110F; border-radius:6px; display:flex; align-items:center; justify-content:center; color:#fff; font-family:'Newsreader',serif; font-weight:600; font-size:13px; flex:none}
-  body.theme-dark .brand-icon{background:#cfcdc6; color:#11110F}
+  .brand-icon{width:22px; height:22px; flex:none; display:flex; align-items:center; justify-content:center}
+  .brand-icon svg{width:22px; height:22px; display:block}
+  .brand-icon .icon-dark{display:none}
+  body.theme-dark .brand-icon .icon-light{display:none}
+  body.theme-dark .brand-icon .icon-dark{display:block}
   .brand b{font-weight:600; font-size:14px; font-family:'Inter',sans-serif}
   .brand span{font-size:11px; color:var(--ink-soft); letter-spacing:.06em; text-transform:uppercase}
   .brand-sep{color:var(--ink-mono); font-size:13px; margin:0 2px}
@@ -167,7 +170,7 @@
   #editor{
     flex:1; width:100%; resize:none; border:none; background:transparent;
     padding:20px 64px 28px; font-family:'JetBrains Mono',monospace;
-    font-size:14px; line-height:1.78; color:var(--ink); tab-size:2; max-width:808px;
+    font-size:14px; line-height:1.78; color:var(--ink); tab-size:2;
   }
   #editor::placeholder{color:var(--placeholder)}
   #preview{
@@ -302,6 +305,17 @@
 
   body.no-panel aside{display:none !important}
   #toggle-panel.on{background:var(--accent-soft); color:var(--accent)}
+  .rev-toggle{width:24px; height:24px; display:inline-flex; align-items:center; justify-content:center; border-radius:5px; color:var(--ink-muted); margin-left:auto; flex:none}
+  .rev-toggle:hover{background:var(--hover); color:var(--ink)}
+  .rev-toggle svg{width:14px; height:14px}
+  .rev-toggle-float{position:fixed; right:12px; top:56px; z-index:25; width:32px; height:32px; display:none; align-items:center; justify-content:center; background:var(--paper-raised); border:1px solid var(--line); border-radius:6px; box-shadow:var(--shadow); color:var(--ink-muted)}
+  .rev-toggle-float:hover{background:var(--hover); color:var(--ink)}
+  .rev-toggle-float svg{width:16px; height:16px}
+  body.no-panel .rev-toggle-float{display:flex}
+  .zoom-controls{display:flex; align-items:center; gap:2px; margin-left:8px}
+  .zoom-controls button{width:24px; height:22px; display:inline-flex; align-items:center; justify-content:center; border-radius:4px; font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--ink-muted)}
+  .zoom-controls button:hover{background:var(--hover); color:var(--ink)}
+  .zoom-controls .zoom-val{font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--ink-muted); min-width:32px; text-align:center; cursor:pointer}
   @media (max-width:959px){
     aside{position:fixed; right:0; top:48px; bottom:26px; z-index:30; box-shadow:var(--shadow); width:100%; flex-basis:100%}
     .pane.preview{display:none}
@@ -367,7 +381,7 @@
   .cmd-bar-inner button.cmd-primary .cmd-key{color:rgba(255,255,255,.7)}
   .cmd-bar-inner .cmd-sep{width:1px; background:var(--line); margin:4px 4px}
   .cmd-bar-inner .cmd-secondary{color:var(--ink-muted)}
-  .cmd-bar-stat{font-family:'JetBrains Mono',monospace; font-size:10.5px; color:var(--accent); letter-spacing:.04em; padding-left:8px}
+  .cmd-bar-stat{font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--accent); letter-spacing:.04em; padding-left:8px; font-weight:500}
 
   /* ---- ⌘K palette ---- */
   .cmdk-overlay{position:fixed; inset:0; background:rgba(17,17,15,.20); backdrop-filter:blur(3px); z-index:80; display:none}
@@ -399,12 +413,17 @@
 
 <header>
   <div class="brand">
-    <span class="brand-icon">P</span>
+    <span class="brand-icon">
+      <svg class="icon-light" viewBox="0 0 141.73 141.73" xmlns="http://www.w3.org/2000/svg"><rect fill="#fff" stroke="#000" stroke-miterlimit="10" x="28.94" y="19.21" width="91.66" height="105.24"/><path fill="#15130f" d="M107.3,0H34.43C15.49,0,0,15.49,0,34.43v72.87c0,18.94,15.49,34.43,34.43,34.43h72.87c18.94,0,34.43-15.49,34.43-34.43V34.43c0-18.94-15.49-34.43-34.43-34.43ZM81.02,81.88c-8.15.95-14-1.48-14-1.48.06-1.07-.17-2.07.71-3.69.41-.76,1.2-1.24,2.15-1.53,2.1-.64,4.9-.21,5.84,1.41.02.03.03.06.05.09.66-2.14-1.53-3.82-4.22-3.8,2.47,0,4.81-.03,6.85-.9,4.49-1.91,8.06-7.18,7.89-8.72-2.3.66-5.35.72-7.85.15,3.69-.37,8.14-1.07,10.4-2.93,4.43-3.64,7.3-6.62,7.56-10.19-1.45,2.75-5.25,3.57-9.76,4.26,7.79-2.83,10.99-5.99,10.84-11.08-.11-3.96-1.36-7.1-.9-9.18-34.36,7.27-37.05,18.21-33.03,36.6,2.46-10.98,14.21-20.4,17.84-22.83-9.59,9.94-16.97,20.25-16.97,31.73v20.32c0,12.61,1.36,13.65,14.32,14.69v5.04H31.87v-5.04c11.31-1.04,12.66-2.08,12.66-14.69v-56.81c0-12.61-1.36-13.5-11.76-14.69v-5.19h41.46c11.91,0,20.5,1.63,26.38,5.79,7.09,4.75,11.16,12.16,11.16,21.81,0,19.88-14.91,29.02-30.75,30.85h0Z"/></svg>
+      <svg class="icon-dark" viewBox="0 0 141.73 141.73" xmlns="http://www.w3.org/2000/svg"><rect fill="#231f20" stroke="#000" stroke-miterlimit="10" x="28.94" y="19.21" width="91.66" height="105.24"/><path fill="#fff" d="M107.3,0H34.43C15.49,0,0,15.49,0,34.43v72.87c0,18.94,15.49,34.43,34.43,34.43h72.87c18.94,0,34.43-15.49,34.43-34.43V34.43c0-18.94-15.49-34.43-34.43-34.43ZM81.02,81.88c-8.15.95-14-1.48-14-1.48.06-1.07-.17-2.07.71-3.69.41-.76,1.2-1.24,2.15-1.53,2.1-.64,4.9-.21,5.84,1.41.02.03.03.06.05.09.66-2.14-1.53-3.82-4.22-3.8,2.47,0,4.81-.03,6.85-.9,4.49-1.91,8.06-7.18,7.89-8.72-2.3.66-5.35.72-7.85.15,3.69-.37,8.14-1.07,10.4-2.93,4.43-3.64,7.3-6.62,7.56-10.19-1.45,2.75-5.25,3.57-9.76,4.26,7.79-2.83,10.99-5.99,10.84-11.08-.11-3.96-1.36-7.1-.9-9.18-34.36,7.27-37.05,18.21-33.03,36.6,2.46-10.98,14.21-20.4,17.84-22.83-9.59,9.94-16.97,20.25-16.97,31.73v20.32c0,12.61,1.36,13.65,14.32,14.69v5.04H31.87v-5.04c11.31-1.04,12.66-2.08,12.66-14.69v-56.81c0-12.61-1.36-13.5-11.76-14.69v-5.19h41.46c11.91,0,20.5,1.63,26.38,5.79,7.09,4.75,11.16,12.16,11.16,21.81,0,19.88-14.91,29.02-30.75,30.85h0Z"/></svg>
+    </span>
     <b>Plume</b>
   </div>
   <span class="brand-sep">/</span>
   <span class="brand-file" id="brand-file">brouillon.md</span>
   <span class="brand-modified" id="brand-modified"></span>
+
+  <div class="spacer"></div>
 
   <div class="menu-wrap" id="voice-wrap">
     <button class="btn ghost" id="voice-btn" title="Profil de voix" aria-haspopup="true" aria-expanded="false">
@@ -414,7 +433,6 @@
     </button>
     <div class="menu hidden" id="voice-menu" role="menu"></div>
   </div>
-  <div class="spacer"></div>
 
   <button class="btn ghost" id="act-cmdk" title="Palette de commandes (⌘K)">
     <span style="font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--ink-muted)">⌘K</span>
@@ -468,7 +486,14 @@
 <main>
   <div class="panes">
     <div class="pane edit">
-      <div class="pane-label">source.md</div>
+      <div class="pane-label" style="display:flex; align-items:center">
+        <span>source.md</span>
+        <div class="zoom-controls">
+          <button id="zoom-out-vis" title="Réduire (⌘−)">−</button>
+          <span class="zoom-val" id="zoom-pct-vis" title="Réinitialiser le zoom">100%</span>
+          <button id="zoom-in-vis" title="Agrandir (⌘+)">+</button>
+        </div>
+      </div>
       <div class="fmtbar hidden" id="fmtbar">
         <button data-fmt="h1" title="Titre 1">H1</button>
         <button data-fmt="h2" title="Titre 2">H2</button>
@@ -517,12 +542,18 @@
     </div>
   </div>
 
+  <button class="rev-toggle-float" id="rev-show" title="Afficher le panneau de révision">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="15" y1="3" x2="15" y2="21"/></svg>
+  </button>
   <aside>
     <div class="rev-head">
       <div class="rev-head-top">
         <h2>Révision</h2>
         <span class="count" id="rev-scope"></span>
         <span class="rev-time" id="rev-time" style="display:none"><span class="dot"></span><span id="rev-time-val"></span></span>
+        <button class="rev-toggle" id="rev-hide" title="Masquer le panneau">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
       </div>
       <div class="rev-tabs" id="rev-tabs">
         <button class="on" data-tab="corrections">Corrections <span class="tab-count" id="tab-count-cor" style="display:none"></span></button>
@@ -533,7 +564,7 @@
     <div class="rev-body" id="rev-body">
       <div class="empty">
         Sélectionnez un passage pour appeler Plume.<br><br>
-        La command bar apparaît au-dessus de la sélection. Vous pouvez aussi utiliser <b>⌘K</b> pour ouvrir la palette de commandes.
+        La command bar apparaît sous la sélection. Vous pouvez aussi utiliser <b>⌘K</b> pour ouvrir la palette de commandes.
       </div>
     </div>
     <button class="btn ghost" id="act-history" title="Historique des révisions IA" style="padding:5px 9px; font-size:11px; margin:8px 22px; align-self:flex-start">Historique</button>
@@ -1102,11 +1133,16 @@ function setZoom(z){
   state.zoom = Math.max(0.7, Math.min(1.8, Math.round(z*100)/100));
   editor.style.fontSize = (14.5 * state.zoom).toFixed(1) + 'px';
   preview.style.fontSize = (18 * state.zoom).toFixed(1) + 'px';
-  $('#zoom-pct').textContent = Math.round(state.zoom*100) + '%';
+  const pct = Math.round(state.zoom*100) + '%';
+  $('#zoom-pct').textContent = pct;
+  const vis = $('#zoom-pct-vis'); if(vis) vis.textContent = pct;
 }
 $('#zoom-in').onclick = ()=>{ setZoom(state.zoom + 0.1); persist(); };
 $('#zoom-out').onclick = ()=>{ setZoom(state.zoom - 0.1); persist(); };
 $('#zoom-pct').onclick = ()=>{ setZoom(1); persist(); };
+$('#zoom-in-vis').onclick = ()=>{ setZoom(state.zoom + 0.1); persist(); };
+$('#zoom-out-vis').onclick = ()=>{ setZoom(state.zoom - 0.1); persist(); };
+$('#zoom-pct-vis').onclick = ()=>{ setZoom(1); persist(); };
 
 /* ---------- Sélection / paragraphe ---------- */
 function getTarget(){
@@ -1600,6 +1636,8 @@ function applyPanel(){
   const b=$('#toggle-panel'); b.classList.toggle('on', !state.panelHidden); b.setAttribute('aria-pressed', String(!state.panelHidden));
 }
 $('#toggle-panel').onclick = ()=>{ state.panelHidden = !state.panelHidden; persist(); applyPanel(); };
+$('#rev-hide').onclick = ()=>{ state.panelHidden = true; persist(); applyPanel(); };
+$('#rev-show').onclick = ()=>{ state.panelHidden = false; persist(); applyPanel(); };
 $('#toggle-spell').onclick = async ()=>{
   const btn = $('#toggle-spell');
   if(!state.spell && !spell){
@@ -2094,12 +2132,14 @@ $('#act-history').onclick=showHistory;
     const sentences = sel.split(/[.!?]+/).filter(s => s.trim()).length;
     cmdStat.textContent = `sélection · ${chars} signes · ${words} mots · ${sentences} phrases`;
 
-    const rect = ed.getBoundingClientRect();
-    const lineH = parseFloat(getComputedStyle(ed).lineHeight) || 24;
-    const textBefore = ed.value.slice(0, s);
-    const lines = textBefore.split('\n').length;
-    const top = Math.max(0, (lines - 1) * lineH - ed.scrollTop - 60);
-    cmdBar.style.left = '28px';
+    const cs = getComputedStyle(ed);
+    const lineH = parseFloat(cs.lineHeight) || 24;
+    const padTop = parseFloat(cs.paddingTop) || 0;
+    const padLeft = parseFloat(cs.paddingLeft) || 0;
+    const textToEnd = ed.value.slice(0, e);
+    const linesEnd = textToEnd.split('\n').length;
+    const top = padTop + linesEnd * lineH - ed.scrollTop + 8;
+    cmdBar.style.left = padLeft + 'px';
     cmdBar.style.top = Math.max(8, top) + 'px';
     if (!cmdVisible) { cmdBar.classList.add('visible'); cmdVisible = true; }
   }
