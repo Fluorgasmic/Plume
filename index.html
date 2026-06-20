@@ -3,1970 +3,760 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; font-src https://fonts.gstatic.com https://cdn.jsdelivr.net data:; img-src 'self' data: https:; connect-src https://api.anthropic.com https://api.openai.com https://api.mistral.ai https://generativelanguage.googleapis.com https://api.perplexity.ai https://dashscope-intl.aliyuncs.com https://dashscope.aliyuncs.com https://api.deepseek.com https://api.x.ai https://openrouter.ai https://cdn.jsdelivr.net; worker-src blob: https://cdn.jsdelivr.net; base-uri 'none'; form-action 'none'">
-<title>Plume — éditeur Markdown avec révision</title>
+<title>Plume — éditeur Markdown avec relecture intelligente</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.0/marked.min.js" integrity="sha384-NNQgBjjuhtXzPmmy4gurS5X7P4uTt1DThyevz4Ua0IVK5+kazYQI1W27JHjbbxQz" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.11/purify.min.js" integrity="sha384-Ic7KEGROu37YaruU6NyiYeib7UhjFyDZQ5fzBAji965L75T/4LGk5nzwMEjNGexs" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,500;1,6..72,400&display=swap" rel="stylesheet">
 <style>
-  :root{
-    --paper:#F6F5F1; --paper-raised:#FCFBF9; --ink:#1B1A17; --ink-soft:#5A5852;
-    --line:#E3E1D9; --line-strong:#D2CFC4;
-    --accent:#2C3E63; --accent-soft:#E8ECF4; --accent-hover:#23324f; --on-accent:#fff;
-    --correct:#B23A3A; --style:#A6711F; --accept:#3E7D5A;
-    --surface:#fff; --hover:#EDEBE4; --code:#ECEAE3; --placeholder:#A8A59C;
-    --tag-correct-bg:#F6E4E4; --tag-style-bg:#F4EAD6;
-    --hl-hard:#F4E9C4; --hl-vhard:#F2D6CE; --hl-found:#EADFF2;
-    --shadow:0 1px 2px rgba(27,26,23,.05), 0 8px 24px rgba(27,26,23,.06);
-    --r:8px;
-  }
-  body.theme-dark{
-    --paper:#1B1A17; --paper-raised:#232220; --ink:#ECEAE3; --ink-soft:#A09D94;
-    --line:#33312C; --line-strong:#45423B;
-    --accent:#8FB0E8; --accent-soft:#283447; --accent-hover:#6F93CC; --on-accent:#14233A;
-    --correct:#E59595; --style:#D9B36A; --accept:#82C2A0;
-    --surface:#2A2925; --hover:#34322C; --code:#2E2D27; --placeholder:#736F66;
-    --tag-correct-bg:#5A2E2E; --tag-style-bg:#54441E;
-    --hl-hard:rgba(220,182,108,.42); --hl-vhard:rgba(231,124,124,.44); --hl-found:rgba(182,150,230,.46);
-    --shadow:0 1px 2px rgba(0,0,0,.35), 0 10px 28px rgba(0,0,0,.5);
-  }
   *{box-sizing:border-box;margin:0;padding:0}
-  html,body{height:100%}
-  body{
-    font-family:'Inter',system-ui,sans-serif;
-    background:var(--paper); color:var(--ink);
-    display:flex; flex-direction:column; height:100vh; overflow:hidden;
-    -webkit-font-smoothing:antialiased;
+  body{font-family:'Inter',system-ui,sans-serif;background:#FAFAF8;color:#11110F;-webkit-font-smoothing:antialiased}
+  a{color:inherit;text-decoration:none}
+  button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+  ::selection{background:#dde2f0;color:#11110F}
+  img{display:block;max-width:100%}
+
+  @keyframes blink{0%,49%{opacity:.85}50%,100%{opacity:0}}
+  @keyframes plumeFadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+  @keyframes plumeFadeUpSmall{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+  [data-reveal]{opacity:0}
+  [data-stagger]>*{opacity:0}
+  [data-reveal].revealed{animation:plumeFadeUp .7s cubic-bezier(.2,.7,.2,1) forwards}
+  [data-stagger]>.revealed{animation:plumeFadeUpSmall .6s cubic-bezier(.2,.7,.2,1) forwards}
+
+  .wrap{max-width:1200px;margin:0 auto;padding:0 36px}
+
+  /* ═══ NAV ═══ */
+  .nav{position:sticky;top:0;z-index:30;background:rgba(250,250,248,.92);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border-bottom:1px solid #E8E6E0}
+  .nav-inner{max-width:1200px;margin:0 auto;padding:0 36px;display:flex;align-items:center;height:60px;gap:12px}
+  .logo{display:flex;align-items:center;gap:9px}
+  .logo-icon{width:22px;height:22px;display:flex;align-items:center;justify-content:center}
+  .logo-icon svg{width:22px;height:22px;border-radius:6px}
+  .logo-name{font-weight:600;font-size:15px;letter-spacing:-.005em}
+  .logo-ver{font-family:'JetBrains Mono',monospace;font-size:10.5px;color:#A8A59C;padding:2px 6px;background:#fff;border:1px solid #E8E6E0;border-radius:4px}
+  .nav-links{display:flex;gap:28px;font-size:13px;color:#3d3b35;margin-left:auto}
+  .nav-links a:hover{color:#11110F}
+  .nav-links .ext{display:inline-flex;align-items:center;gap:5px;color:#74716a}
+  .nav-cta{margin-left:24px;display:flex;align-items:center;gap:10px}
+  .nav-cta .link{font-size:13px;color:#3d3b35}
+  .btn-primary{font-size:13px;font-weight:500;padding:7px 14px;background:#3A5BB5;color:#fff;border-radius:6px;display:inline-flex;align-items:center;gap:8px;transition:background .15s}
+  .btn-primary:hover{background:#2f4d9e}
+  .btn-outline{font-size:14px;padding:11px 22px;background:#fff;color:#11110F;border:1px solid #E8E6E0;border-radius:6px;display:inline-flex;align-items:center;gap:8px;transition:border-color .15s}
+  .btn-outline:hover{border-color:#3A5BB5}
+
+  /* ═══ HERO ═══ */
+  .hero{padding:88px 36px 56px}
+  .hero-inner{max-width:1200px;margin:0 auto}
+  .pill{display:inline-flex;align-items:center;gap:8px;padding:5px 12px;background:#fff;border:1px solid #E8E6E0;border-radius:999px;font-size:11.5px;color:#3A5BB5;font-family:'JetBrains Mono',monospace;margin-bottom:28px}
+  .pill .dot{width:6px;height:6px;border-radius:50%;background:#3A5BB5}
+  .hero h1{font-weight:700;font-size:68px;line-height:1.02;letter-spacing:-.026em;margin:0 0 24px;max-width:1000px;color:#11110F}
+  .hero h1 .accent{color:#3A5BB5}
+
+  /* typing strip */
+  .typing-strip{display:inline-flex;align-items:center;gap:14px;background:#fff;border:1px solid #E8E6E0;border-radius:7px;padding:11px 16px;max-width:780px;width:100%;box-shadow:0 1px 2px rgba(0,0,0,.04);margin:0 0 28px}
+  .typing-badge{font-family:'JetBrains Mono',monospace;font-size:10px;padding:3px 7px;border-radius:3px;font-weight:600;flex:none;transition:background .3s,color .3s}
+  .typing-text{flex:1;min-width:0;font-family:'JetBrains Mono',monospace;font-size:13.5px;line-height:1.5;color:#11110F;min-height:21px;white-space:nowrap;overflow:hidden}
+  .typing-cursor{display:inline-block;width:7px;margin-left:1px;background:#3A5BB5;height:1em;vertical-align:-2px;animation:blink 1s steps(1) infinite;border-radius:1px}
+  .typing-del{text-decoration:line-through;color:#B53A3A;background:rgba(181,58,58,.10);padding:0 2px;border-radius:2px;transition:background .25s,color .25s}
+  .typing-ins{margin-left:6px;color:#3E7D5A;background:rgba(62,125,90,.14);padding:0 4px;border-radius:2px}
+  .typing-indicator{flex:none;font-family:'JetBrains Mono',monospace;font-size:10.5px;color:#A8A59C;display:inline-flex;align-items:center;gap:6px}
+  .typing-indicator .dot{width:5px;height:5px;border-radius:50%;background:#3E7D5A}
+
+  .hero-desc{font-size:17.5px;line-height:1.55;color:#3d3b35;max-width:640px;margin:0 0 36px}
+  .hero-cta{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+  .hero-cta .btn-primary{font-size:14px;font-weight:500;padding:11px 22px;border-radius:6px}
+  .hero-cta .btn-primary span{font-family:'JetBrains Mono',monospace}
+  .hero-meta{margin-left:auto;display:flex;align-items:center;gap:18px;font-family:'JetBrains Mono',monospace;font-size:11.5px;color:#74716a}
+  .hero-meta .tag{display:inline-flex;align-items:center;gap:6px}
+  .hero-meta .tag .dot{width:6px;height:6px;border-radius:50%;background:#3E7D5A}
+
+  /* ═══ DEMO TERMINAL ═══ */
+  .demo{padding:16px 36px 88px}
+  .demo-inner{max-width:1200px;margin:0 auto}
+  .terminal{background:#11110F;border-radius:10px;padding:14px 18px 18px;box-shadow:0 32px 64px -20px rgba(17,17,15,.34)}
+  .terminal-topbar{display:flex;align-items:center;gap:8px;margin-bottom:14px}
+  .terminal-dot{width:9px;height:9px;border-radius:50%;background:#3a3833}
+  .terminal-path{margin-left:16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:#74716a}
+  .terminal-meta{margin-left:auto;display:flex;align-items:center;gap:14px;font-family:'JetBrains Mono',monospace;font-size:10.5px;color:#74716a}
+  .terminal-meta .voice{display:inline-flex;align-items:center;gap:5px}
+  .terminal-meta .voice .dot{width:5px;height:5px;border-radius:50%;background:#3A5BB5}
+  .terminal-meta .kbd{padding:2px 7px;border:1px solid #2a2925;border-radius:4px}
+  .terminal-grid{display:grid;grid-template-columns:1fr 380px;gap:10px}
+  .terminal-source{background:#1E1D1A;border-radius:7px;padding:22px 26px;position:relative;min-height:400px}
+  .terminal-source .label{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#5a5852;margin-bottom:18px}
+  .terminal-source pre{font-family:'JetBrains Mono',monospace;font-size:13.5px;line-height:1.75;color:#cfcdc6;margin:0;white-space:pre-wrap}
+  .terminal-source .hl-title{color:#8FB0E8}
+  .terminal-source .hl-sel{background:rgba(143,176,232,.20);color:#fff;padding:1px 2px;border-radius:2px;box-shadow:inset 0 -1px 0 #3A5BB5}
+  .terminal-cmdbar{position:absolute;left:26px;bottom:46px;display:flex;align-items:stretch;background:#fff;border-radius:7px;box-shadow:0 14px 32px -6px rgba(0,0,0,.42);padding:4px}
+  .terminal-cmdbar button{display:inline-flex;align-items:center;gap:6px;padding:7px 12px;font-size:12.5px;border:none;border-radius:4px;font-family:'Inter',sans-serif}
+  .terminal-cmdbar .cmd-primary{font-weight:500;color:#fff;background:#3A5BB5}
+  .terminal-cmdbar .cmd-default{color:#11110F;background:transparent}
+  .terminal-cmdbar .cmd-muted{color:#74716a;background:transparent}
+  .terminal-cmdbar .cmd-sep{width:1px;background:#E8E6E0;margin:4px}
+  .terminal-cmdbar .cmd-kbd{font-family:'JetBrains Mono',monospace;font-size:11px;color:#A8A59C;background:transparent;padding:7px 10px}
+  .terminal-sel-info{position:absolute;left:26px;bottom:18px;font-family:'JetBrains Mono',monospace;font-size:10.5px;color:#3A5BB5;letter-spacing:.04em}
+
+  .terminal-review{background:#fff;border-radius:7px;display:flex;flex-direction:column}
+  .terminal-review-head{padding:16px 20px 0;border-bottom:1px solid #E8E6E0}
+  .terminal-review-head .top{display:flex;align-items:center;margin-bottom:14px}
+  .terminal-review-head h3{font-weight:600;font-size:13.5px;margin:0;color:#11110F}
+  .terminal-review-head .time{margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:10.5px;color:#A8A59C}
+  .terminal-review-tabs{display:flex;gap:18px}
+  .terminal-review-tabs button{padding:6px 0;font-size:12.5px;background:transparent;border:none;border-bottom:2px solid transparent;font-family:'Inter',sans-serif;color:#74716a}
+  .terminal-review-tabs button.active{color:#11110F;border-bottom-color:#3A5BB5;font-weight:500}
+  .diff-item{padding:14px 20px;border-bottom:1px solid #F1EFE9;display:flex;gap:12px;align-items:flex-start}
+  .diff-badge{font-family:'JetBrains Mono',monospace;font-size:10px;padding:2px 7px;border-radius:3px;flex:none;margin-top:1px;font-weight:600}
+  .diff-badge.pct{background:#dde2f0;color:#3A5BB5}
+  .diff-badge.gra{background:rgba(166,113,31,.14);color:#A6711F}
+  .diff-content{flex:1;min-width:0}
+  .diff-text{font-size:13px;line-height:1.55;color:#11110F}
+  .diff-text del{color:#B53A3A;background:rgba(181,58,58,.10);text-decoration:line-through;padding:0 2px}
+  .diff-text ins{color:#3E7D5A;background:rgba(62,125,90,.14);text-decoration:none;padding:0 2px}
+  .diff-note{font-size:11.5px;color:#74716a;margin:6px 0 0;line-height:1.5}
+  .diff-actions{display:flex;gap:6px;margin-top:10px}
+  .diff-actions .btn-accept{font-size:11.5px;padding:4px 10px;background:#11110F;color:#fff;border:none;border-radius:4px}
+  .diff-actions .btn-reject{font-size:11.5px;padding:4px 10px;background:transparent;color:#74716a;border:1px solid #E8E6E0;border-radius:4px}
+  .diff-actions .btn-redo{font-size:11.5px;padding:4px 10px;background:transparent;color:#74716a;border:none;border-radius:4px}
+  .cumul{padding:14px 20px}
+  .cumul .label{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#A8A59C;margin-bottom:10px}
+  .cumul-text{font-size:13px;line-height:1.6;background:#FAFAF8;padding:12px 14px;border:1px solid #E8E6E0;border-radius:5px;color:#11110F}
+  .cumul-text .ins{background:rgba(62,125,90,.16);border-radius:2px;padding:0 2px}
+  .terminal-review-foot{border-top:1px solid #E8E6E0;padding:12px 20px;display:flex;gap:8px}
+  .terminal-review-foot .btn-apply{flex:1;font-size:12.5px;font-weight:500;padding:8px 12px;background:#3A5BB5;color:#fff;border:none;border-radius:5px;font-family:'Inter',sans-serif}
+  .terminal-review-foot .btn-ignore{font-size:12.5px;padding:8px 12px;background:#fff;color:#3d3b35;border:1px solid #E8E6E0;border-radius:5px;font-family:'Inter',sans-serif}
+  .demo-caption{text-align:center;margin-top:14px;font-family:'JetBrains Mono',monospace;font-size:11px;color:#74716a;letter-spacing:.04em}
+
+  /* ═══ FEATURES ═══ */
+  .features{padding:80px 36px;background:#fff;border-top:1px solid #E8E6E0;border-bottom:1px solid #E8E6E0}
+  .features-inner{max-width:1200px;margin:0 auto}
+  .section-eyebrow{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#3A5BB5;margin-bottom:14px}
+  .features h2{font-weight:700;font-size:40px;line-height:1.08;margin:0 0 14px;letter-spacing:-.02em;color:#11110F}
+  .features h2 .votre{font-style:italic;font-family:'Newsreader',serif;font-weight:500}
+  .features .sub{font-size:15.5px;line-height:1.6;color:#5a5852;margin:0}
+  .features-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:48px}
+  .fcard{background:#FAFAF8;border:1px solid #E8E6E0;border-radius:7px;padding:22px 24px}
+  .fcard-head{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+  .fcard-badge{font-family:'JetBrains Mono',monospace;font-size:10.5px;padding:3px 8px;border-radius:4px;font-weight:600}
+  .fcard-badge.cor{background:#dde2f0;color:#3A5BB5}
+  .fcard-badge.sty{background:rgba(166,113,31,.14);color:#A6711F}
+  .fcard-badge.voc{background:#dde2f0;color:#3A5BB5}
+  .fcard-badge.tic{background:rgba(181,58,58,.10);color:#B53A3A}
+  .fcard-badge.len{background:#E8E6E0;color:#5a5852}
+  .fcard-badge.vox{background:rgba(62,125,90,.14);color:#3E7D5A}
+  .fcard-shortcut{font-family:'JetBrains Mono',monospace;font-size:10.5px;color:#A8A59C;margin-left:auto}
+  .fcard h3{font-weight:600;font-size:18px;margin:0 0 8px;color:#11110F}
+  .fcard p{font-size:13px;line-height:1.6;color:#5a5852;margin:0}
+
+  /* ═══ MODÈLES ═══ */
+  .models{padding:64px 36px;background:#FAFAF8}
+  .models-inner{max-width:1200px;margin:0 auto}
+  .models h2{font-weight:700;font-size:32px;line-height:1.1;margin:0 0 10px;letter-spacing:-.018em}
+  .models .sub{font-size:14.5px;color:#5a5852;margin:0;line-height:1.6}
+  .models-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:28px}
+  .mtile{background:#fff;border:1px solid #E8E6E0;border-radius:6px;padding:14px 18px;display:flex;align-items:center;gap:14px}
+  .mtile-badge{font-family:'JetBrains Mono',monospace;font-size:10.5px;padding:3px 7px;border-radius:3px;font-weight:600}
+  .mtile-badge.indigo{background:#dde2f0;color:#3A5BB5}
+  .mtile-badge.green{background:rgba(62,125,90,.14);color:#3E7D5A}
+  .mtile-info{flex:1;min-width:0}
+  .mtile-name{font-weight:600;font-size:13.5px}
+  .mtile-models{font-family:'JetBrains Mono',monospace;font-size:10.5px;color:#74716a}
+
+  /* ═══ CONFIDENTIALITÉ ═══ */
+  .privacy{padding:88px 36px;background:#fff;border-top:1px solid #E8E6E0;border-bottom:1px solid #E8E6E0}
+  .privacy-inner{max-width:1200px;margin:0 auto;display:grid;grid-template-columns:1.1fr 1fr;gap:64px;align-items:center}
+  .privacy h2{font-weight:700;font-size:38px;line-height:1.08;margin:0 0 18px;letter-spacing:-.018em}
+  .privacy p{font-size:15px;line-height:1.65;color:#3d3b35;max-width:540px;margin:0 0 16px}
+  .privacy-tags{display:flex;gap:8px;flex-wrap:wrap;font-family:'JetBrains Mono',monospace;font-size:11.5px;margin-top:24px}
+  .privacy-tags span{padding:5px 11px;background:#FAFAF8;border:1px solid #E8E6E0;border-radius:4px;color:#3d3b35}
+  .privacy-terminal{background:#11110F;border-radius:9px;padding:22px 26px;font-family:'JetBrains Mono',monospace;font-size:12.5px;line-height:1.9;color:#cfcdc6}
+  .privacy-terminal .comment{color:#5a5852}
+  .privacy-terminal .white{color:#fff}
+  .privacy-terminal .blue{color:#8FB0E8}
+  .privacy-terminal .green{color:#82C2A0}
+  .privacy-terminal .muted{color:#74716a}
+
+  /* ═══ ANATOMIE ═══ */
+  .anatomy{padding:88px 36px;background:#FAFAF8}
+  .anatomy-inner{max-width:1200px;margin:0 auto}
+  .anatomy h2{font-weight:700;font-size:36px;line-height:1.08;margin:0 0 14px;letter-spacing:-.018em}
+  .anatomy .sub{font-size:15px;line-height:1.6;color:#5a5852;margin:0 0 40px}
+  .anatomy-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
+  .acard{overflow:hidden}
+  .acard-frame{background:#fff;border:1px solid #E8E6E0;border-radius:7px;overflow:hidden;box-shadow:0 16px 32px -16px rgba(0,0,0,.12)}
+  .acard-bar{height:32px;border-bottom:1px solid #E8E6E0;display:flex;align-items:center;padding:0 12px;gap:8px}
+  .acard-bar .num{font-family:'JetBrains Mono',monospace;font-size:10px;color:#A8A59C}
+  .acard-bar .name{font-family:'JetBrains Mono',monospace;font-size:10px;color:#74716a}
+  .acard-bar .info{margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:10px;color:#3A5BB5}
+  .acard-body{padding:18px 22px;min-height:200px}
+  .acard-body pre{font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.7;color:#11110F;margin:0;white-space:pre-wrap}
+  .acard-body .hl{background:#dde2f0;box-shadow:inset 0 -1px 0 #3A5BB5}
+  .acard-legend{display:flex;align-items:baseline;gap:8px;margin-top:14px}
+  .acard-legend .num{font-family:'JetBrains Mono',monospace;font-size:11px;color:#3A5BB5;font-weight:600}
+  .acard-legend p{font-size:13px;line-height:1.55;color:#3d3b35;margin:0}
+
+  /* mini command bar in anatomy */
+  .mini-cmdbar{background:#fff;border:1px solid #E8E6E0;border-radius:6px;padding:3px;display:inline-flex;gap:1px;box-shadow:0 8px 18px -4px rgba(0,0,0,.18);margin-top:12px}
+  .mini-cmdbar span{padding:4px 9px;font-size:11px;border-radius:3px}
+  .mini-cmdbar .active{color:#fff;background:#3A5BB5}
+  .mini-cmdbar .default{color:#11110F}
+  .mini-cmdbar .muted{color:#74716a}
+
+  /* mini tabs in anatomy */
+  .mini-tabs{display:flex;gap:14px;margin-bottom:12px;border-bottom:1px solid #E8E6E0;padding-bottom:8px}
+  .mini-tabs span{font-size:11.5px;color:#74716a}
+  .mini-tabs span.active{color:#11110F;border-bottom:2px solid #3A5BB5;padding-bottom:4px;font-weight:500}
+
+  /* mini cumul in anatomy */
+  .mini-cumul{font-size:12.5px;line-height:1.65;background:#FAFAF8;padding:12px 14px;border:1px solid #E8E6E0;border-radius:5px;color:#11110F;margin-bottom:12px}
+  .mini-cumul .ins{background:rgba(62,125,90,.16)}
+  .mini-btns{display:flex;gap:6px}
+  .mini-btns .apply{font-size:11px;padding:5px 10px;background:#3A5BB5;color:#fff;border:none;border-radius:4px}
+  .mini-btns .ignore{font-size:11px;padding:5px 10px;background:#fff;color:#3d3b35;border:1px solid #E8E6E0;border-radius:4px}
+
+  /* ═══ FAQ ═══ */
+  .faq{padding:80px 36px;background:#fff;border-top:1px solid #E8E6E0;border-bottom:1px solid #E8E6E0}
+  .faq-inner{max-width:880px;margin:0 auto}
+  .faq h2{font-weight:700;font-size:34px;line-height:1.08;margin:0 0 36px;letter-spacing:-.018em}
+  .faq details{border-top:1px solid #E8E6E0;padding:18px 4px}
+  .faq details:last-of-type{border-bottom:1px solid #E8E6E0}
+  .faq summary{cursor:pointer;display:flex;align-items:center;gap:14px;font-weight:600;font-size:16px;color:#11110F;list-style:none}
+  .faq summary::-webkit-details-marker{display:none}
+  .faq summary .num{font-family:'JetBrains Mono',monospace;font-size:11px;color:#3A5BB5;flex:none;width:28px}
+  .faq summary .q{flex:1}
+  .faq summary .a{font-family:'JetBrains Mono',monospace;font-size:11.5px;color:#3A5BB5;font-weight:400}
+  .faq details p{font-size:14px;line-height:1.65;color:#3d3b35;margin:14px 0 0 42px;max-width:700px}
+
+  /* ═══ DON ═══ */
+  .donate{padding:88px 36px;background:#FAFAF8}
+  .donate-inner{max-width:1000px;margin:0 auto}
+  .donate-card{background:#fff;border:1px solid #E8E6E0;border-radius:9px;padding:36px 40px;display:grid;grid-template-columns:1.4fr 1fr;gap:36px;align-items:center}
+  .donate-card h2{font-weight:700;font-size:30px;line-height:1.08;margin:0 0 12px;letter-spacing:-.014em}
+  .donate-card p{font-size:14px;line-height:1.65;color:#3d3b35;margin:0;max-width:480px}
+  .donate-right{text-align:right}
+  .donate-btn{font-size:14.5px;font-weight:500;padding:12px 22px;background:#3A5BB5;color:#fff;border-radius:7px;display:inline-flex;align-items:center;gap:10px}
+  .donate-btn:hover{background:#2f4d9e}
+  .donate-sub{font-family:'JetBrains Mono',monospace;font-size:10.5px;color:#74716a;margin-top:10px}
+
+  /* ═══ FOOTER ═══ */
+  .site-footer{padding:32px 36px 48px;border-top:1px solid #E8E6E0;background:#FAFAF8}
+  .footer-inner{max-width:1200px;margin:0 auto;display:flex;align-items:center;flex-wrap:wrap;gap:18px}
+  .footer-copy{font-family:'JetBrains Mono',monospace;font-size:11px;color:#74716a}
+  .footer-links{margin-left:auto;display:flex;gap:22px;font-size:13px;color:#3d3b35}
+  .footer-links a:hover{color:#11110F}
+  .footer-links .accent{color:#3A5BB5}
+
+  /* ═══ RESPONSIVE ═══ */
+  @media(max-width:1279px){
+    .hero h1{font-size:56px}
+    .terminal-grid{grid-template-columns:1fr 360px}
   }
-  button{font-family:inherit; cursor:pointer; border:none; background:none; color:inherit}
-  button:focus-visible, textarea:focus-visible, input:focus-visible, select:focus-visible{
-    outline:2px solid var(--accent); outline-offset:2px;
+  @media(max-width:959px){
+    .hero h1{font-size:clamp(36px,6vw,68px)}
+    .terminal-grid{grid-template-columns:1fr}
+    .terminal-cmdbar{display:none}
+    .terminal-sel-info{display:none}
+    .features-grid{grid-template-columns:1fr 1fr}
+    .models-grid{grid-template-columns:1fr 1fr}
+    .privacy-inner{grid-template-columns:1fr;gap:36px}
+    .anatomy-grid{grid-template-columns:1fr}
+    .donate-card{grid-template-columns:1fr;text-align:center}
+    .donate-right{text-align:center}
+    .hero-meta{margin-left:0;margin-top:14px;flex-basis:100%}
+    .nav-links{display:none}
+  }
+  @media(max-width:639px){
+    .hero{padding:48px 20px 36px}
+    .hero h1{font-size:36px}
+    .features{padding:48px 20px}
+    .features-grid{grid-template-columns:1fr}
+    .models{padding:48px 20px}
+    .models-grid{grid-template-columns:1fr}
+    .privacy{padding:48px 20px}
+    .anatomy{padding:48px 20px}
+    .faq{padding:48px 20px}
+    .donate{padding:48px 20px}
+    .donate-card{padding:24px}
+    .nav-inner{padding:0 20px}
+    .demo{padding:16px 20px 48px}
+    .wrap{padding:0 20px}
+    .typing-strip{flex-wrap:wrap}
+    .typing-indicator{display:none}
   }
 
-  /* ---- Topbar ---- */
-  header{
-    display:flex; align-items:center; gap:18px;
-    padding:0 18px; height:54px; flex:0 0 auto;
-    background:var(--paper-raised); border-bottom:1px solid var(--line);
-  }
-  .brand{display:flex; align-items:baseline; gap:9px}
-  .brand b{font-family:'Newsreader',serif; font-weight:600; font-size:21px; letter-spacing:.2px}
-  .brand span{font-size:11px; color:var(--ink-soft); letter-spacing:.06em; text-transform:uppercase}
-  .spacer{flex:1}
-  .toolgroup{display:flex; align-items:center; gap:6px}
-  .divider{width:1px; height:24px; background:var(--line); margin:0 4px}
-  .btn{
-    display:inline-flex; align-items:center; gap:7px;
-    padding:7px 12px; border-radius:var(--r); font-size:13px; font-weight:500;
-    border:1px solid transparent; color:var(--ink); transition:background .12s,border-color .12s;
-  }
-  .btn:hover{background:var(--hover)}
-  .btn.primary{background:var(--accent); color:var(--on-accent)}
-  .btn.primary:hover{background:var(--accent-hover)}
-  .btn.ghost{border-color:var(--line-strong); background:transparent}
-  .btn.ghost:hover{background:var(--hover)}
-  .btn.act{background:var(--accent); color:var(--on-accent); border-color:transparent}
-  .btn.act:hover{background:var(--accent-hover)}
-  .btn.icon{padding:7px 9px}
-  .btn[disabled]{opacity:.45; cursor:not-allowed}
-  .btn svg{width:16px; height:16px; display:block}
-  #act-settings{border-color:var(--line-strong)}
-  .menu-wrap{position:relative; display:inline-flex}
-  .menu{
-    position:absolute; top:calc(100% + 6px); right:0; z-index:60; min-width:184px;
-    background:var(--paper-raised); border:1px solid var(--line-strong); border-radius:10px;
-    box-shadow:var(--shadow); padding:6px; display:flex; flex-direction:column; gap:2px;
-  }
-  .menu button{
-    display:flex; align-items:center; justify-content:space-between; gap:14px;
-    padding:8px 10px; border-radius:6px; font-size:13px; font-weight:500; color:var(--ink); text-align:left;
-  }
-  .menu button:hover{background:var(--accent-soft); color:var(--accent)}
-  .menu button span{font-family:'JetBrains Mono',monospace; font-size:11.5px; color:var(--ink-soft)}
-  .menu button:hover span{color:var(--accent)}
-  .menu .menu-h{font-size:10.5px; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-soft); padding:7px 10px 5px}
-  .menu .menu-sep{height:1px; background:var(--line); margin:5px 6px}
-  #voice-menu{min-width:236px}
-  .vrow{display:flex !important; align-items:center; gap:9px; justify-content:flex-start !important}
-  .vrow .mk{flex:0 0 14px; text-align:center; font-family:inherit !important; color:var(--accent) !important; font-size:13px !important}
-  .vrow .nm{flex:1; font-family:inherit !important; font-size:13px !important; color:var(--ink) !important; text-align:left}
-  .vrow.on .nm{font-weight:600}
-  .vrow.muted .nm{color:var(--ink-soft) !important}
-  .vrow .fav{flex:0 0 auto; font-family:inherit !important; font-size:13px !important; color:var(--line-strong) !important}
-  .vrow .fav.on{color:#BA7517 !important}
-  .vrow:hover .nm,.vrow:hover .mk{color:var(--accent) !important}
-  #voice-btn #voice-name{max-width:160px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
-  .seg{display:inline-flex; border:1px solid var(--line-strong); border-radius:var(--r); overflow:hidden}
-  .seg button{padding:6px 11px; font-size:12.5px; color:var(--ink-soft)}
-  .seg button.on{background:var(--accent-soft); color:var(--accent); font-weight:600}
-
-  /* ---- Body ---- */
-  main{flex:1; display:flex; min-height:0}
-  .panes{flex:1; display:flex; min-height:0; min-width:0}
-  .pane{min-width:0; display:flex; flex-direction:column; overflow:hidden}
-  .pane.edit{flex:var(--eg,1) 1 0; position:relative}
-  .pane.preview{flex:var(--pg,1) 1 0}
-  .gutter{flex:0 0 7px; cursor:col-resize; background:var(--line); transition:background .12s}
-  .gutter:hover,.gutter.drag{background:var(--accent)}
-  .pane-label{
-    font-size:10.5px; letter-spacing:.09em; text-transform:uppercase; color:var(--ink-soft);
-    padding:9px 22px 0;
-  }
-  .pane-label-row{display:flex; align-items:center; justify-content:space-between}
-  .lisib-tools{display:flex; gap:6px}
-  .r-spell{text-decoration:underline; text-decoration-style:wavy; text-decoration-color:var(--correct); text-underline-offset:2px}
-  .r-found{background:var(--hl-found); border-radius:3px; padding:0 1px}
-  .lisib-toggle{font-family:'Inter',sans-serif; font-size:10px; letter-spacing:.06em; text-transform:uppercase; color:var(--ink-soft); border:1px solid var(--line-strong); border-radius:20px; padding:3px 11px}
-  .lisib-toggle:hover{color:var(--accent); border-color:var(--accent)}
-  .lisib-toggle.on{background:var(--accent-soft); color:var(--accent); border-color:var(--accent); font-weight:600}
-  .r-stats{display:flex; flex-wrap:wrap; gap:8px; margin-bottom:10px}
-  .r-card{background:var(--surface); border:1px solid var(--line); border-radius:8px; padding:7px 12px; min-width:72px}
-  .r-card .rv{font-family:'Inter',sans-serif; font-weight:600; font-size:15.5px; color:var(--ink)}
-  .r-card .rl{font-family:'Inter',sans-serif; font-size:10px; letter-spacing:.04em; text-transform:uppercase; color:var(--ink-soft)}
-  .r-verdict{font-family:'Inter',sans-serif; font-size:13px; color:var(--ink-soft); margin-bottom:9px}
-  .r-verdict b{color:var(--ink)}
-  .r-legend{font-family:'Inter',sans-serif; font-size:11px; display:flex; gap:9px; flex-wrap:wrap; align-items:center; margin-bottom:16px; color:var(--ink-soft)}
-  .r-hard{background:var(--hl-hard); border-radius:3px; padding:0 1px}
-  .r-vhard{background:var(--hl-vhard); border-radius:3px; padding:0 1px}
-  .r-adv{border-bottom:2px solid var(--accent)}
-  .fmtbar{
-    display:flex; align-items:center; gap:3px; flex-wrap:wrap;
-    padding:8px 20px 6px; border-bottom:1px solid var(--line);
-  }
-  .fmtbar button{
-    min-width:30px; height:28px; padding:0 8px; border-radius:6px;
-    font-size:12.5px; color:var(--ink-soft); border:1px solid transparent;
-    display:inline-flex; align-items:center; justify-content:center;
-  }
-  .fmtbar button:hover{background:var(--hover); color:var(--ink)}
-  .fmt-div{width:1px; height:18px; background:var(--line); margin:0 5px}
-  #editor{
-    flex:1; width:100%; resize:none; border:none; background:transparent;
-    padding:14px 28px 60px; font-family:'JetBrains Mono',monospace;
-    font-size:14.5px; line-height:1.75; color:var(--ink); tab-size:2;
-  }
-  #editor::placeholder{color:var(--placeholder)}
-  #preview{
-    flex:1; overflow-y:auto; padding:18px 34px 80px;
-    font-family:'Newsreader',serif; font-size:18px; line-height:1.65; color:var(--ink);
-  }
-  #preview h1,#preview h2,#preview h3{font-weight:600; line-height:1.25; margin:1.4em 0 .5em}
-  #preview h1{font-size:1.7em} #preview h2{font-size:1.35em} #preview h3{font-size:1.12em}
-  #preview p{margin:0 0 .85em}
-  #preview ul,#preview ol{margin:0 0 .9em 1.3em}
-  #preview li{margin:.2em 0}
-  #preview blockquote{border-left:3px solid var(--line-strong); padding-left:14px; color:var(--ink-soft); font-style:italic; margin:0 0 .9em}
-  #preview code{font-family:'JetBrains Mono',monospace; font-size:.82em; background:var(--code); padding:1px 5px; border-radius:4px}
-  #preview pre{background:var(--code); padding:14px 16px; border-radius:var(--r); overflow-x:auto; margin:0 0 .9em}
-  #preview pre code{background:none; padding:0}
-  #preview a{color:var(--accent)}
-  #preview hr{border:none; border-top:1px solid var(--line-strong); margin:1.6em 0}
-  #preview .mermaid-out{margin:0 0 1em; text-align:center}
-  #preview .mermaid-out svg{max-width:100%; height:auto}
-  #preview .katex-display{margin:.8em 0; overflow-x:auto; overflow-y:hidden}
-  .hidden{display:none !important}
-
-  /* ---- Révision panel ---- */
-  aside{
-    flex:0 0 360px; width:360px; display:flex; flex-direction:column;
-    background:var(--paper-raised); border-left:1px solid var(--line); min-height:0;
-  }
-  .rev-head{display:flex; align-items:center; gap:10px; padding:14px 16px 10px; border-bottom:1px solid var(--line)}
-  .rev-head h2{font-family:'Newsreader',serif; font-weight:600; font-size:16px}
-  .rev-head .count{margin-left:auto; font-size:11px; color:var(--ink-soft)}
-  .rev-actions{display:flex; gap:6px; padding:10px 14px; flex-wrap:wrap; border-bottom:1px solid var(--line)}
-  .refine{padding:14px 16px; border-top:1px solid var(--line)}
-  .refine-h{font-size:12px; color:var(--ink-soft); margin-bottom:8px}
-  .refine-row{display:flex; gap:8px}
-  .refine-row input{flex:1; min-width:0; padding:8px 10px; border:1px solid var(--line-strong); border-radius:var(--r); font-family:inherit; font-size:12.5px; background:var(--surface); color:var(--ink)}
-  .refine-row input::placeholder{color:var(--placeholder)}
-  .refine-row input:focus-visible{outline:2px solid var(--accent); outline-offset:1px}
-  .refine-row .btn{flex:0 0 auto}
-  .len-presets{display:flex; flex-wrap:wrap; gap:6px; margin:4px 0 10px}
-  .len-presets .chip{padding:5px 10px; border:1px solid var(--line-strong); border-radius:20px; font-size:12.5px; background:var(--surface); color:var(--ink)}
-  .len-presets .chip:hover{border-color:var(--accent); color:var(--accent)}
-  .len-presets .chip.on{border-color:var(--accent); background:var(--accent-soft); color:var(--accent); font-weight:600}
-  .len-row{display:flex; align-items:center; gap:8px; margin-bottom:4px}
-  .len-row input{width:96px; padding:8px 10px; border:1px solid var(--line-strong); border-radius:var(--r); font-family:inherit; font-size:13px; background:var(--surface); color:var(--ink)}
-  .len-unit{font-size:12.5px; color:var(--ink-soft)}
-  .sel-stat{color:var(--accent); font-weight:500}
-  .sel-stat.over{color:var(--correct)}
-  .rev-body{flex:1; overflow-y:auto; padding:6px 0}
-  .empty{padding:34px 22px; color:var(--ink-soft); font-size:13.5px; line-height:1.6}
-  .empty b{color:var(--ink); font-weight:600}
-  .status{padding:14px 18px; font-size:13px; color:var(--ink-soft)}
-  .status.err{color:var(--correct)}
-  .spin{display:inline-block; width:13px; height:13px; border:2px solid var(--line-strong); border-top-color:var(--accent); border-radius:50%; animation:s .7s linear infinite; vertical-align:-2px; margin-right:7px}
-  @keyframes s{to{transform:rotate(360deg)}}
-
-  .proposal{padding:12px 16px; border-bottom:1px solid var(--line)}
-  .proposal .pl{font-size:10.5px; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-soft); margin-bottom:7px}
-  .proposed-text{font-family:'Newsreader',serif; font-size:15px; line-height:1.55; background:var(--surface); border:1px solid var(--line); border-radius:var(--r); padding:11px 13px; white-space:pre-wrap}
-  .apply-row{display:flex; gap:8px; margin-top:10px}
-  .apply-row .btn{flex:1; justify-content:center}
-  .apply-row .btn.primary{flex:2}
-
-  .change{display:flex; gap:9px; padding:11px 16px; border-bottom:1px solid var(--line)}
-  .tag{flex:0 0 auto; font-size:9.5px; font-weight:600; letter-spacing:.05em; text-transform:uppercase; padding:3px 6px; border-radius:5px; height:fit-content; margin-top:1px}
-  .tag.ortho,.tag.gram{background:var(--tag-correct-bg); color:var(--correct)}
-  .tag.style{background:var(--tag-style-bg); color:var(--style)}
-  .tag.vocab{background:var(--accent-soft); color:var(--accent)}
-  .change .c{font-size:13px; line-height:1.5}
-  .change .c .bf{color:var(--ink-soft); text-decoration:line-through}
-  .change .c .af{color:var(--ink); font-weight:500}
-  .change .c .note{display:block; color:var(--ink-soft); font-size:12px; margin-top:3px; font-style:italic}
-  .voc{padding:12px 16px}
-  .voc .chip{display:inline-block; margin:3px 5px 3px 0; padding:5px 10px; border:1px solid var(--line-strong); border-radius:20px; font-size:13px; background:var(--surface); user-select:none}
-  .voc .chip:hover{border-color:var(--accent); color:var(--accent)}
-  .voc .chip.sel{border-color:var(--accent); background:var(--accent-soft); color:var(--accent); font-weight:600}
-  .voc .chip.orig{font-style:italic; color:var(--ink-soft)}
-  .voc .chip.orig.sel{font-style:normal; color:var(--accent)}
-  .vsub{border-radius:3px; transition:background .12s}
-  .vsub.on{background:var(--accent-soft); color:var(--accent); font-weight:600; padding:0 3px; box-shadow:inset 0 -1px 0 var(--accent)}
-  .dchg{cursor:pointer; border-radius:3px; padding:0 1px}
-  .dchg del{text-decoration:line-through; color:var(--correct)}
-  .dchg ins{text-decoration:none; color:var(--accept)}
-  .dchg.acc{background:rgba(62,125,90,.13)}
-  .dchg.rej{background:rgba(140,138,130,.16)}
-  .dchg.rej del{text-decoration:none; color:var(--ink)}
-  .dchg.rej ins{text-decoration:line-through; opacity:.45}
-
-  /* ---- footer ---- */
-  footer{
-    flex:0 0 auto; height:30px; display:flex; align-items:center; gap:16px;
-    padding:0 18px; font-size:11.5px; color:var(--ink-soft);
-    background:var(--paper-raised); border-top:1px solid var(--line);
-  }
-  footer .save{margin-left:auto}
-  footer .dot{display:inline-block; width:6px; height:6px; border-radius:50%; background:var(--accept); margin-right:6px; vertical-align:0px}
-
-  /* ---- Modal ---- */
-  .overlay{position:fixed; inset:0; background:rgba(27,26,23,.35); display:flex; align-items:center; justify-content:center; z-index:50; padding:20px}
-  .modal{background:var(--paper-raised); border-radius:12px; box-shadow:var(--shadow); width:min(560px,100%); max-height:90vh; overflow-y:auto}
-  .modal h2{font-family:'Newsreader',serif; font-weight:600; font-size:20px; padding:20px 22px 4px}
-  .modal .sub{padding:0 22px 16px; color:var(--ink-soft); font-size:13px; line-height:1.55}
-  .field{padding:0 22px 16px}
-  .field label{display:block; font-size:12px; font-weight:600; margin-bottom:6px}
-  .field .hint{font-size:11.5px; color:var(--ink-soft); margin-top:5px; line-height:1.5}
-  .field input,.field select,.field textarea{
-    width:100%; padding:9px 11px; border:1px solid var(--line-strong); border-radius:var(--r);
-    font-family:inherit; font-size:13.5px; background:var(--surface); color:var(--ink);
-  }
-  .field textarea{font-family:'JetBrains Mono',monospace; font-size:12.5px; line-height:1.6; min-height:150px; resize:vertical}
-  .field-row{display:flex; gap:12px}
-  .field-row>div{flex:1}
-  .toggle{display:flex; align-items:center; gap:10px}
-  .toggle input{width:auto}
-  .tone-row{display:flex; gap:8px; margin-bottom:8px}
-  .tone-row .tone-label{flex:0 0 130px; width:130px}
-  .tone-row .tone-instr{flex:1; min-width:0}
-  .modal-foot{display:flex; gap:10px; justify-content:flex-end; padding:14px 22px 22px; border-top:1px solid var(--line); margin-top:6px}
-
-  body.no-panel aside{display:none !important}
-  #toggle-panel.on{background:var(--accent-soft); color:var(--accent)}
-  @media (max-width:880px){
-    aside{position:fixed; right:0; top:54px; bottom:30px; z-index:30; box-shadow:var(--shadow)}
-    .pane.preview{display:none}
-  }
-  /* ---- Search & Replace ---- */
-  .search-bar{
-    display:flex; align-items:center; gap:6px; flex-wrap:wrap;
-    padding:6px 12px; background:var(--paper-raised); border-bottom:1px solid var(--line);
-  }
-  .search-bar input{
-    padding:6px 10px; border:1px solid var(--line-strong); border-radius:var(--r);
-    font-family:inherit; font-size:13px; background:var(--surface); color:var(--ink); min-width:140px;
-  }
-  .search-bar .s-count{font-size:12px; color:var(--ink-soft); min-width:56px}
-  .search-bar .s-btn{padding:4px 8px; border-radius:6px; font-size:13px; color:var(--ink-soft); border:1px solid var(--line-strong)}
-  .search-bar .s-btn:hover{background:var(--hover); color:var(--ink)}
-  .search-bar .s-close{padding:4px 7px; border-radius:6px; font-size:15px; color:var(--ink-soft)}
-  .search-bar .s-close:hover{color:var(--ink)}
-  .search-bar .s-sep{width:1px; height:18px; background:var(--line); margin:0 2px}
-
-  /* ---- Drag & drop overlay ---- */
-  .drop-overlay{
-    position:absolute; inset:0; z-index:10;
-    background:rgba(44,62,99,.12); border:2px dashed var(--accent);
-    display:flex; align-items:center; justify-content:center;
-    font-size:15px; color:var(--accent); font-weight:500; pointer-events:none;
-    border-radius:var(--r);
-  }
-
-  /* ---- Revision history ---- */
-  .hist-item{padding:12px 16px; border-bottom:1px solid var(--line); cursor:pointer; transition:background .1s}
-  .hist-item:hover{background:var(--hover)}
-  .hist-meta{display:flex; gap:8px; align-items:center; margin-bottom:6px}
-  .hist-date{font-size:11px; color:var(--ink-soft)}
-  .hist-mode{font-size:10px; font-weight:600; letter-spacing:.05em; text-transform:uppercase; padding:2px 6px; border-radius:5px}
-  .hist-mode.correct{background:var(--tag-correct-bg); color:var(--correct)}
-  .hist-mode.style{background:var(--tag-style-bg); color:var(--style)}
-  .hist-mode.vocab,.hist-mode.tics,.hist-mode.length{background:var(--accent-soft); color:var(--accent)}
-  .hist-prof{font-size:11px; color:var(--ink-soft); font-style:italic}
-  .hist-excerpt{font-size:12px; color:var(--ink-soft); line-height:1.4; max-height:2.8em; overflow:hidden}
-
-  @media (prefers-reduced-motion:reduce){*{animation:none !important; transition:none !important}}
+  @media(prefers-reduced-motion:reduce){*{animation:none !important;transition:none !important}[data-reveal]{opacity:1}[data-stagger]>*{opacity:1}}
 </style>
 </head>
 <body>
 
-<header>
-  <div class="brand"><b>Plume</b><span>révision assistée</span></div>
-  <div class="menu-wrap" id="voice-wrap">
-    <button class="btn ghost" id="voice-btn" title="Profil de voix" aria-haspopup="true" aria-expanded="false">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10v4"></path><path d="M7 7v10"></path><path d="M11 4v16"></path><path d="M15 8v8"></path><path d="M19 6v12"></path></svg>
-      <span id="voice-name">Profil</span>
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
-    </button>
-    <div class="menu hidden" id="voice-menu" role="menu"></div>
-  </div>
-  <div class="spacer"></div>
-
-  <div class="toolgroup">
-    <button class="btn ghost act" id="act-correct" title="Orthographe et grammaire (Ctrl+Entrée)">Corriger</button>
-    <button class="btn ghost" id="act-style" title="Reformulation au registre choisi">Réviser le style</button>
-    <button class="btn ghost" id="act-vocab" title="Propositions de vocabulaire sur la sélection">Vocabulaire</button>
-    <button class="btn ghost" id="act-length" title="Ajuster la longueur de la sélection (titre, meta, post…)">Réviser la longueur</button>
-    <button class="btn ghost" id="act-tics" title="Repérer les tics de langage (anglicismes, jargon, clichés) — via l'IA">Tics</button>
-  </div>
-  <div class="divider"></div>
-  <div class="seg" id="view-seg">
-    <button data-v="edit">Source</button>
-    <button data-v="split" class="on">Partagé</button>
-    <button data-v="preview">Aperçu</button>
-  </div>
-  <div class="divider"></div>
-  <div class="seg" id="zoom-seg">
-    <button id="zoom-out" title="Réduire le texte">A&minus;</button>
-    <button id="zoom-pct" title="Réinitialiser à 100%" style="min-width:46px">100%</button>
-    <button id="zoom-in" title="Agrandir le texte">A+</button>
-  </div>
-  <div class="divider"></div>
-  <div class="toolgroup">
-    <button class="btn icon ghost" id="act-undo" title="Annuler (Ctrl+Z)" disabled>↶</button>
-    <button class="btn icon ghost" id="act-redo" title="Rétablir (Ctrl+Maj+Z)" disabled>↷</button>
-  </div>
-  <div class="divider"></div>
-  <div class="toolgroup">
-    <button class="btn icon ghost" id="toggle-panel" title="Afficher / masquer le panneau de révision" aria-pressed="true">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"></rect><line x1="15" y1="4" x2="15" y2="20"></line></svg>
-    </button>
-  </div>
-  <div class="divider"></div>
-  <div class="toolgroup">
-    <button class="btn icon ghost" id="act-open" title="Ouvrir un fichier Markdown">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
-    </button>
-    <div class="menu-wrap">
-      <button class="btn icon ghost" id="act-export" title="Enregistrer / Exporter" aria-haspopup="true" aria-expanded="false">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-      </button>
-      <div class="menu hidden" id="export-menu" role="menu">
-        <button role="menuitem" data-fmt="md">Markdown <span>.md</span></button>
-        <button role="menuitem" data-fmt="txt">Texte brut <span>.txt</span></button>
-        <button role="menuitem" data-fmt="html">Page web <span>.html</span></button>
-        <button role="menuitem" data-fmt="doc">Word <span>.doc</span></button>
-      </div>
+<!-- ═══════════════ NAV ═══════════════ -->
+<header class="nav">
+  <div class="nav-inner">
+    <a href="./" class="logo">
+      <span class="logo-icon"><svg viewBox="0 0 141.73 141.73" xmlns="http://www.w3.org/2000/svg"><rect width="141.73" height="141.73" rx="34.43" fill="#11110F"/><path fill="#fff" d="M81.02,81.88c-8.15.95-14-1.48-14-1.48.06-1.07-.17-2.07.71-3.69.41-.76,1.2-1.24,2.15-1.53,2.1-.64,4.9-.21,5.84,1.41.02.03.03.06.05.09.66-2.14-1.53-3.82-4.22-3.8,2.47,0,4.81-.03,6.85-.9,4.49-1.91,8.06-7.18,7.89-8.72-2.3.66-5.35.72-7.85.15,3.69-.37,8.14-1.07,10.4-2.93,4.43-3.64,7.3-6.62,7.56-10.19-1.45,2.75-5.25,3.57-9.76,4.26,7.79-2.83,10.99-5.99,10.84-11.08-.11-3.96-1.36-7.1-.9-9.18-34.36,7.27-37.05,18.21-33.03,36.6,2.46-10.98,14.21-20.4,17.84-22.83-9.59,9.94-16.97,20.25-16.97,31.73v20.32c0,12.61,1.36,13.65,14.32,14.69v5.04H31.87v-5.04c11.31-1.04,12.66-2.08,12.66-14.69v-56.81c0-12.61-1.36-13.5-11.76-14.69v-5.19h41.46c11.91,0,20.5,1.63,26.38,5.79,7.09,4.75,11.16,12.16,11.16,21.81,0,19.88-14.91,29.02-30.75,30.85Z"/></svg></span>
+      <span class="logo-name">Plume</span>
+      <span class="logo-ver">v1.4</span>
+    </a>
+    <nav class="nav-links">
+      <a href="#fonctionnalites">Fonctionnalités</a>
+      <a href="#modeles">Modèles</a>
+      <a href="#confidentialite">Confidentialité</a>
+      <a href="#soutenir">Soutenir</a>
+      <a href="https://github.com/Fluorgasmic/Plume" class="ext" target="_blank" rel="noopener">GitHub <span style="font-family:'JetBrains Mono',monospace;font-size:10px">↗</span></a>
+    </nav>
+    <div class="nav-cta">
+      <a href="app.html" class="btn-primary">Ouvrir l'éditeur</a>
     </div>
-    <button class="btn ghost" id="act-settings" title="Réglages">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
-      Réglages
-    </button>
   </div>
 </header>
-<input type="file" id="file-input" accept=".md,.markdown,.txt,text/markdown,text/plain" hidden>
 
-<main>
-  <div class="panes">
-    <div class="pane edit">
-      <div class="pane-label">Source Markdown</div>
-      <div class="fmtbar" id="fmtbar">
-        <button data-fmt="h1" title="Titre 1">H1</button>
-        <button data-fmt="h2" title="Titre 2">H2</button>
-        <button data-fmt="h3" title="Titre 3">H3</button>
-        <span class="fmt-div"></span>
-        <button data-fmt="bold" title="Gras (Ctrl+B)"><b>G</b></button>
-        <button data-fmt="italic" title="Italique (Ctrl+I)"><i>I</i></button>
-        <button data-fmt="strike" title="Barré"><s>S</s></button>
-        <button data-fmt="code" title="Code en ligne">&lt;/&gt;</button>
-        <span class="fmt-div"></span>
-        <button data-fmt="quote" title="Citation">&ldquo;</button>
-        <button data-fmt="ul" title="Liste à puces">&bull;</button>
-        <button data-fmt="ol" title="Liste numérotée">1.</button>
-        <button data-fmt="link" title="Lien">Lien</button>
-      </div>
-      <div class="search-bar hidden" id="search-bar">
-        <input type="text" id="s-input" placeholder="Rechercher…" autocomplete="off">
-        <span class="s-count" id="s-count"></span>
-        <button class="s-btn" id="s-prev" title="Précédent (Maj+Entrée)">&#8593;</button>
-        <button class="s-btn" id="s-next" title="Suivant (Entrée)">&#8595;</button>
-        <span class="s-sep"></span>
-        <input type="text" id="s-replace" placeholder="Remplacer…" autocomplete="off">
-        <button class="s-btn" id="s-rep-one" title="Remplacer l'occurrence courante">Rempl.</button>
-        <button class="s-btn" id="s-rep-all" title="Remplacer toutes les occurrences">Tout</button>
-        <button class="s-close" id="s-close" title="Fermer (Échap)">&#10005;</button>
-      </div>
-      <textarea id="editor" spellcheck="true" placeholder="Sélectionne un passage, puis lance une révision. Sans sélection, le paragraphe courant est traité.
+<!-- ═══════════════ HERO ═══════════════ -->
+<section class="hero">
+  <div class="hero-inner">
+    <div data-reveal data-delay="0" class="pill"><span class="dot"></span> v1.4 · profils de voix multi-marques</div>
+    <h1 data-reveal data-delay="120">Un éditeur Markdown avec <span class="accent">relecture intelligente.</span></h1>
 
-# Titre
-
-Ton texte ici…"></textarea>
+    <div data-reveal data-delay="320" class="typing-strip" id="typing-strip">
+      <span class="typing-badge" id="typing-badge">PCT</span>
+      <span class="typing-text" id="typing-text"></span>
+      <span class="typing-indicator"><span class="dot"></span> Plume relit · live</span>
     </div>
-    <div class="gutter" id="gutter" title="Glisser pour redimensionner"></div>
-    <div class="pane preview">
-      <div class="pane-label pane-label-row"><span>Aperçu</span><span class="lisib-tools"><button id="toggle-spell" class="lisib-toggle" title="Souligner les fautes d'orthographe (dictionnaire local)">Orthographe</button><button id="toggle-lisib" class="lisib-toggle" title="Analyse de lisibilité (phrases longues, adverbes…)">Lisibilité</button></span></div>
-      <div id="preview"></div>
+
+    <p data-reveal data-delay="440" class="hero-desc">Markdown natif, raccourcis clavier, propositions au mot près. Plume corrige et reformule sans écraser votre style. Vos textes restent dans votre navigateur, contre la clé du modèle que vous choisissez.</p>
+
+    <div data-reveal data-delay="560" class="hero-cta">
+      <a href="app.html" class="btn-primary">Ouvrir l'éditeur <span>→</span></a>
+      <a href="#anatomie" class="btn-outline">Démo en 60 s</a>
+      <div class="hero-meta">
+        <span class="tag"><span class="dot"></span> aucune inscription</span>
+        <span class="tag"><span class="dot"></span> clé en local</span>
+        <span class="tag"><span class="dot"></span> open source</span>
+      </div>
     </div>
   </div>
+</section>
 
-  <aside>
-    <div class="rev-head">
-      <h2>Révision</h2>
-      <button class="btn ghost" id="act-history" title="Historique des révisions IA" style="margin-left:auto; padding:5px 9px; font-size:11px">Historique</button>
-      <span class="count" id="rev-scope"></span>
-    </div>
-    <div class="rev-body" id="rev-body">
-      <div class="empty">
-        Sélectionne un passage dans l'éditeur, puis choisis <b>Corriger</b>, <b>Réviser le style</b> ou <b>Vocabulaire</b>.<br><br>
-        La proposition s'affiche ici avec le détail des modifications. Rien ne change dans ton texte tant que tu n'as pas cliqué sur <b>Appliquer</b>.<br><br>
-        Pense à renseigner ta clé API dans les réglages.
+<!-- ═══════════════ DEMO TERMINAL ═══════════════ -->
+<section class="demo">
+  <div class="demo-inner">
+    <div data-reveal class="terminal">
+      <div class="terminal-topbar">
+        <span class="terminal-dot"></span>
+        <span class="terminal-dot"></span>
+        <span class="terminal-dot"></span>
+        <span class="terminal-path">~/plume · reine-margot-ch1.md</span>
+        <span class="terminal-meta">
+          <span class="voice"><span class="dot"></span> roman, ton littéraire</span>
+          <span class="kbd">⌘K</span>
+        </span>
+      </div>
+      <div class="terminal-grid">
+        <div class="terminal-source">
+          <div class="label">source.md</div>
+          <pre><span class="hl-title"># La nuit du dix-huit août</span>
+
+Le lundi, dix-huitième jour du mois d'août 1572, il
+y avait grande fête au Louvre.
+
+<span class="hl-sel">Les fenêtres ordinairement si sombres de l'antique
+demeure royale étaient ardemment éclairées; les
+places et les rues attenantes, habituellement si
+solitaire, regorgeaient de peuple.</span></pre>
+          <div class="terminal-cmdbar">
+            <button class="cmd-primary"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg> Corriger</button>
+            <button class="cmd-default">Reformuler</button>
+            <button class="cmd-default">Vocabulaire</button>
+            <span class="cmd-sep"></span>
+            <button class="cmd-muted">Tics</button>
+            <button class="cmd-muted">Longueur</button>
+            <span class="cmd-sep"></span>
+            <button class="cmd-kbd">↵</button>
+          </div>
+          <div class="terminal-sel-info">sélection · 178 signes · 30 mots · 4 phrases</div>
+        </div>
+
+        <div class="terminal-review">
+          <div class="terminal-review-head">
+            <div class="top">
+              <h3>Révision</h3>
+              <span class="time">2.1 s</span>
+            </div>
+            <div class="terminal-review-tabs">
+              <button class="active">Corrections · 2</button>
+              <button>Style · 3</button>
+              <button>Vocabulaire</button>
+            </div>
+          </div>
+
+          <div style="flex:1">
+            <div class="diff-item">
+              <span class="diff-badge pct">PCT</span>
+              <div class="diff-content">
+                <div class="diff-text">éclairées<del>;</del><ins>.</ins> <del>les</del> <ins>Les</ins> places et les rues attenantes…</div>
+                <p class="diff-note">Phrase trop longue. Le point marque la respiration, la capitale repart au pas.</p>
+                <div class="diff-actions">
+                  <button class="btn-accept">Accepter</button>
+                  <button class="btn-reject">Refuser</button>
+                  <button class="btn-redo">↺ refaire</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="diff-item">
+              <span class="diff-badge gra">GRA</span>
+              <div class="diff-content">
+                <div class="diff-text">habituellement si <del>solitaire</del><ins>solitaires</ins></div>
+                <p class="diff-note">Accord au pluriel avec « places et rues ».</p>
+              </div>
+            </div>
+
+            <div class="cumul">
+              <div class="label">aperçu cumulé</div>
+              <div class="cumul-text">Les fenêtres ordinairement si sombres de l'antique demeure royale étaient ardemment éclairées<span class="ins">.</span> <span class="ins">L</span>es places et les rues attenantes, habituellement si <span class="ins">solitaires</span>, regorgeaient de peuple.</div>
+            </div>
+          </div>
+
+          <div class="terminal-review-foot">
+            <button class="btn-apply">Appliquer (2)</button>
+            <button class="btn-ignore">Ignorer</button>
+          </div>
+        </div>
       </div>
     </div>
-  </aside>
-</main>
+    <div class="demo-caption">↑ vue éditeur · sélection active, command bar flottante, panneau tabulé</div>
+  </div>
+</section>
 
-<footer>
-  <span id="stat-words">0 mot</span>
-  <span id="stat-chars">0 signe</span>
-  <span id="stat-tokens" title="Estimation : ~4 caractères par token en français"></span>
-  <span id="stat-sel" class="sel-stat hidden"></span>
-  <span id="stat-model"></span>
-  <span class="save" id="stat-save"><span class="dot"></span>Enregistré localement</span>
+<!-- ═══════════════ FEATURES ═══════════════ -->
+<section class="features" id="fonctionnalites">
+  <div class="features-inner">
+    <div data-reveal style="margin-bottom:48px;max-width:760px">
+      <div class="section-eyebrow">Fonctionnalités</div>
+      <h2>6 fonctionnalités pour vous concentrer sur <span class="votre">votre</span> écriture.</h2>
+      <p class="sub">Chaque action a son code, son raccourci, son badge. Pas de magie, pas de surprises : vous savez toujours ce que Plume propose, et pourquoi.</p>
+    </div>
+    <div data-reveal data-stagger="80" class="features-grid">
+      <div class="fcard">
+        <div class="fcard-head"><span class="fcard-badge cor">COR</span><span class="fcard-shortcut">⌘1</span></div>
+        <h3>Corriger</h3>
+        <p>Orthographe, grammaire, conjugaison, ponctuation. Vous validez chaque correction au mot près, avec sa justification.</p>
+      </div>
+      <div class="fcard">
+        <div class="fcard-head"><span class="fcard-badge sty">STY</span><span class="fcard-shortcut">⌘2</span></div>
+        <h3>Reformuler</h3>
+        <p>Trois variantes au ton choisi : concis, incarné, formel. Réglables par profil de voix.</p>
+      </div>
+      <div class="fcard">
+        <div class="fcard-head"><span class="fcard-badge voc">VOC</span><span class="fcard-shortcut">⌘3</span></div>
+        <h3>Vocabulaire</h3>
+        <p>Substitutions accordées en genre et en nombre. Vous posez une puce, vous la retirez d'un clic.</p>
+      </div>
+      <div class="fcard">
+        <div class="fcard-head"><span class="fcard-badge tic">TIC</span><span class="fcard-shortcut">⌘4</span></div>
+        <h3>Repérer les tics</h3>
+        <p>Anglicismes, jargon, clichés, formules creuses. Plume les remonte un par un, vous décidez.</p>
+      </div>
+      <div class="fcard">
+        <div class="fcard-head"><span class="fcard-badge len">LEN</span><span class="fcard-shortcut">⌘5</span></div>
+        <h3>Ajuster la longueur</h3>
+        <p>Titre 60c, méta 155c, post 280c, ou votre cible. Plume condense ou étoffe sans tronquer.</p>
+      </div>
+      <div class="fcard">
+        <div class="fcard-head"><span class="fcard-badge vox">VOX</span><span class="fcard-shortcut">⌘6</span></div>
+        <h3>Profils de voix</h3>
+        <p>Un profil par marque ou par projet. Importez une charte PDF, Plume en tire les consignes.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ MODÈLES ═══════════════ -->
+<section class="models" id="modeles">
+  <div class="models-inner">
+    <div data-reveal style="margin-bottom:28px">
+      <div class="section-eyebrow">Modèles au choix</div>
+      <h2>Connectez votre LLM, réglez le ton, c'est parti.</h2>
+      <p class="sub">Une clé API suffit pour démarrer. Des petits modèles aux multi-modèles, en cloud ou en local.</p>
+    </div>
+    <div data-reveal data-stagger="50" class="models-grid">
+      <div class="mtile"><span class="mtile-badge indigo">ANT</span><div class="mtile-info"><div class="mtile-name">Anthropic</div><div class="mtile-models">claude · sonnet · haiku</div></div></div>
+      <div class="mtile"><span class="mtile-badge indigo">OAI</span><div class="mtile-info"><div class="mtile-name">OpenAI</div><div class="mtile-models">gpt-4o · 4.1 · mini</div></div></div>
+      <div class="mtile"><span class="mtile-badge indigo">MST</span><div class="mtile-info"><div class="mtile-name">Mistral</div><div class="mtile-models">large · small</div></div></div>
+      <div class="mtile"><span class="mtile-badge indigo">GMI</span><div class="mtile-info"><div class="mtile-name">Google</div><div class="mtile-models">gemini 2.5 · flash · pro</div></div></div>
+      <div class="mtile"><span class="mtile-badge indigo">ORT</span><div class="mtile-info"><div class="mtile-name">OpenRouter</div><div class="mtile-models">qwen · llama · deepseek…</div></div></div>
+      <div class="mtile"><span class="mtile-badge green">LOC</span><div class="mtile-info"><div class="mtile-name">Ollama · LM Studio</div><div class="mtile-models">en local · localhost:11434</div></div></div>
+      <div class="mtile"><span class="mtile-badge indigo">PPX</span><div class="mtile-info"><div class="mtile-name">Perplexity</div><div class="mtile-models">sonar · pro · reasoning</div></div></div>
+      <div class="mtile"><span class="mtile-badge indigo">DSK</span><div class="mtile-info"><div class="mtile-name">DeepSeek</div><div class="mtile-models">chat · reasoner</div></div></div>
+      <div class="mtile"><span class="mtile-badge indigo">QWN</span><div class="mtile-info"><div class="mtile-name">Qwen</div><div class="mtile-models">dashscope · plus · max</div></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ CONFIDENTIALITÉ ═══════════════ -->
+<section class="privacy" id="confidentialite">
+  <div class="privacy-inner" data-reveal data-stagger="120">
+    <div>
+      <div class="section-eyebrow">Confidentialité</div>
+      <h2>Votre clé. Votre texte. Votre navigateur.</h2>
+      <p>Plume n'a pas de serveur. Vos brouillons, vos profils de voix et votre clé API restent dans ce navigateur. Quand vous lancez une révision, le texte voyage uniquement entre vous et le modèle que vous avez configuré.</p>
+      <p>Pas de compte, pas de tracking, pas de fichier client. Si vous fermez l'onglet, rien ne reste ailleurs que sur votre disque.</p>
+      <div class="privacy-tags">
+        <span>pas de cloud Plume</span>
+        <span>pas d'inscription</span>
+        <span>pas d'analytics</span>
+        <span>code source ouvert</span>
+      </div>
+    </div>
+    <div class="privacy-terminal">
+      <div class="comment">// flux des données</div>
+      <div><span class="white">votre navigateur</span>  <span class="blue">─→</span>  modèle</div>
+      <div style="margin-left:20px" class="muted">↳ <span class="blue">passage sélectionné</span></div>
+      <div style="margin-left:20px" class="muted">↳ profil de voix actif</div>
+      <div style="margin-top:6px"><span class="white">votre navigateur</span>  <span class="green">←─</span>  proposition</div>
+      <div style="margin-top:18px" class="comment">// ce qui reste chez vous</div>
+      <div><span class="green">localStorage</span>:</div>
+      <div style="margin-left:18px">· brouillons</div>
+      <div style="margin-left:18px">· profils de voix</div>
+      <div style="margin-left:18px">· clé API</div>
+      <div style="margin-left:18px">· préférences (thème, zoom, vue)</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ ANATOMIE ═══════════════ -->
+<section class="anatomy" id="anatomie">
+  <div class="anatomy-inner">
+    <div data-reveal style="margin-bottom:40px;max-width:680px">
+      <div class="section-eyebrow">Anatomie d'une révision</div>
+      <h2>Trois moments. Une mécanique.</h2>
+      <p class="sub">Sélection, intention, aperçu. Vous voyez ce que Plume propose avant d'appliquer, et vous décidez phrase par phrase.</p>
+    </div>
+    <div data-reveal data-stagger="120" class="anatomy-grid">
+      <div class="acard">
+        <div class="acard-frame">
+          <div class="acard-bar"><span class="num">i.</span><span class="name">sélection</span><span class="info">178c</span></div>
+          <div class="acard-body" style="background:#FAFAF8;padding-bottom:28px;position:relative">
+            <pre>Les fenêtres ordinairement
+si sombres de l'antique
+demeure <span class="hl">étaient ardemment
+éclairées</span>.</pre>
+            <div class="mini-cmdbar" style="margin-top:16px">
+              <span class="active">Corriger</span>
+              <span class="default">Reformuler</span>
+              <span class="muted">⌘K</span>
+            </div>
+          </div>
+        </div>
+        <div class="acard-legend"><span class="num">01</span><p>Sélectionner un passage. La command bar apparaît au-dessus, raccourcis visibles.</p></div>
+      </div>
+      <div class="acard">
+        <div class="acard-frame">
+          <div class="acard-bar"><span class="num">ii.</span><span class="name">révision</span><span class="info">2 corr · 3 sty</span></div>
+          <div class="acard-body" style="padding:14px 18px">
+            <div class="mini-tabs">
+              <span class="active">Corrections · 2</span>
+              <span>Style · 3</span>
+              <span>Vocab</span>
+            </div>
+            <div style="display:flex;gap:10px;align-items:flex-start">
+              <span class="diff-badge pct" style="font-size:9.5px;padding:2px 6px">PCT</span>
+              <div style="font-size:12px;line-height:1.55">éclairées<del style="color:#B53A3A;background:rgba(181,58,58,.10);text-decoration:line-through">;</del><ins style="color:#3E7D5A;background:rgba(62,125,90,.14);text-decoration:none">.</ins> Les places…</div>
+            </div>
+            <p style="font-size:11px;color:#74716a;margin:8px 0 0 30px">Phrase trop longue, le point marque la respiration.</p>
+          </div>
+        </div>
+        <div class="acard-legend"><span class="num">02</span><p>Le panneau ouvre la révision, rangée par intention. Chaque carte porte un code et sa justification.</p></div>
+      </div>
+      <div class="acard">
+        <div class="acard-frame">
+          <div class="acard-bar"><span class="num">iii.</span><span class="name">aperçu cumulé</span><span class="info">+2</span></div>
+          <div class="acard-body">
+            <div class="mini-cumul">Les fenêtres de l'antique demeure royale étaient ardemment éclairées<span class="ins">.</span> Les places et les rues attenantes, habituellement si <span class="ins">solitaires</span>, regorgeaient de peuple.</div>
+            <div class="mini-btns">
+              <button class="apply">Appliquer (2)</button>
+              <button class="ignore">Ignorer</button>
+            </div>
+          </div>
+        </div>
+        <div class="acard-legend"><span class="num">03</span><p>L'aperçu cumulé montre toujours où vous allez. Un clic applique tout, ou rien.</p></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ FAQ ═══════════════ -->
+<section class="faq" id="faq">
+  <div class="faq-inner" data-reveal>
+    <div class="section-eyebrow">FAQ</div>
+    <h2>Ce qu'on demande souvent.</h2>
+
+    <details open>
+      <summary><span class="num">01</span><span class="q">Mes textes sont-ils envoyés à un serveur Plume ?</span><span class="a">non</span></summary>
+      <p>Plume n'a pas de serveur. Quand vous appelez une action, le passage sélectionné part directement de votre navigateur vers le modèle dont vous avez configuré la clé (Anthropic, OpenAI, Mistral, Ollama en local…). Rien ne transite par nous.</p>
+    </details>
+    <details>
+      <summary><span class="num">02</span><span class="q">Combien ça coûte ?</span><span class="a">rien</span></summary>
+      <p>Plume est gratuit et open source. Vous payez uniquement l'usage de l'API du modèle que vous configurez (quelques centimes par révision pour la plupart des modèles).</p>
+    </details>
+    <details>
+      <summary><span class="num">03</span><span class="q">Faut-il une carte bancaire pour commencer ?</span><span class="a">non</span></summary>
+      <p>Vous pouvez écrire sans clé API. Elle sera demandée à la première révision. Si vous utilisez Ollama en local, aucune clé n'est nécessaire.</p>
+    </details>
+    <details>
+      <summary><span class="num">04</span><span class="q">Plume écrit-il à votre place ?</span><span class="a">jamais sans accord</span></summary>
+      <p>Plume propose, vous décidez. Chaque correction, reformulation ou substitution est présentée avec sa justification. Rien ne change dans votre texte tant que vous n'avez pas cliqué sur Appliquer.</p>
+    </details>
+    <details>
+      <summary><span class="num">05</span><span class="q">Je travaille pour plusieurs marques. Comment séparer leurs voix ?</span><span class="a">profils de voix</span></summary>
+      <p>Créez un profil de voix par marque ou par projet. Chaque profil porte son ton, ses consignes, ses mots interdits. Passez de l'un à l'autre en un clic, la révision s'adapte.</p>
+    </details>
+  </div>
+</section>
+
+<!-- ═══════════════ DON ═══════════════ -->
+<section class="donate" id="soutenir">
+  <div class="donate-inner">
+    <div data-reveal class="donate-card">
+      <div>
+        <div class="section-eyebrow">Soutenir le projet</div>
+        <h2>Si Plume vous a rendu service.</h2>
+        <p>Plume est libre, sans publicité, sans abonnement à pousser. Il vit sur le temps qu'on lui consacre et sur les coûts modestes de son hébergement. Si l'outil vous accompagne dans votre travail, un café ou un déjeuner suffisent.</p>
+      </div>
+      <div class="donate-right">
+        <a href="https://www.paypal.com/donate" class="donate-btn" target="_blank" rel="noopener">
+          <span style="font-weight:700;letter-spacing:.02em">Pay<span style="font-style:italic;font-weight:600">Pal</span></span>
+          <span style="opacity:.5">·</span>
+          Soutenir Plume
+          <span style="font-family:'JetBrains Mono',monospace">→</span>
+        </a>
+        <div class="donate-sub">paiement unique, montant libre, pas de récurrence</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ FOOTER ═══════════════ -->
+<footer class="site-footer">
+  <div class="footer-inner">
+    <a href="./" class="logo">
+      <span class="logo-icon"><svg viewBox="0 0 141.73 141.73" xmlns="http://www.w3.org/2000/svg"><rect width="141.73" height="141.73" rx="34.43" fill="#11110F"/><path fill="#fff" d="M81.02,81.88c-8.15.95-14-1.48-14-1.48.06-1.07-.17-2.07.71-3.69.41-.76,1.2-1.24,2.15-1.53,2.1-.64,4.9-.21,5.84,1.41.02.03.03.06.05.09.66-2.14-1.53-3.82-4.22-3.8,2.47,0,4.81-.03,6.85-.9,4.49-1.91,8.06-7.18,7.89-8.72-2.3.66-5.35.72-7.85.15,3.69-.37,8.14-1.07,10.4-2.93,4.43-3.64,7.3-6.62,7.56-10.19-1.45,2.75-5.25,3.57-9.76,4.26,7.79-2.83,10.99-5.99,10.84-11.08-.11-3.96-1.36-7.1-.9-9.18-34.36,7.27-37.05,18.21-33.03,36.6,2.46-10.98,14.21-20.4,17.84-22.83-9.59,9.94-16.97,20.25-16.97,31.73v20.32c0,12.61,1.36,13.65,14.32,14.69v5.04H31.87v-5.04c11.31-1.04,12.66-2.08,12.66-14.69v-56.81c0-12.61-1.36-13.5-11.76-14.69v-5.19h41.46c11.91,0,20.5,1.63,26.38,5.79,7.09,4.75,11.16,12.16,11.16,21.81,0,19.88-14.91,29.02-30.75,30.85Z"/></svg></span>
+      <span class="logo-name">Plume</span>
+      <span class="logo-ver">v1.4</span>
+    </a>
+    <span class="footer-copy">© 2026, libre et sans pub</span>
+    <div class="footer-links">
+      <a href="https://github.com/Fluorgasmic/Plume" target="_blank" rel="noopener">Code source</a>
+      <a href="#confidentialite">Confidentialité</a>
+      <a href="https://github.com/Fluorgasmic/Plume/commits/main" target="_blank" rel="noopener">Changelog</a>
+      <a href="mailto:lorent.fritsche@gmail.com">Contact</a>
+      <a href="#soutenir" class="accent">Soutenir</a>
+    </div>
+  </div>
 </footer>
 
-<!-- Réglages -->
-<div class="overlay hidden" id="settings">
-  <div class="modal">
-    <h2>Réglages</h2>
-    <div class="sub">La clé reste dans ce navigateur (localStorage) et n'est transmise qu'au fournisseur choisi. Ne l'inscris jamais en dur dans le fichier déposé en ligne.</div>
-
-    <div class="field">
-      <label for="set-provider">Fournisseur</label>
-      <div class="field-row">
-        <div>
-          <select id="set-provider">
-            <option value="anthropic">Anthropic (Claude)</option>
-            <option value="openai">OpenAI</option>
-            <option value="mistral">Mistral</option>
-            <option value="gemini">Google (Gemini)</option>
-            <option value="openrouter">OpenRouter (Qwen, Llama, DeepSeek…)</option>
-            <option value="qwen">Qwen (DashScope)</option>
-            <option value="perplexity">Perplexity</option>
-            <option value="deepseek">DeepSeek</option>
-            <option value="xai">xAI (Grok)</option>
-          </select>
-        </div>
-        <div>
-          <select id="set-model-sel"></select>
-          <input type="text" id="set-model" placeholder="nom exact du modèle" style="margin-top:8px; display:none">
-        </div>
-      </div>
-      <div class="hint" id="model-hint"></div>
-    </div>
-
-    <div class="field">
-      <label for="set-key">Clé API</label>
-      <input type="password" id="set-key" placeholder="collée ici, jamais dans le code">
-    </div>
-
-    <div class="field">
-      <label for="set-theme">Apparence</label>
-      <select id="set-theme">
-        <option value="light">Clair</option>
-        <option value="dark">Sombre</option>
-        <option value="auto">Système</option>
-      </select>
-    </div>
-
-    <div class="field">
-      <div class="toggle">
-        <input type="checkbox" id="set-auto">
-        <label for="set-auto" style="margin:0">Vérifier le paragraphe courant après une pause de frappe (consomme des appels)</label>
-      </div>
-    </div>
-
-    <div class="modal-foot">
-      <button class="btn ghost" id="set-cancel">Annuler</button>
-      <button class="btn primary" id="set-save">Enregistrer</button>
-    </div>
-  </div>
-</div>
-
-<!-- Profils de voix -->
-<div class="overlay hidden" id="profiles">
-  <div class="modal">
-    <h2>Profils de voix</h2>
-    <div class="sub">Le registre et les 3 tons par client ou par contexte. Bascule en un clic depuis la barre. Tout reste dans ce navigateur.</div>
-
-    <div class="field">
-      <label for="pf-select">Profil à éditer</label>
-      <div class="field-row">
-        <div><select id="pf-select"></select></div>
-        <div class="toggle" style="justify-content:flex-start">
-          <input type="checkbox" id="pf-fav"><label for="pf-fav" style="margin:0">Favori (épinglé en tête)</label>
-        </div>
-      </div>
-    </div>
-
-    <div class="field">
-      <label for="pf-name">Nom</label>
-      <input type="text" id="pf-name" placeholder="ex. Marque A — premium">
-    </div>
-
-    <div class="field">
-      <label for="pf-profile">Instructions de base (tes consignes, jamais écrasées)</label>
-      <textarea id="pf-profile"></textarea>
-    </div>
-
-    <div class="field">
-      <label for="pf-brand">Consignes de marque (charte, ton de voix)</label>
-      <textarea id="pf-brand" placeholder="Rempli par l'import d'un document, ou à la main."></textarea>
-      <div style="display:flex; align-items:center; gap:10px; margin-top:8px">
-        <button class="btn ghost" id="pf-doc">Importer un doc de marque (PDF, texte)…</button>
-        <span class="hint" id="pf-doc-status" style="margin:0"></span>
-      </div>
-      <div class="hint" style="margin-top:6px">L'IA résume le document en consignes et les ajoute ici (sans toucher aux instructions de base). PDF texte uniquement.</div>
-    </div>
-
-    <div class="field">
-      <label>Tons de reformulation — bouton « Réviser le style »</label>
-      <div class="hint" style="margin-top:0; margin-bottom:8px">Trois variantes sont proposées, une par ton. Personnalise le libellé et la consigne de chacun.</div>
-      <div id="tones-list"></div>
-    </div>
-
-    <div class="modal-foot" style="justify-content:space-between; flex-wrap:wrap; gap:8px">
-      <div style="display:flex; gap:6px; flex-wrap:wrap">
-        <button class="btn ghost" id="pf-new">Nouveau</button>
-        <button class="btn ghost" id="pf-dup">Dupliquer</button>
-        <button class="btn ghost" id="pf-del">Supprimer</button>
-        <button class="btn ghost" id="pf-export">Exporter</button>
-        <button class="btn ghost" id="pf-import">Importer</button>
-      </div>
-      <button class="btn primary" id="pf-done">Terminé</button>
-    </div>
-  </div>
-</div>
-<input type="file" id="pf-file" accept="application/json,.json" hidden>
-<input type="file" id="pf-doc-file" accept="application/pdf,.pdf,.txt,.md,.markdown,text/plain" hidden>
-
 <script>
-const $ = s => document.querySelector(s);
-const LS = 'plume.v1';
+/* ═══ Typing animation ═══ */
+(function(){
+  var examples = [
+    { pre:'les torches brûlaient dans la galerie', word:';', post:' les seigneurs dansaient.', fix:'.', badge:'PCT', badgeBg:'#dde2f0', badgeColor:'#3A5BB5' },
+    { pre:'les rues attenantes étaient ', word:'solitaire', post:' et désertes.', fix:'solitaires', badge:'GRA', badgeBg:'rgba(166,113,31,.14)', badgeColor:'#A6711F' },
+    { pre:'Marguerite s’avança ', word:'lentement', post:' vers le roi.', fix:'d’un pas mesuré', badge:'STY', badgeBg:'rgba(166,113,31,.14)', badgeColor:'#A6711F' }
+  ];
+  var idx = 0, timer = null;
+  var badgeEl = document.getElementById('typing-badge');
+  var textEl  = document.getElementById('typing-text');
+  if(!badgeEl || !textEl) return;
 
-const PROVIDERS = {
-  anthropic:{ default:'claude-sonnet-4-6', models:['claude-opus-4-8','claude-sonnet-4-6','claude-haiku-4-5-20251001'], hint:'Claude. Haiku = le plus rapide.' },
-  openai:{ default:'gpt-4o', models:['gpt-4o','gpt-4o-mini','gpt-4.1','gpt-4.1-mini'], hint:'OpenAI. Les variantes « mini » sont plus rapides.' },
-  mistral:{ default:'mistral-large-latest', models:['mistral-large-latest','mistral-small-latest'], hint:'Mistral. « small » = plus rapide.' },
-  gemini:{ default:'gemini-2.5-flash', models:['gemini-2.5-flash','gemini-2.5-pro','gemini-3-flash-preview'], hint:'Gemini. « flash » = plus rapide. Restreins la clé à l\'API Gemini dans AI Studio.' },
-  openrouter:{ default:'qwen/qwen-2.5-72b-instruct', models:['qwen/qwen-2.5-72b-instruct','deepseek/deepseek-chat','meta-llama/llama-3.3-70b-instruct','google/gemini-2.5-flash','anthropic/claude-sonnet-4-6'], hint:'Passerelle multi-modèles : une seule clé pour Qwen, Llama, DeepSeek, etc.' },
-  qwen:{ default:'qwen-plus', models:['qwen-plus','qwen-max','qwen-turbo'], hint:'API DashScope (endpoint international). « turbo » = plus rapide.' },
-  perplexity:{ default:'sonar-pro', models:['sonar','sonar-pro','sonar-reasoning'], hint:'Orienté recherche web : moins adapté à la pure correction.' },
-  deepseek:{ default:'deepseek-chat', models:['deepseek-chat','deepseek-reasoner'], hint:'DeepSeek.' },
-  xai:{ default:'grok-2-latest', models:['grok-2-latest','grok-beta'], hint:'xAI (Grok).' }
-};
+  function esc(s){ var d=document.createElement('span'); d.textContent=s; return d.innerHTML; }
 
-// Fournisseurs compatibles avec l'API « chat completions » d'OpenAI : même corps de requête, seul l'endpoint change.
-const OPENAI_COMPAT = {
-  openai:'https://api.openai.com/v1/chat/completions',
-  mistral:'https://api.mistral.ai/v1/chat/completions',
-  openrouter:'https://openrouter.ai/api/v1/chat/completions',
-  qwen:'https://dashscope-intl.aliyuncs.com/compatible-mode/v1/chat/completions',
-  perplexity:'https://api.perplexity.ai/chat/completions',
-  deepseek:'https://api.deepseek.com/chat/completions',
-  xai:'https://api.x.ai/v1/chat/completions'
-};
+  function animate(){
+    var cur = examples[idx];
+    var total = cur.pre.length + cur.word.length + cur.post.length;
+    var i = 0;
+    badgeEl.textContent = cur.badge;
+    badgeEl.style.background = cur.badgeBg;
+    badgeEl.style.color = cur.badgeColor;
 
-const DEFAULT_PROFILE =
-`Tu es réviseur de français. Tu interviens sur un texte rédigé en registre soutenu, ton professionnel et incarné, sans enthousiasme performé.
-Règles strictes:
-- pas de doublets adjectivaux ni de doublets nominaux décoratifs;
-- voix active par défaut, verbes plutôt que nominalisations;
-- information forte en position de stress (fin de phrase, fin de paragraphe);
-- phrases brèves quand l'enjeu est dense;
-- pas de tournures américanisées traduites mot à mot;
-- pas de tiret cadratin;
-- pas d'emojis, sobriété du gras.
-Tu corriges sans réécrire au-delà du nécessaire. Tu préserves le sens et la voix de l'auteur.`;
+    function typeNext(){
+      if(i > total){ timer = setTimeout(strike, 720); return; }
+      var preText = cur.pre.slice(0, Math.min(i, cur.pre.length));
+      var wordText = cur.word.slice(0, Math.max(0, Math.min(i - cur.pre.length, cur.word.length)));
+      var postText = cur.post.slice(0, Math.max(0, i - cur.pre.length - cur.word.length));
+      textEl.innerHTML = esc(preText) + '<span>' + esc(wordText) + '</span>' + esc(postText) + '<span class="typing-cursor"></span>';
+      i++;
+      timer = setTimeout(typeNext, 26 + Math.random() * 22);
+    }
 
-const DEFAULT_TONES = [
-  { label:'Plus concis',  instr:'Resserre la phrase, supprime les redondances, va droit à l\'essentiel.' },
-  { label:'Plus incarné', instr:'Rends le propos plus vivant et concret : verbes d\'action, images sobres, présence d\'un sujet.' },
-  { label:'Plus formel',  instr:'Élève le registre, tenue et distance, sans lourdeur ni jargon.' }
-];
-function cloneTones(){ return DEFAULT_TONES.map(t=>({...t})); }
-function normTones(t){
-  const out = Array.isArray(t) ? t.slice(0,3) : [];
-  while(out.length<3) out.push({...DEFAULT_TONES[out.length]});
-  return out.map((x,i)=>({ label:(x&&x.label||DEFAULT_TONES[i].label).trim(), instr:(x&&x.instr||'').trim() }));
-}
+    function strike(){
+      var preText = cur.pre;
+      var postText = cur.post;
+      textEl.innerHTML = esc(preText) + '<span class="typing-del">' + esc(cur.word) + '</span>' + esc(postText) + '<span class="typing-cursor"></span>';
+      timer = setTimeout(corrStart, 380);
+    }
 
-let state = {
-  provider:'anthropic', model:PROVIDERS.anthropic.default, models:{},
-  key:'', profile:DEFAULT_PROFILE, tones:cloneTones(),
-  profiles:[], activeId:'', auto:false, lisib:true, spell:true, theme:'light', panelHidden:false, doc:'', split:50, zoom:1
-};
-const uid = ()=> 'p'+Math.random().toString(36).slice(2,9)+Date.now().toString(36).slice(-3);
-
-function load(){
-  try{ const s = JSON.parse(localStorage.getItem(LS)); if(s) state = {...state, ...s}; }catch(e){}
-  if(!state.models || typeof state.models!=='object') state.models = {};
-  // migration : un profil unique (registre + tons) devient « Profil par défaut »
-  if(!Array.isArray(state.profiles) || !state.profiles.length){
-    state.profiles = [{ id:uid(), name:'Profil par défaut', profile: state.profile||DEFAULT_PROFILE, tones: normTones(state.tones), fav:true }];
-  }
-  state.profiles = state.profiles.map(p=>({
-    id: p.id||uid(),
-    name: (p.name||'Sans nom').toString().trim() || 'Sans nom',
-    profile: (p.profile||DEFAULT_PROFILE).toString(),
-    brand: (p.brand||'').toString(),
-    tones: normTones(p.tones),
-    fav: !!p.fav
-  }));
-  if(!state.activeId || !state.profiles.some(p=>p.id===state.activeId)) state.activeId = state.profiles[0].id;
-  if(!Array.isArray(state.history)) state.history = [];
-  // une fois : active Lisibilité + Orthographe par défaut (y compris pour les installs existantes)
-  if(state.uiDefaults !== 1){ state.lisib = true; state.spell = true; state.uiDefaults = 1; }
-}
-function getActive(){ return state.profiles.find(p=>p.id===state.activeId) || state.profiles[0]; }
-function activeRegistre(){ const p=getActive(); return (p.profile||'') + (p.brand && p.brand.trim() ? '\n\nConsignes de marque :\n'+p.brand.trim() : ''); }
-function persist(){ localStorage.setItem(LS, JSON.stringify(state)); }
-
-/* ---------- Éditeur & aperçu ---------- */
-const editor = $('#editor'), preview = $('#preview');
-
-let enhanceT;
-function renderPreview(){
-  if(state.lisib || state.spell || foundRes.length){ preview.innerHTML = analyzeHTML(editor.value); }
-  else if(window.marked && window.DOMPurify){ preview.innerHTML = DOMPurify.sanitize(marked.parse(editor.value)); }
-  else{ preview.textContent = editor.value; }
-  clearTimeout(enhanceT);
-  if(/\$/.test(editor.value) || /```\s*mermaid/i.test(editor.value)) enhanceT = setTimeout(enhancePreview, 300);
-}
-
-/* ---------- LaTeX (KaTeX) + diagrammes (Mermaid), chargés à la demande ---------- */
-let katexLib = null, mermaidLib = null, mermaidSeq = 0;
-async function loadKatex(){
-  if(katexLib) return katexLib;
-  if(!document.getElementById('katex-css')){
-    const l=document.createElement('link'); l.id='katex-css'; l.rel='stylesheet';
-    l.href='https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css'; document.head.appendChild(l);
-  }
-  const auto = await import('https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.mjs');
-  katexLib = auto.default || auto;
-  return katexLib;
-}
-async function loadMermaid(){
-  if(mermaidLib) return mermaidLib;
-  const mod = await import('https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs');
-  mermaidLib = mod.default || mod;
-  mermaidLib.initialize({ startOnLoad:false, securityLevel:'strict', theme: document.body.classList.contains('theme-dark')?'dark':'neutral' });
-  return mermaidLib;
-}
-async function enhancePreview(){
-  if(/\$/.test(preview.textContent)){
-    try{
-      const render = await loadKatex();
-      render(preview, { delimiters:[
-        {left:'$$',right:'$$',display:true},{left:'\\[',right:'\\]',display:true},
-        {left:'\\(',right:'\\)',display:false},{left:'$',right:'$',display:false}
-      ], throwOnError:false });
-    }catch(e){}
-  }
-  const blocks = preview.querySelectorAll('code.language-mermaid');
-  if(blocks.length){
-    try{
-      const mer = await loadMermaid();
-      for(const code of blocks){
-        try{
-          const { svg } = await mer.render('mmd-'+(++mermaidSeq), code.textContent);
-          const wrap = document.createElement('div'); wrap.className='mermaid-out'; wrap.innerHTML = svg;
-          (code.closest('pre')||code).replaceWith(wrap);
-        }catch(err){ /* diagramme invalide : on laisse le code source */ }
+    function corrStart(){
+      var j = 0;
+      function corrNext(){
+        if(j > cur.fix.length){ timer = setTimeout(nextCycle, 2000); return; }
+        var corrText = cur.fix.slice(0, j);
+        textEl.innerHTML = esc(cur.pre) + '<span class="typing-del">' + esc(cur.word) + '</span>' + esc(cur.post)
+          + (j > 0 ? '<span class="typing-ins">' + esc(corrText) + '</span>' : '')
+          + '<span class="typing-cursor"></span>';
+        j++;
+        timer = setTimeout(corrNext, 42 + Math.random() * 32);
       }
-    }catch(e){}
-  }
-}
-
-/* ---------- Défilement synchronisé (vue partagée) ---------- */
-let scrollLock = false;
-function viewIsSplit(){ return !$('.pane.edit').classList.contains('hidden') && !$('.pane.preview').classList.contains('hidden'); }
-function syncScroll(src, dst){
-  if(scrollLock || !viewIsSplit()) return;
-  scrollLock = true;
-  const sMax = src.scrollHeight - src.clientHeight;
-  dst.scrollTop = sMax>0 ? (src.scrollTop/sMax) * (dst.scrollHeight - dst.clientHeight) : 0;
-  requestAnimationFrame(()=>{ scrollLock = false; });
-}
-editor.addEventListener('scroll', ()=> syncScroll(editor, preview));
-preview.addEventListener('scroll', ()=> syncScroll(preview, editor));
-
-/* ---------- Analyse de lisibilité + orthographe + tics (locale) ---------- */
-const RE_WORD = /[A-Za-zÀ-ÖØ-öø-ÿ0-9'’\-]+/g;
-const RE_ADVG = /(?<![A-Za-zÀ-ÖØ-öø-ÿ])[A-Za-zÀ-ÖØ-öø-ÿ]{4,}ment(?![A-Za-zÀ-ÖØ-öø-ÿ])/g;
-const RE_WORDG = /(?<![A-Za-zÀ-ÖØ-öø-ÿ])[A-Za-zÀ-ÖØ-öø-ÿ’'\-]+(?![A-Za-zÀ-ÖØ-öø-ÿ])/g;
-function countWords(s){ return (s.match(RE_WORD) || []).length; }
-function splitSentences(par){
-  const out = []; const re = /[^.!?…]+[.!?…]+|\S[^.!?…]*$/g; let m;
-  while((m = re.exec(par))){ if(m[0].trim()) out.push(m[0]); }
-  return out.length ? out : [par];
-}
-function checkWord(w){
-  if(!spell || w.length<=1 || /\d/.test(w)) return true;
-  if(/^[A-ZÀ-Þ]/.test(w)) return true;            // ignore les capitalisés (noms propres, débuts de phrase)
-  return spell.correct(w) || spell.correct(w.toLowerCase());
-}
-// termes repérés par la dernière passe Vocabulaire/Tics, surlignés dans l'aperçu
-let foundTerms = [], foundRes = [];
-function phraseRe(p){
-  const s = (p||'').replace(/[.*+?^${}()|[\]\\]/g,'\\$&').replace(/\s+/g,'\\s+').replace(/[’']/g,"[’']");
-  return new RegExp('(?<![A-Za-zÀ-ÖØ-öø-ÿ])'+s+'(?![A-Za-zÀ-ÖØ-öø-ÿ])','gi');
-}
-function applyFound(terms){
-  foundTerms = (terms||[]).filter(Boolean);
-  foundRes = foundTerms.map(phraseRe);
-  renderPreview();
-}
-function classesAt(pos, ranges){
-  let c=null;
-  for(const r of ranges){ if(pos>=r.s && pos<r.e){ (c||(c=[])).push(r.cls); } }
-  return c;
-}
-// analyse + surligne les nœuds texte d'un bloc rendu (le gras/les titres sont préservés)
-function annotateBlock(el){
-  const nodes=[]; let full='';
-  (function walk(node){
-    for(const ch of [...node.childNodes]){
-      if(ch.nodeType===3){ nodes.push({node:ch, start:full.length}); full+=ch.nodeValue; }
-      else if(ch.nodeType===1 && ch.nodeName!=='CODE' && ch.nodeName!=='PRE'){ walk(ch); }
+      corrNext();
     }
-  })(el);
-  const r0={words:0,sents:0,long:0,adv:0,mis:0,found:0};
-  if(!full.trim()) return r0;
-  const ranges=[]; let m;
-  const sre=/[^.!?…]+[.!?…]+|\S[^.!?…]*$/g;
-  while((m=sre.exec(full))){
-    const sent=m[0], w=countWords(sent); if(!w) continue; r0.words+=w; r0.sents++;
-    if(w>=25){ if(state.lisib) ranges.push({s:m.index,e:m.index+sent.length,cls:'r-vhard'}); r0.long++; }
-    else if(w>=18){ if(state.lisib) ranges.push({s:m.index,e:m.index+sent.length,cls:'r-hard'}); r0.long++; }
-  }
-  if(state.lisib){ RE_ADVG.lastIndex=0; while((m=RE_ADVG.exec(full))){ ranges.push({s:m.index,e:m.index+m[0].length,cls:'r-adv'}); r0.adv++; } }
-  if(state.spell && spell){ RE_WORDG.lastIndex=0; while((m=RE_WORDG.exec(full))){ const w=m[0]; if(!checkWord(w)){ ranges.push({s:m.index,e:m.index+w.length,cls:'r-spell'}); r0.mis++; } } }
-  for(const re of foundRes){ re.lastIndex=0; while((m=re.exec(full))){ ranges.push({s:m.index,e:m.index+m[0].length,cls:'r-found'}); r0.found++; } }
-  if(ranges.length){
-    for(const item of nodes){
-      const txt=item.node.nodeValue, base=item.start; let out='', i=0, changed=false;
-      while(i<txt.length){
-        const cls=classesAt(base+i, ranges); const key=cls?cls.join(' '):'';
-        let j=i+1;
-        while(j<txt.length){ const c2=classesAt(base+j,ranges); if((c2?c2.join(' '):'')!==key) break; j++; }
-        const seg=esc(txt.slice(i,j));
-        if(cls){ out+=`<span class="${key}">${seg}</span>`; changed=true; } else out+=seg;
-        i=j;
-      }
-      if(changed){ const tmp=document.createElement('span'); tmp.innerHTML=out; item.node.replaceWith(...tmp.childNodes); }
+
+    function nextCycle(){
+      idx = (idx + 1) % examples.length;
+      timer = setTimeout(animate, 250);
     }
-  }
-  return r0;
-}
-function statCard(v, l){ return `<div class="r-card"><div class="rv">${v}</div><div class="rl">${l}</div></div>`; }
-function analyzeHTML(text){
-  if(!text.trim()) return '<p style="color:var(--ink-soft)">Rien à analyser pour l\'instant.</p>';
-  const container = document.createElement('div');
-  container.innerHTML = (window.marked && window.DOMPurify) ? DOMPurify.sanitize(marked.parse(text)) : esc(text);
-  const sel='p,li,h1,h2,h3,h4,h5,h6,blockquote';
-  let blocks=[...container.querySelectorAll(sel)].filter(el=> !el.querySelector(sel));
-  if(!blocks.length) blocks=[container];
-  let totalWords=0,sentCount=0,longCount=0,advCount=0,misCount=0;
-  blocks.forEach(el=>{ if(/\$/.test(el.textContent)) return; const s=annotateBlock(el); totalWords+=s.words; sentCount+=s.sents; longCount+=s.long; advCount+=s.adv; misCount+=s.mis; });
-  const avg = sentCount ? Math.round(totalWords/sentCount) : 0;
-  const mins = Math.max(1, Math.round(totalWords/200));
-  const verdict = avg<=12 ? 'très lisible' : avg<=18 ? 'lisible' : avg<=24 ? 'dense' : 'difficile';
-  let cards = statCard(totalWords,'mots') + statCard(sentCount,'phrases') + statCard(avg,'mots/phrase') + statCard('~'+mins+' min','lecture');
-  if(state.lisib) cards += statCard(longCount,'phrases longues') + statCard(advCount,'adverbes');
-  if(state.spell && spell) cards += statCard(misCount,'fautes ?');
-  let legend = '';
-  if(state.lisib) legend += '<span class="r-hard">phrase longue (18+ mots)</span><span class="r-vhard">très longue (25+)</span><span><span class="r-adv">adverbe en -ment</span></span>';
-  if(state.spell && spell) legend += '<span><span class="r-spell">mot inconnu</span></span>';
-  if(state.spell && !spell) legend += '<span>dictionnaire en cours de chargement…</span>';
-  if(foundRes.length) legend += '<span><span class="r-found">terme repéré</span> → reformule dans le panneau de droite</span>';
-  const head = `<div class="r-stats">${cards}</div>`
-    + (state.lisib ? `<div class="r-verdict">Lisibilité&nbsp;: <b>${verdict}</b></div>` : '')
-    + (legend ? `<div class="r-legend">${legend}</div>` : '');
-  return head + `<div class="r-body">${container.innerHTML}</div>`;
-}
 
-/* ---------- Dictionnaire orthographique (chargé à la demande) ---------- */
-let spell = null, spellLoading = false;
-async function loadSpell(){
-  if(spell || spellLoading) return;
-  spellLoading = true;
-  try{
-    const [mod, aff, dic] = await Promise.all([
-      import('https://cdn.jsdelivr.net/npm/nspell@2/+esm'),
-      fetch('https://cdn.jsdelivr.net/npm/dictionary-fr/index.aff').then(r=>r.text()),
-      fetch('https://cdn.jsdelivr.net/npm/dictionary-fr/index.dic').then(r=>r.text())
-    ]);
-    spell = (mod.default || mod)(aff, dic);
-  } finally { spellLoading = false; }
-}
-function counts(){
-  const t = editor.value.trim();
-  const w = t ? t.split(/\s+/).length : 0;
-  $('#stat-words').textContent = w + (w>1?' mots':' mot');
-  $('#stat-chars').textContent = editor.value.length + ' signes';
-  $('#stat-tokens').textContent = '~' + Math.ceil(editor.value.length/4) + ' tok';
-  updateSelStat();
-}
-// repères de longueur courants pour le copywriting (signes)
-const LEN_MARKS = [{n:60,t:'titre SEO'},{n:155,t:'meta'},{n:280,t:'post'}];
-function updateSelStat(){
-  const el = $('#stat-sel'); if(!el) return;
-  const s = editor.selectionStart, e = editor.selectionEnd;
-  if(e>s && document.activeElement===editor){
-    const sub = editor.value.slice(s,e), n = sub.length;
-    const w = sub.trim() ? sub.trim().split(/\s+/).length : 0;
-    const mark = LEN_MARKS.find(m=> n<=m.n) || LEN_MARKS[LEN_MARKS.length-1];
-    el.textContent = `sélection : ${n} signes · ${w} mot${w>1?'s':''} · ${mark.t} ${mark.n}`;
-    el.classList.toggle('over', n>mark.n);
-    el.classList.remove('hidden');
-  } else el.classList.add('hidden');
-}
-document.addEventListener('selectionchange', ()=>{ if(document.activeElement===editor) updateSelStat(); });
-/* ---------- Historique (undo / redo) ---------- */
-const HISTORY_MAX = 120;
-let undoStack = [], redoStack = [];
-let prevState = { v:'', s:0, e:0 };   // dernier état validé
-let typingTimer = null;               // regroupe les frappes en « rafales »
-let programmatic = false;             // marque les modifs faites par le code (révision, formatage)
-function snapshot(){ return { v:editor.value, s:editor.selectionStart, e:editor.selectionEnd }; }
-function pushUndo(st){ undoStack.push(st); if(undoStack.length>HISTORY_MAX) undoStack.shift(); redoStack.length=0; updateHistoryUI(); }
-function restoreState(st){
-  editor.value = st.v;
-  editor.selectionStart = st.s; editor.selectionEnd = st.e;
-  if(typingTimer){ clearTimeout(typingTimer); typingTimer=null; }
-  state.doc = editor.value; renderPreview(); counts(); persist();
-  prevState = snapshot(); updateHistoryUI(); editor.focus();
-}
-function undo(){ if(!undoStack.length) return; redoStack.push(snapshot()); restoreState(undoStack.pop()); }
-function redo(){ if(!redoStack.length) return; undoStack.push(snapshot()); restoreState(redoStack.pop()); }
-function updateHistoryUI(){
-  const u=$('#act-undo'), r=$('#act-redo');
-  if(u) u.disabled = !undoStack.length;
-  if(r) r.disabled = !redoStack.length;
-}
-
-let saveT;
-function onInput(){
-  // historique : modif programmatique = une étape distincte ; frappe = regroupée par rafale
-  if(programmatic){
-    pushUndo(prevState); programmatic = false;
-    if(typingTimer){ clearTimeout(typingTimer); typingTimer=null; }
-  } else {
-    if(!typingTimer) pushUndo(prevState);
-    clearTimeout(typingTimer);
-    typingTimer = setTimeout(()=>{ typingTimer=null; }, 600);
-  }
-  state.doc = editor.value; renderPreview(); counts();
-  $('#stat-save').innerHTML = '<span class="dot" style="background:#A6711F"></span>Enregistrement…';
-  clearTimeout(saveT);
-  saveT = setTimeout(()=>{ persist(); $('#stat-save').innerHTML='<span class="dot"></span>Enregistré localement'; }, 500);
-  prevState = snapshot();
-  scheduleAuto();
-}
-editor.addEventListener('input', onInput);
-
-/* ---------- Barre de formatage ---------- */
-function applyFmt(start, end, text, selStart, selEnd){
-  programmatic = true;
-  editor.value = editor.value.slice(0,start) + text + editor.value.slice(end);
-  editor.selectionStart = selStart; editor.selectionEnd = selEnd;
-  onInput(); editor.focus();
-}
-function wrapSel(mark){
-  const s = editor.selectionStart, e = editor.selectionEnd;
-  const sel = editor.value.slice(s,e) || 'texte';
-  const wrapped = mark + sel + mark;
-  applyFmt(s, e, wrapped, s + mark.length, s + mark.length + sel.length);
-}
-function linePrefix(mk, ordered){
-  const v = editor.value, s = editor.selectionStart, e = editor.selectionEnd;
-  let ls = v.lastIndexOf('\n', s-1) + 1;
-  let le = v.indexOf('\n', e); if(le<0) le = v.length;
-  const block = v.slice(ls, le);
-  const out = block.split('\n').map((l,i)=>{
-    const clean = l.replace(/^(\s*)(#{1,6}\s+|>\s+|[-*]\s+|\d+\.\s+)?/, '$1');
-    if(clean.trim()==='') return clean;
-    return (ordered ? (i+1)+'. ' : mk) + clean;
-  }).join('\n');
-  applyFmt(ls, le, out, ls, ls + out.length);
-}
-function insertLink(){
-  const s = editor.selectionStart, e = editor.selectionEnd;
-  const sel = editor.value.slice(s,e) || 'texte';
-  const md = '['+sel+'](url)';
-  const urlAt = s + md.length - 4;
-  applyFmt(s, e, md, urlAt, urlAt + 3);
-}
-const FMT = {
-  h1:()=>linePrefix('# '), h2:()=>linePrefix('## '), h3:()=>linePrefix('### '),
-  bold:()=>wrapSel('**'), italic:()=>wrapSel('*'), strike:()=>wrapSel('~~'),
-  code:()=>wrapSel('`'), quote:()=>linePrefix('> '),
-  ul:()=>linePrefix('- '), ol:()=>linePrefix('', true), link:insertLink
-};
-$('#fmtbar').addEventListener('click', e=>{
-  const b = e.target.closest('button'); if(!b) return;
-  const fn = FMT[b.dataset.fmt]; if(fn) fn();
-});
-document.addEventListener('keydown', e=>{
-  if(e.metaKey||e.ctrlKey){
-    const k = e.key.toLowerCase();
-    const ae = document.activeElement;
-    const inOtherField = ae && ae!==editor && (ae.tagName==='INPUT' || ae.tagName==='TEXTAREA');
-    if(k==='b'){ e.preventDefault(); FMT.bold(); }
-    else if(k==='i'){ e.preventDefault(); FMT.italic(); }
-    else if(k==='f'){ e.preventDefault(); openSearch(); }
-    else if(k==='h' && !e.shiftKey){ e.preventDefault(); openSearch(true); }
-    else if(k==='z' && !e.shiftKey){ if(inOtherField) return; e.preventDefault(); undo(); }
-    else if((k==='z' && e.shiftKey) || k==='y'){ if(inOtherField) return; e.preventDefault(); redo(); }
-  }
-});
-$('#act-undo').onclick = undo;
-$('#act-redo').onclick = redo;
-
-/* ---------- Vue partagée ---------- */
-const gutter = $('#gutter'), panes = $('.panes');
-function setSplit(pct){
-  pct = Math.max(20, Math.min(80, pct));
-  state.split = pct;
-  panes.style.setProperty('--eg', pct);
-  panes.style.setProperty('--pg', 100-pct);
-}
-$('#view-seg').addEventListener('click', e=>{
-  const b = e.target.closest('button'); if(!b) return;
-  [...$('#view-seg').children].forEach(x=>x.classList.toggle('on', x===b));
-  const v = b.dataset.v;
-  $('.pane.edit').classList.toggle('hidden', v==='preview');
-  $('.pane.preview').classList.toggle('hidden', v==='edit');
-  gutter.classList.toggle('hidden', v!=='split');
-});
-
-let dragging = false;
-gutter.addEventListener('pointerdown', e=>{
-  dragging = true; gutter.classList.add('drag');
-  gutter.setPointerCapture(e.pointerId); e.preventDefault();
-});
-gutter.addEventListener('pointermove', e=>{
-  if(!dragging) return;
-  const r = panes.getBoundingClientRect();
-  setSplit((e.clientX - r.left) / r.width * 100);
-});
-gutter.addEventListener('pointerup', e=>{
-  if(!dragging) return;
-  dragging = false; gutter.classList.remove('drag'); persist();
-});
-
-/* ---------- Zoom ---------- */
-function setZoom(z){
-  state.zoom = Math.max(0.7, Math.min(1.8, Math.round(z*100)/100));
-  editor.style.fontSize = (14.5 * state.zoom).toFixed(1) + 'px';
-  preview.style.fontSize = (18 * state.zoom).toFixed(1) + 'px';
-  $('#zoom-pct').textContent = Math.round(state.zoom*100) + '%';
-}
-$('#zoom-in').onclick = ()=>{ setZoom(state.zoom + 0.1); persist(); };
-$('#zoom-out').onclick = ()=>{ setZoom(state.zoom - 0.1); persist(); };
-$('#zoom-pct').onclick = ()=>{ setZoom(1); persist(); };
-
-/* ---------- Sélection / paragraphe ---------- */
-function getTarget(){
-  const s = editor.selectionStart, e = editor.selectionEnd;
-  if(e > s) return { text: editor.value.slice(s,e), start:s, end:e, isSel:true };
-  // paragraphe courant: bornes au double saut de ligne
-  const v = editor.value;
-  let start = v.lastIndexOf('\n\n', s-1); start = start<0 ? 0 : start+2;
-  let end = v.indexOf('\n\n', s); end = end<0 ? v.length : end;
-  return { text: v.slice(start,end).trim().length ? v.slice(start,end) : v, start, end, isSel:false };
-}
-function applyRange(start, end, replacement){
-  programmatic = true;
-  editor.value = editor.value.slice(0,start) + replacement + editor.value.slice(end);
-  editor.selectionStart = start; editor.selectionEnd = start + replacement.length;
-  onInput(); editor.focus();
-}
-
-/* ---------- Appel LLM ---------- */
-// Si onChunk est fourni, la réponse est streamée (SSE) et onChunk(texteCumulé) est appelé au fil de l'eau.
-async function callLLM(system, user, onChunk, temperature){
-  if(!state.key) throw new Error('Aucune clé API. Ouvre les réglages.');
-  const p = state.provider;
-  const stream = typeof onChunk === 'function';
-  const hasT = typeof temperature === 'number';
-  let url, headers, body;
-  if(p==='anthropic'){
-    url='https://api.anthropic.com/v1/messages';
-    headers={'content-type':'application/json','x-api-key':state.key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'};
-    // system en bloc avec cache_control : le gros prompt stable (registre+marque) est mis en cache
-    body={ model:state.model, max_tokens:4000, system:[{type:'text', text:system, cache_control:{type:'ephemeral'}}], messages:[{role:'user',content:user}] };
-    if(hasT) body.temperature = temperature;
-    if(stream) body.stream = true;
-  } else if(p==='gemini'){
-    const method = stream ? 'streamGenerateContent?alt=sse' : 'generateContent';
-    url='https://generativelanguage.googleapis.com/v1beta/models/'+encodeURIComponent(state.model)+':'+method;
-    headers={'content-type':'application/json','x-goog-api-key':state.key};
-    body={ system_instruction:{parts:[{text:system}]}, contents:[{role:'user',parts:[{text:user}]}], generationConfig:{maxOutputTokens:4000} };
-    if(hasT) body.generationConfig.temperature = temperature;
-  } else {
-    url = OPENAI_COMPAT[p];
-    if(!url) throw new Error('Fournisseur inconnu : '+p);
-    headers={'content-type':'application/json','authorization':'Bearer '+state.key};
-    // OpenAI & compatibles : le cache de prompt s'active automatiquement sur le préfixe stable (système en tête)
-    body={ model:state.model, max_tokens:4000, messages:[{role:'system',content:system},{role:'user',content:user}] };
-    if(hasT) body.temperature = temperature;
-    if(stream) body.stream = true;
-  }
-  const r = await fetch(url,{method:'POST',headers,body:JSON.stringify(body)});
-  if(!r.ok){ const t = await r.text(); throw new Error('HTTP '+r.status+' '+t.slice(0,160)); }
-
-  if(!stream || !r.body){
-    const d = await r.json();
-    if(p==='anthropic') return (d.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('\n');
-    if(p==='gemini') return (d.candidates?.[0]?.content?.parts||[]).map(x=>x.text||'').join('\n');
-    return d.choices?.[0]?.message?.content || '';
+    typeNext();
   }
 
-  // Lecture du flux SSE (ligne « data: {json} » pour les trois familles d'API)
-  const extract = j=>{
-    if(p==='anthropic') return (j.type==='content_block_delta' && j.delta && j.delta.text) || '';
-    if(p==='gemini') return (j.candidates?.[0]?.content?.parts||[]).map(x=>x.text||'').join('');
-    return j.choices?.[0]?.delta?.content || '';
-  };
-  const reader = r.body.getReader(), dec = new TextDecoder();
-  let buf='', full='';
-  for(;;){
-    const { value, done } = await reader.read(); if(done) break;
-    buf += dec.decode(value, {stream:true});
-    let nl;
-    while((nl = buf.indexOf('\n')) >= 0){
-      const line = buf.slice(0, nl).replace(/\r$/,'').trim(); buf = buf.slice(nl+1);
-      if(!line || !line.startsWith('data:')) continue;
-      const data = line.slice(5).trim();
-      if(data === '[DONE]') continue;
-      let j; try{ j = JSON.parse(data); }catch(_){ continue; }
-      const piece = extract(j);
-      if(piece){ full += piece; try{ onChunk(full); }catch(_){} }
-    }
-  }
-  return full;
-}
-function liveClean(t){ // affichage « en cours » : retire les balises de format pour ne montrer que la prose
-  return (t||'').replace(/<<<[^>]*>>>/g,'').replace(/^\s*Angle\s*:.*$/gim,'')
-    .replace(/^.*:::.*$/gm,'').replace(/\n{3,}/g,'\n\n').trim();
-}
-function stripWrap(s){ // retire une éventuelle paire de parenthèses/guillemets encadrant tout le texte
-  s = (s||'').trim();
-  if(s.length>1){
-    const a=s[0], z=s[s.length-1];
-    if((a==='(' && z===')')||(a==='"' && z==='"')||(a==='«' && z==='»')||(a==='“' && z==='”')) s = s.slice(1,-1).trim();
-  }
-  return s;
-}
-function parseResponse(mode, raw){
-  const txt = raw.replace(/```[a-z]*\n?/gi,'').replace(/```/g,'').trim();
-  const out = {};
-  const revSplit = txt.split('<<<REVISED>>>')[1];
-  if(revSplit!=null){
-    out.revised = revSplit.split(/<<<(?:CHANGES|VOCAB)>>>/)[0].trim();
-  }
-  if(mode==='vocab' || mode==='tics'){
-    out.vocab = [];
-    const vb = txt.split('<<<VOCAB>>>')[1];
-    if(vb){
-      vb.trim().split('\n').forEach(line=>{
-        line = line.replace(/^[-*]\s*/,'').trim(); if(!line) return;
-        const i = line.indexOf(':::'); if(i<0) return;
-        const word = line.slice(0,i).trim();
-        const opts = line.slice(i+3).split('|').map(s=>s.trim()).filter(Boolean);
-        if(word && opts.length) out.vocab.push({ word, options:opts });
-      });
-    }
-  } else if(mode==='style'){
-    out.alternatives = [];
-    txt.split('<<<ALT>>>').slice(1).forEach(block=>{
-      const b = block.split(/<<<[A-Z]+>>>/)[0].trim(); if(!b) return;
-      const lines = b.split('\n');
-      let angle = '';
-      // ignore d'éventuelles lignes parasites ("Variante 2", numéros) avant le contenu utile
-      while(lines.length && lines[0].trim()==='') lines.shift();
-      if(lines.length){
-        const first = lines[0].trim();
-        let m = first.match(/^Angle\s*:\s*(.+)$/i) || first.match(/^\[(.+)\]$/);
-        if(m){ angle = m[1].trim(); lines.shift(); }
-        else if(/^variante\s*\d*\s*[:.\-]?\s*$/i.test(first)){ lines.shift(); }
-        // repli: une 1re ligne courte sans ponctuation finale ressemble à un libellé d'angle
-        else if(lines.length>1 && first.length<=45 && !/[.!?:;]$/.test(first)){ angle = first; lines.shift(); }
-      }
-      let text = lines.join('\n').trim();
-      text = stripWrap(text);
-      if(text) out.alternatives.push({ angle, text });
-    });
-    if(!out.alternatives.length){ out.alternatives.push({ angle:'', text:stripWrap(out.revised||txt) }); } // repli
-  } else {
-    out.changes = [];
-    const cb = txt.split('<<<CHANGES>>>')[1];
-    if(cb){
-      cb.trim().split('\n').forEach(line=>{
-        line = line.replace(/^[-*]\s*/,'').trim(); if(!line) return;
-        const p = line.split(':::').map(s=>s.trim());
-        if(p.length>=3) out.changes.push({ type:p[0], before:p[1], after:p[2], note:p[3]||'' });
-      });
-    }
-    if(!out.revised) out.revised = txt; // repli si le modèle ignore le format
-  }
-  return out;
-}
+  animate();
+})();
 
-/* ---------- Panneau ---------- */
-const body = $('#rev-body');
-function setStatus(html, err){ body.innerHTML = '<div class="status'+(err?' err':'')+'">'+html+'</div>'; }
-function setScope(t){ $('#rev-scope').textContent = t; }
-// remet la zone visée en surbrillance dans l'éditeur, pour garder le repère visuel
-function markTarget(tgt){ try{ editor.focus(); editor.setSelectionRange(tgt.start, tgt.end); }catch(e){} }
-function srcBanner(tgt){
-  const scope = tgt.isSel ? 'sélection' : 'paragraphe courant';
-  let t = tgt.text.trim(); if(t.length>260) t = t.slice(0,260)+'…';
-  return `<div class="proposal" style="padding-bottom:10px"><div class="pl">Texte d'origine · ${scope}</div>`
-    + `<div class="proposed-text" style="background:var(--paper); color:var(--ink-soft); font-style:italic">${esc(t)}</div></div>`;
-}
-// texte environnant en lecture seule, pour que la révision reste cohérente avec le reste
-function buildContext(tgt){
-  const v = editor.value, B = 500;
-  let before = v.slice(Math.max(0, tgt.start-B), tgt.start);
-  let after  = v.slice(tgt.end, tgt.end+B);
-  if(tgt.start-B > 0) before = '…' + before;
-  if(tgt.end+B < v.length) after = after + '…';
-  before = before.trim(); after = after.trim();
-  if(!before && !after) return '';
-  return `Contexte autour du passage — NE PAS le réviser, il sert seulement à garder la cohérence (transitions, non-répétition d'un mot voisin, registre) :\n`
-    + (before ? `[avant] """${before}"""\n` : '')
-    + (after ? `[après] """${after}"""\n` : '')
-    + `\n`;
-}
-
-async function runRevision(mode, consigne='', fixedTgt=null, lenTarget=0){
-  setActiveAction(mode);
-  const tgt = fixedTgt || getTarget();
-  if(!tgt.text.trim()){ setStatus('Rien à réviser : le texte est vide.', true); return; }
-  setScope(tgt.isSel ? 'sélection' : 'paragraphe courant');
-  markTarget(tgt);
-  body.innerHTML = srcBanner(tgt) + '<div class="proposal"><div class="pl"><span class="spin"></span>Génération en cours…</div><div class="proposed-text" id="live"></div></div>';
-
-  consigne = (consigne || '').trim();
-  // prompt système STABLE (mis en cache) : registre + format. La consigne ponctuelle va dans le message utilisateur.
-  const sys = activeRegistre()
-    + '\n\nTu suis EXACTEMENT le format de réponse demandé, sans rien ajouter avant ni après les balises.';
-  const consigneLine = consigne ? `Consigne ponctuelle pour CETTE révision, à respecter en priorité (sans changer le format) : ${consigne}\n\n` : '';
-  const ctx = (mode==='length') ? '' : buildContext(tgt);   // contexte environnant (sauf pour l'ajustement de longueur)
-  const TEMP = { correct:0, length:0.2, tics:0.3, vocab:0.55, style:0.7 };
-  const temp = TEMP[mode];
-  let user;
-  if(mode==='correct'){
-    user = `Corrige uniquement l'orthographe, la grammaire, la conjugaison et la ponctuation du texte ci-dessous, sans reformuler au-delà du nécessaire.
-
-Réponds exactement dans ce format:
-<<<REVISED>>>
-(le texte corrigé, tel quel, sur autant de lignes qu'il faut)
-
-Texte:
-"""${tgt.text}"""`;
-  } else if(mode==='style'){
-    const tones = normTones(getActive().tones);
-    const consignes = tones.map((t,i)=>`${i+1}. ${t.label}${t.instr?' — '+t.instr:''}`).join('\n');
-    user = `Reformule le texte ci-dessous en respectant les consignes de registre. Produis UNE reformulation pour CHACUN des trois tons suivants, dans cet ordre, sans trahir le sens ni la voix:
-${consignes}
-
-Répète EXACTEMENT ce bloc trois fois, une fois par ton et dans l'ordre ci-dessus, sans aucun autre texte avant, entre ou après:
-<<<ALT>>>
-Angle: le libellé exact du ton (par ex. « ${tones[0].label} »)
-puis le texte complet de la variante, à la ligne suivante
-
-Règles de forme impératives:
-- une variante par ton, dans l'ordre indiqué;
-- n'entoure jamais la variante de parenthèses, de guillemets ni de crochets;
-- ne numérote pas les variantes;
-- la ligne "Angle:" ne contient que le libellé du ton, pas le texte;
-- recopie la variante intégralement, sans la tronquer.
-
-Texte à reformuler:
-"""${tgt.text}"""`;
-  } else if(mode==='length'){
-    user = `Réécris le texte ci-dessous pour qu'il tienne en AU PLUS ${lenTarget} signes (espaces compris), au plus près possible de cette cible. Condense s'il est trop long, étoffe légèrement s'il est trop court. Préserve le sens, les faits et la voix; reste naturel, ne tronque pas en milieu de phrase.
-
-Réponds exactement dans ce format:
-<<<REVISED>>>
-(le texte ajusté, tel quel, sur autant de lignes qu'il faut)
-
-Texte (${tgt.text.length} signes) :
-"""${tgt.text}"""`;
-  } else if(mode==='tics'){
-    user = `Repère dans le texte ci-dessous les tics de langage : anglicismes inutiles, jargon corporate, clichés, formules creuses, tournures lourdes ou redondantes. Juge en CONTEXTE, pas mécaniquement.
-
-Règles impératives:
-- ne signale que de vrais tics nuisibles dans CE contexte; sois exigeant, évite les faux positifs; un terme technique justifié n'est pas un tic;
-- chaque "terme" doit apparaître TEL QUEL (même casse, mêmes mots) dans le texte, déterminant inclus si l'accord en dépend;
-- chaque option est une reformulation prête à l'emploi, grammaticalement correcte dans la phrase, fidèle au sens et au registre;
-- s'il n'y a aucun tic, laisse la section VOCAB vide.
-
-Réponds exactement dans ce format, sans rien d'autre:
-<<<VOCAB>>>
-terme ::: option1 | option2
-
-Une ligne par tic repéré.
-
-Texte:
-"""${tgt.text}"""`;
-  } else { // vocab
-    user = `Pour le passage ci-dessous, propose pour les termes pertinents des variantes de vocabulaire plus justes ou plus soutenues, fidèles au sens et au registre.
-
-Règles impératives:
-- chaque "terme" doit apparaître TEL QUEL (même casse, mêmes mots) dans le passage;
-- inclus dans le terme son déterminant et tout mot dont l'accord dépend de lui (article, adjectif épithète), afin que la substitution reste grammaticale;
-- chaque option est une substitution prête à l'emploi, accordée en genre et en nombre pour remplacer le terme SANS aucune autre retouche de la phrase (ex. « un affleurement de rochers ::: une éminence rocheuse | un promontoire rocheux »);
-- ne propose pas d'option identique au terme.
-
-Réponds exactement dans ce format, sans rien d'autre:
-<<<VOCAB>>>
-terme ::: option1 | option2 | option3
-
-Une ligne par terme concerné.
-
-Passage:
-"""${tgt.text}"""`;
-  }
-  user = consigneLine + ctx + user;   // consigne ponctuelle + contexte environnant en tête du message
-
-  const onChunk = full=>{
-    const el = $('#live'); if(!el) return;
-    el.textContent = liveClean(full);
-    body.scrollTop = body.scrollHeight; // garde le texte en cours visible
-  };
-  try{
-    let raw = await callLLM(sys, user, onChunk, temp);
-    if(!raw.trim()) raw = await callLLM(sys, user, null, temp); // repli non-streamé si aucun fragment reçu
-    const data = parseResponse(mode, raw);
-    addToHistory(mode, tgt.text, data);
-    renderResult(mode, data, tgt, consigne, lenTarget);
-  }catch(err){
-    setStatus('La révision a échoué : '+err.message+'<br><br>Vérifie la clé, le modèle et le fournisseur dans les réglages.', true);
-  }
-}
-
-function esc(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-
-// pied de résultats : si aucune proposition ne convient, on donne une consigne et on relance le MÊME mode sur la MÊME zone
-function refineFooter(consigne){
-  return `<div class="refine"><div class="refine-h">Aucune proposition ne convient&nbsp;? Donne une consigne et relance.</div>`
-    + `<div class="refine-row"><input id="refine-input" placeholder="ex. « plus court », « ton plus direct », « sans jargon »" value="${esc(consigne||'')}">`
-    + `<button class="btn primary" id="refine-go">Relancer</button></div></div>`;
-}
-function wireRefine(mode, tgt, lenTarget){
-  const go = $('#refine-go'), inp = $('#refine-input'); if(!go || !inp) return;
-  const run = ()=> runRevision(mode, inp.value.trim(), tgt, lenTarget);
-  go.onclick = run;
-  inp.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); run(); } });
-}
-
-// diff mot à mot (LCS) pour la correction : permet d'accepter/refuser chaque changement
-function diffTokenize(s){ return s.match(/\s+|[^\s]+/g) || []; }
-function diffHunks(orig, rev){
-  const a = diffTokenize(orig), b = diffTokenize(rev);
-  if(a.length*b.length > 400000) return [{type:'chg', before:orig, after:rev}]; // garde-fou perf
-  const n=a.length, m=b.length;
-  const dp = Array.from({length:n+1}, ()=> new Uint16Array(m+1));
-  for(let i=n-1;i>=0;i--) for(let j=m-1;j>=0;j--) dp[i][j] = a[i]===b[j] ? dp[i+1][j+1]+1 : Math.max(dp[i+1][j], dp[i][j+1]);
-  const ops=[]; let i=0,j=0;
-  while(i<n && j<m){
-    if(a[i]===b[j]){ ops.push({t:'eq',v:a[i]}); i++; j++; }
-    else if(dp[i+1][j] >= dp[i][j+1]){ ops.push({t:'del',v:a[i]}); i++; }
-    else { ops.push({t:'ins',v:b[j]}); j++; }
-  }
-  while(i<n) ops.push({t:'del',v:a[i++]});
-  while(j<m) ops.push({t:'ins',v:b[j++]});
-  const hunks=[]; let k=0;
-  while(k<ops.length){
-    if(ops[k].t==='eq'){ let s=''; while(k<ops.length && ops[k].t==='eq'){ s+=ops[k].v; k++; } hunks.push({type:'eq', text:s}); }
-    else { let del='', ins=''; while(k<ops.length && ops[k].t!=='eq'){ if(ops[k].t==='del') del+=ops[k].v; else ins+=ops[k].v; k++; } hunks.push({type:'chg', before:del, after:ins}); }
-  }
-  return hunks;
-}
-
-function renderResult(mode, data, tgt, consigne, lenTarget){
-  let h = srcBanner(tgt);
-  if(mode==='correct' && data.revised){
-    const hunks = diffHunks(tgt.text, data.revised);
-    const acc = {};                       // état accepté par index de hunk
-    let nChg = 0;
-    hunks.forEach((hk,k)=>{ if(hk.type==='chg'){ acc[k]=true; nChg++; } });
-    function diffHTML(){
-      return hunks.map((hk,k)=>{
-        if(hk.type==='eq') return esc(hk.text);
-        const on = acc[k];
-        return `<span class="dchg ${on?'acc':'rej'}" data-k="${k}" title="${on?'modification acceptée — clic pour refuser':'modification refusée — clic pour accepter'}">`
-          + (hk.before ? `<del>${esc(hk.before)}</del>` : '')
-          + (hk.after ? `<ins>${esc(hk.after)}</ins>` : '')
-          + `</span>`;
-      }).join('');
-    }
-    function finalText(){ return hunks.map((hk,k)=> hk.type==='eq' ? hk.text : (acc[k] ? hk.after : hk.before)).join(''); }
-    if(!nChg){
-      h += `<div class="status">Aucune correction nécessaire. Le texte est déjà bon.</div>` + refineFooter(consigne);
-      body.innerHTML = h; applyFound([]); wireRefine(mode, tgt); markTarget(tgt); return;
-    }
-    h += `<div class="proposal"><div class="pl">Correction — ${nChg} changement${nChg>1?'s':''} · clique pour accepter/refuser</div>`
-      + `<div class="proposed-text" id="diff-text">${diffHTML()}</div>`
-      + `<div class="apply-row" style="flex-wrap:wrap">`
-      + `<button class="btn ghost" id="diff-all">Tout accepter</button>`
-      + `<button class="btn ghost" id="diff-none">Tout refuser</button>`
-      + `<button class="btn primary" id="apply" style="flex:1">Appliquer</button>`
-      + `<button class="btn ghost" id="ignore">Ignorer</button></div></div>`;
-    h += refineFooter(consigne);
-    body.innerHTML = h;
-    const dt = $('#diff-text');
-    function bind(){ dt.querySelectorAll('.dchg').forEach(sp=> sp.onclick = ()=>{ const k=+sp.dataset.k; acc[k]=!acc[k]; dt.innerHTML = diffHTML(); bind(); }); }
-    bind();
-    $('#diff-all').onclick = ()=>{ hunks.forEach((hk,k)=>{ if(hk.type==='chg') acc[k]=true; }); dt.innerHTML=diffHTML(); bind(); };
-    $('#diff-none').onclick = ()=>{ hunks.forEach((hk,k)=>{ if(hk.type==='chg') acc[k]=false; }); dt.innerHTML=diffHTML(); bind(); };
-    $('#apply').onclick = ()=>{ applyRange(tgt.start, tgt.end, finalText()); applyFound([]); setStatus('Correction appliquée.'); setScope(''); };
-    $('#ignore').onclick = ()=>{ applyFound([]); setStatus('Correction ignorée.'); setScope(''); };
-    wireRefine(mode, tgt); markTarget(tgt);
-    return;
-  }
-  if(mode==='style' && Array.isArray(data.alternatives) && data.alternatives.length){
-    data.alternatives.forEach((alt,i)=>{
-      h += `<div class="proposal"><div class="pl">Variante ${i+1}${alt.angle?' · '+esc(alt.angle):''}</div>
-        <div class="proposed-text">${esc(alt.text)}</div>
-        <div class="apply-row">
-          <button class="btn primary" data-alt="${i}" style="flex:1">Appliquer</button>
-        </div></div>`;
-    });
-    h += `<div style="padding:12px 16px 4px"><button class="btn ghost" id="ignore" style="width:100%; justify-content:center">Ignorer</button></div>`;
-    h += refineFooter(consigne);
-    body.innerHTML = h;
-    body.querySelectorAll('[data-alt]').forEach(btn=>{
-      btn.onclick = ()=>{ applyRange(tgt.start, tgt.end, data.alternatives[+btn.dataset.alt].text); setStatus('Variante appliquée.'); setScope(''); };
-    });
-    const ig0 = $('#ignore'); if(ig0) ig0.onclick = ()=>{ setStatus('Propositions ignorées.'); setScope(''); };
-    applyFound([]);
-    wireRefine(mode, tgt); markTarget(tgt);
-    return;
-  }
-  if((mode==='vocab' || mode==='tics') && Array.isArray(data.vocab)){
-    if(!data.vocab.length){
-      h += `<div class="status">${mode==='tics' ? 'Aucun tic de langage repéré dans cette sélection.' : 'Aucune proposition de vocabulaire.'}</div>` + refineFooter(consigne);
-      body.innerHTML = h; applyFound([]); wireRefine(mode, tgt); markTarget(tgt); return;
-    }
-    const base = tgt.text; // on part TOUJOURS du texte d'origine : c'est là que les termes apparaissent tels quels
-    const groups = data.vocab.map(v=>({ word:v.word, value:v.word, options:(v.options||[]) }));
-    const indexOfCI = (hay, needle, from)=>{ const i=hay.indexOf(needle, from); return i>=0 ? i : hay.toLowerCase().indexOf((needle||'').toLowerCase(), from); };
-    // reconstruit la proposition à partir des positions d'origine : chaque terme retenu est inséré (et surligné s'il diffère)
-    function buildVocab(){
-      const used=[], marks=[];
-      groups.forEach((g,gi)=>{
-        let from=0, idx;
-        while((idx=indexOfCI(base, g.word, from))>=0){
-          const end=idx+g.word.length;
-          if(!used.some(u=> idx<u[1] && end>u[0])){ marks.push({gi,start:idx,end}); used.push([idx,end]); break; }
-          from=idx+1;
+/* ═══ Scroll reveals ═══ */
+(function(){
+  function reveal(el, delay){
+    setTimeout(function(){
+      try {
+        el.classList.add('revealed');
+        var stag = parseInt(el.dataset.stagger || '0', 10);
+        if(stag > 0){
+          Array.from(el.children).forEach(function(child, i){
+            setTimeout(function(){ try { child.classList.add('revealed'); } catch(e){} }, (i+1) * stag);
+          });
         }
-      });
-      marks.sort((a,b)=>a.start-b.start);
-      let html='', plain='', cur=0;
-      marks.forEach(m=>{
-        html += esc(base.slice(cur,m.start)); plain += base.slice(cur,m.start);
-        const g=groups[m.gi], changed = g.value!==g.word;
-        html += `<span class="vsub${changed?' on':''}">${esc(g.value)}</span>`;
-        plain += g.value; cur=m.end;
-      });
-      html += esc(base.slice(cur)); plain += base.slice(cur);
-      return {html, plain};
-    }
-    let built = buildVocab();
-    h += `<div class="proposal"><div class="pl">${mode==='tics' ? esc(groups.length+' tic'+(groups.length>1?'s':'')+' repéré'+(groups.length>1?'s':'')+' — clique une reformulation') : 'Proposition'}</div>
-      <div class="proposed-text" id="voc-text">${built.html}</div>
-      <div class="apply-row">
-        <button class="btn primary" id="apply">Appliquer</button>
-        <button class="btn ghost" id="ignore">Ignorer</button>
-      </div></div>`;
-    groups.forEach((g,gi)=>{
-      h += `<div class="voc"><div class="pl" style="margin-bottom:8px">${esc(g.word)}</div>`;
-      h += `<span class="chip orig sel" data-g="${gi}" data-orig="1" title="Revenir au mot d'origine">${esc(g.word)}</span>`;
-      g.options.forEach((o,oi)=> h += `<span class="chip" data-g="${gi}" data-o="${oi}">${esc(o)}</span>`);
-      h += `</div>`;
+      } catch(e){}
+    }, delay);
+  }
+
+  var obs = new IntersectionObserver(function(entries){
+    entries.forEach(function(entry){
+      try {
+        if(!entry.isIntersecting) return;
+        var el = entry.target;
+        var delay = parseInt(el.dataset.delay || '0', 10) || 0;
+        reveal(el, delay);
+        obs.unobserve(el);
+      } catch(e){}
     });
-    h += refineFooter(consigne);
-    body.innerHTML = h;
-    const txtEl = $('#voc-text');
-    body.querySelectorAll('.chip[data-g]').forEach(chip=>{
-      chip.onclick = ()=>{
-        const gi=+chip.dataset.g, g=groups[gi];
-        g.value = chip.dataset.orig ? g.word : g.options[+chip.dataset.o];
-        built = buildVocab(); txtEl.innerHTML = built.html;       // mise à jour + surlignage en temps réel
-        body.querySelectorAll('.chip[data-g="'+gi+'"]').forEach(c=>c.classList.toggle('sel', c===chip));
-      };
-    });
-    const apv = $('#apply'); if(apv) apv.onclick = ()=>{ applyRange(tgt.start, tgt.end, built.plain); applyFound([]); setStatus('Proposition appliquée.'); setScope(''); };
-    const igv = $('#ignore'); if(igv) igv.onclick = ()=>{ applyFound([]); setStatus('Proposition ignorée.'); setScope(''); };
-    applyFound(groups.map(g=>g.word));   // surligne les termes repérés dans l'aperçu
-    wireRefine(mode, tgt); markTarget(tgt);
-    return;
-  }
-  if(data.revised){
-    const lenInfo = (mode==='length') ? ` — ${tgt.text.length} → ${data.revised.length} signes (cible ${lenTarget})` : '';
-    h += `<div class="proposal"><div class="pl">Proposition${lenInfo}</div>
-      <div class="proposed-text">${esc(data.revised)}</div>
-      <div class="apply-row">
-        <button class="btn primary" id="apply">Appliquer</button>
-        ${mode==='length' ? '<button class="btn ghost" id="len-change">Changer la cible</button>' : ''}
-        <button class="btn ghost" id="ignore">Ignorer</button>
-      </div></div>`;
-  }
-  if(Array.isArray(data.changes) && data.changes.length){
-    data.changes.forEach(c=>{
-      const cls = (c.type||'style').toLowerCase();
-      h += `<div class="change"><span class="tag ${cls}">${esc(c.type||'style')}</span>
-        <div class="c"><span class="bf">${esc(c.before)}</span> &rarr; <span class="af">${esc(c.after)}</span>
-        ${c.note?`<span class="note">${esc(c.note)}</span>`:''}</div></div>`;
-    });
-  } else if(data.revised && mode==='correct'){
-    h += `<div class="status">Aucune modification détaillée retournée.</div>`;
-  }
-  h += refineFooter(consigne);
-  body.innerHTML = h || '<div class="status">Pas de proposition.</div>';
+  }, { threshold: 0.12, rootMargin: '0px 0px -6% 0px' });
 
-  const ap = $('#apply');
-  if(ap) ap.onclick = ()=>{ applyRange(tgt.start, tgt.end, data.revised); setStatus('Proposition appliquée.'); setScope(''); };
-  const ig = $('#ignore'); if(ig) ig.onclick = ()=>{ setStatus('Proposition ignorée.'); setScope(''); };
-  const lc = $('#len-change'); if(lc) lc.onclick = ()=> openLengthForm(tgt);
-  applyFound([]);
-  wireRefine(mode, tgt, lenTarget); markTarget(tgt);
-}
-
-function setActiveAction(mode){
-  [['correct','#act-correct'],['style','#act-style'],['vocab','#act-vocab'],['length','#act-length'],['tics','#act-tics']]
-    .forEach(([m,sel])=> $(sel).classList.toggle('act', m===mode));
-}
-$('#act-correct').onclick = ()=>runRevision('correct');
-$('#act-style').onclick = ()=>runRevision('style');
-$('#act-vocab').onclick = ()=>runRevision('vocab');
-$('#act-tics').onclick = ()=>runRevision('tics');
-$('#act-length').onclick = ()=> openLengthForm();
-$('#toggle-lisib').onclick = ()=>{
-  state.lisib = !state.lisib; persist();
-  $('#toggle-lisib').classList.toggle('on', state.lisib);
-  renderPreview();
-};
-function applyPanel(){
-  document.body.classList.toggle('no-panel', state.panelHidden);
-  const b=$('#toggle-panel'); b.classList.toggle('on', !state.panelHidden); b.setAttribute('aria-pressed', String(!state.panelHidden));
-}
-$('#toggle-panel').onclick = ()=>{ state.panelHidden = !state.panelHidden; persist(); applyPanel(); };
-$('#toggle-spell').onclick = async ()=>{
-  const btn = $('#toggle-spell');
-  if(!state.spell && !spell){
-    btn.textContent = 'Chargement…';
-    try{ await loadSpell(); }
-    catch(e){ btn.textContent = 'Orthographe'; setStatus('Dictionnaire indisponible : '+e.message, true); return; }
-    btn.textContent = 'Orthographe';
-  }
-  state.spell = !state.spell; persist();
-  btn.classList.toggle('on', state.spell);
-  renderPreview();
-};
-
-// « Longueur » : on choisit d'abord une cible (présets ou libre), puis on génère
-function openLengthForm(fixedTgt){
-  const tgt = fixedTgt || getTarget();
-  if(!tgt.text.trim()){ setStatus('Rien à ajuster : le texte est vide.', true); return; }
-  setActiveAction('length');
-  setScope(tgt.isSel ? 'sélection' : 'paragraphe courant');
-  markTarget(tgt);
-  const len = tgt.text.length;
-  const suggested = Math.max(20, Math.round(len*0.8/5)*5);
-  let h = srcBanner(tgt);
-  h += `<div class="proposal"><div class="pl">Longueur cible — ${len} signes actuellement</div>`
-    + `<div class="len-presets">`
-    + LEN_MARKS.map(m=>`<button class="chip" data-n="${m.n}">${m.t} · ${m.n}</button>`).join('')
-    + `</div>`
-    + `<div class="len-row"><input type="number" id="len-target" min="10" step="5" value="${suggested}"> <span class="len-unit">signes au maximum</span></div>`
-    + `<div class="apply-row"><button class="btn primary" id="len-go" style="flex:1">Générer</button></div></div>`;
-  body.innerHTML = h;
-  body.querySelectorAll('.len-presets .chip').forEach(c=> c.onclick = ()=>{
-    $('#len-target').value = c.dataset.n;
-    body.querySelectorAll('.len-presets .chip').forEach(x=>x.classList.toggle('on', x===c));
+  document.querySelectorAll('[data-reveal]').forEach(function(el){
+    try { obs.observe(el); } catch(e){}
   });
-  $('#len-go').onclick = ()=>{ const n = parseInt($('#len-target').value,10)||0; if(n>=10) runRevision('length','',tgt,n); };
-  markTarget(tgt);
-}
-document.addEventListener('keydown', e=>{
-  if((e.metaKey||e.ctrlKey) && e.key==='Enter'){ e.preventDefault(); runRevision('correct'); }
-});
+})();
 
-/* ---------- Auto-vérification ---------- */
-let autoT;
-function scheduleAuto(){
-  if(!state.auto) return;
-  clearTimeout(autoT);
-  autoT = setTimeout(()=>{ if(state.auto && state.key) runRevision('correct'); }, 1600);
-}
-
-/* ---------- Ouvrir un fichier ---------- */
-const fileInput = $('#file-input');
-$('#act-open').onclick = ()=> fileInput.click();
-fileInput.onchange = ()=>{
-  const f = fileInput.files && fileInput.files[0]; if(!f) return;
-  if(editor.value.trim() && !confirm('Remplacer le contenu actuel par « '+f.name+' » ? (Annulable avec Ctrl+Z)')){ fileInput.value=''; return; }
-  const reader = new FileReader();
-  reader.onload = ()=>{ programmatic = true; editor.value = reader.result || ''; editor.selectionStart = editor.selectionEnd = 0; onInput(); editor.focus(); };
-  reader.readAsText(f);
-  fileInput.value = ''; // permet de rouvrir le même fichier ensuite
-};
-
-/* ---------- Export ---------- */
-function download(filename, content, mime){
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([content], {type:mime}));
-  a.download = filename; a.click(); URL.revokeObjectURL(a.href);
-}
-function renderedHTML(){ return (window.marked && window.DOMPurify) ? DOMPurify.sanitize(marked.parse(editor.value)) : esc(editor.value); }
-function baseName(){
-  const m = editor.value.match(/^\s*#\s+(.+)$/m);   // 1er titre H1 comme nom de fichier, sinon « document »
-  return (m ? m[1] : 'document').trim().replace(/[\\/:*?"<>|]+/g,' ').replace(/\s+/g,'-').slice(0,60) || 'document';
-}
-function htmlPage(){
-  return '<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"><title>'+esc(baseName())+'</title>'
-    + '<style>body{font-family:Georgia,"Times New Roman",serif;max-width:720px;margin:48px auto;padding:0 20px;line-height:1.65;color:#1b1a17}'
-    + 'h1,h2,h3{line-height:1.25}blockquote{border-left:3px solid #ccc;padding-left:14px;color:#555;font-style:italic}'
-    + 'code,pre{font-family:Consolas,monospace;background:#f0eee8}pre{padding:12px;border-radius:6px;overflow:auto}code{padding:1px 5px;border-radius:4px}</style>'
-    + '</head><body>'+renderedHTML()+'</body></html>';
-}
-function wordDoc(){ // HTML reconnu par Word/LibreOffice : conserve titres, gras, listes, citations…
-  return '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">'
-    + '<head><meta charset="utf-8"><title>'+esc(baseName())+'</title></head><body>'+renderedHTML()+'</body></html>';
-}
-function exportAs(fmt){
-  const n = baseName();
-  if(fmt==='md')   download(n+'.md',   editor.value, 'text/markdown');
-  else if(fmt==='txt')  download(n+'.txt',  editor.value, 'text/plain');
-  else if(fmt==='html') download(n+'.html', htmlPage(), 'text/html');
-  else if(fmt==='doc')  download(n+'.doc',  wordDoc(), 'application/msword');
-}
-const exportMenu = $('#export-menu'), exportBtn = $('#act-export');
-function toggleExportMenu(show){
-  const open = show!=null ? show : exportMenu.classList.contains('hidden');
-  exportMenu.classList.toggle('hidden', !open);
-  exportBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
-}
-exportBtn.onclick = e=>{ e.stopPropagation(); toggleExportMenu(); };
-exportMenu.addEventListener('click', e=>{
-  const b = e.target.closest('button'); if(!b) return;
-  exportAs(b.dataset.fmt); toggleExportMenu(false);
-});
-document.addEventListener('click', e=>{ if(!e.target.closest('.menu-wrap')) toggleExportMenu(false); });
-document.addEventListener('keydown', e=>{ if(e.key==='Escape') toggleExportMenu(false); });
-
-/* ---------- Réglages ---------- */
-function renderToneFields(tones){
-  tones = normTones(tones);
-  $('#tones-list').innerHTML = tones.map((t,i)=>
-    `<div class="tone-row" data-i="${i}">`
-    + `<input type="text" class="tone-label" value="${esc(t.label)}" placeholder="Libellé du ton ${i+1}">`
-    + `<input type="text" class="tone-instr" value="${esc(t.instr)}" placeholder="Consigne donnée au modèle pour ce ton">`
-    + `</div>`).join('');
-}
-function readToneFields(){
-  return [...document.querySelectorAll('#tones-list .tone-row')].map(row=>({
-    label: row.querySelector('.tone-label').value,
-    instr: row.querySelector('.tone-instr').value
-  }));
-}
-const CUSTOM = '__custom__';
-// remplit le menu des modèles du fournisseur p et y sélectionne `current` (sinon « personnalisé »)
-function populateModels(p, current){
-  const sel = $('#set-model-sel'), models = PROVIDERS[p].models || [];
-  sel.innerHTML = models.map(m=>`<option value="${esc(m)}">${esc(m)}</option>`).join('')
-    + `<option value="${CUSTOM}">Autre (saisir le nom)…</option>`;
-  if(current && models.includes(current)){ sel.value = current; $('#set-model').style.display='none'; }
-  else { sel.value = CUSTOM; $('#set-model').value = current || ''; $('#set-model').style.display=''; }
-}
-function selectedModel(p){
-  const v = $('#set-model-sel').value;
-  if(v===CUSTOM) return $('#set-model').value.trim() || PROVIDERS[p].default;
-  return v;
-}
-function applyTheme(t){
-  const dark = t==='dark' || (t==='auto' && window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches);
-  document.body.classList.toggle('theme-dark', dark);
-}
-if(window.matchMedia) matchMedia('(prefers-color-scheme: dark)').addEventListener('change', ()=>{ if(state.theme==='auto') applyTheme('auto'); });
-function openSettings(){
-  $('#set-provider').value = state.provider;
-  populateModels(state.provider, state.models[state.provider] || state.model);
-  $('#set-key').value = state.key;
-  $('#set-theme').value = state.theme || 'light';
-  $('#set-auto').checked = state.auto;
-  $('#model-hint').textContent = PROVIDERS[state.provider].hint;
-  $('#settings').classList.remove('hidden');
-}
-$('#act-settings').onclick = openSettings;
-$('#set-cancel').onclick = ()=> $('#settings').classList.add('hidden');
-$('#set-provider').onchange = e=>{
-  const p = e.target.value;
-  populateModels(p, state.models[p] || PROVIDERS[p].default);
-  $('#model-hint').textContent = PROVIDERS[p].hint;
-};
-$('#set-model-sel').onchange = e=>{
-  const custom = e.target.value===CUSTOM;
-  $('#set-model').style.display = custom ? '' : 'none';
-  if(custom) $('#set-model').focus();
-};
-$('#set-save').onclick = ()=>{
-  const p = $('#set-provider').value;
-  state.provider = p;
-  state.model = selectedModel(p);
-  state.models = {...state.models, [p]:state.model}; // mémorise le modèle par fournisseur
-  state.key = $('#set-key').value.trim();
-  state.theme = $('#set-theme').value;
-  state.auto = $('#set-auto').checked;
-  applyTheme(state.theme);
-  persist(); refreshFooter();
-  $('#settings').classList.add('hidden');
-};
-function refreshFooter(){
-  $('#stat-model').textContent = state.provider + ' · ' + state.model + (state.key?'':' · clé manquante');
-}
-
-/* ---------- Profils de voix : sélecteur + gestionnaire ---------- */
-function refreshVoice(){ $('#voice-name').textContent = getActive().name; }
-function sortedProfiles(){ return [...state.profiles].sort((a,b)=> (b.fav?1:0)-(a.fav?1:0)); }
-
-const voiceMenu = $('#voice-menu'), voiceBtn = $('#voice-btn');
-function renderVoiceMenu(){
-  const act = state.activeId;
-  let h = '<div class="menu-h">profils de voix</div>';
-  sortedProfiles().forEach(p=>{
-    h += `<button role="menuitem" data-pick="${p.id}" class="vrow${p.id===act?' on':''}">`
-      + `<span class="mk">${p.id===act?'✓':''}</span>`
-      + `<span class="nm">${esc(p.name)}</span>`
-      + `<span class="fav${p.fav?' on':''}" data-fav="${p.id}" title="Favori" role="button">${p.fav?'★':'☆'}</span></button>`;
+/* ═══ Smooth scroll for anchor links ═══ */
+document.querySelectorAll('a[href^="#"]').forEach(function(a){
+  a.addEventListener('click', function(e){
+    var target = document.querySelector(a.getAttribute('href'));
+    if(target){ e.preventDefault(); target.scrollIntoView({behavior:'smooth',block:'start'}); }
   });
-  h += '<div class="menu-sep"></div>'
-    + '<button role="menuitem" data-new="1" class="vrow muted"><span class="mk">+</span><span class="nm">Nouveau profil</span></button>'
-    + '<button role="menuitem" data-manage="1" class="vrow muted"><span class="mk">⋯</span><span class="nm">Gérer les profils…</span></button>';
-  voiceMenu.innerHTML = h;
-}
-function toggleVoiceMenu(show){
-  const open = show!=null ? show : voiceMenu.classList.contains('hidden');
-  if(open) renderVoiceMenu();
-  voiceMenu.classList.toggle('hidden', !open);
-  voiceBtn.setAttribute('aria-expanded', open?'true':'false');
-}
-voiceBtn.onclick = e=>{ e.stopPropagation(); toggleVoiceMenu(); };
-voiceMenu.addEventListener('click', e=>{
-  const fav = e.target.closest('[data-fav]');
-  if(fav){ e.stopPropagation(); const p=state.profiles.find(x=>x.id===fav.dataset.fav); if(p){ p.fav=!p.fav; persist(); renderVoiceMenu(); } return; }
-  const b = e.target.closest('button'); if(!b) return;
-  if(b.dataset.pick){ state.activeId=b.dataset.pick; persist(); refreshVoice(); toggleVoiceMenu(false); }
-  else if(b.dataset.new){ toggleVoiceMenu(false); pfCreate(); openProfiles(); }
-  else if(b.dataset.manage){ toggleVoiceMenu(false); openProfiles(); }
 });
-document.addEventListener('click', e=>{ if(!e.target.closest('#voice-wrap')) toggleVoiceMenu(false); });
-document.addEventListener('keydown', e=>{ if(e.key==='Escape') toggleVoiceMenu(false); });
-
-let pfEditId = null;
-function renderPfSelect(){
-  $('#pf-select').innerHTML = state.profiles.map(p=>`<option value="${p.id}">${esc(p.name)}${p.fav?' ★':''}</option>`).join('');
-  $('#pf-select').value = pfEditId;
-}
-function loadPfFields(){
-  const p = state.profiles.find(x=>x.id===pfEditId) || state.profiles[0]; pfEditId = p.id;
-  $('#pf-select').value = p.id;
-  $('#pf-name').value = p.name;
-  $('#pf-fav').checked = !!p.fav;
-  $('#pf-profile').value = p.profile;
-  $('#pf-brand').value = p.brand || '';
-  renderToneFields(p.tones);
-}
-function commitPfFields(){
-  const p = state.profiles.find(x=>x.id===pfEditId); if(!p) return;
-  p.name = $('#pf-name').value.trim() || 'Sans nom';
-  p.fav = $('#pf-fav').checked;
-  p.profile = $('#pf-profile').value.trim() || DEFAULT_PROFILE;
-  p.brand = $('#pf-brand').value.trim();
-  p.tones = normTones(readToneFields());
-  const opt = [...$('#pf-select').options].find(o=>o.value===p.id);
-  if(opt) opt.textContent = p.name + (p.fav?' ★':'');
-  persist(); refreshVoice();
-}
-function pfCreate(){
-  const p = { id:uid(), name:'Nouveau profil', profile:DEFAULT_PROFILE, brand:'', tones:cloneTones(), fav:false };
-  state.profiles.push(p); pfEditId = p.id; persist(); return p;
-}
-function openProfiles(){
-  if(pfEditId==null || !state.profiles.some(p=>p.id===pfEditId)) pfEditId = state.activeId;
-  renderPfSelect(); loadPfFields();
-  const ds=$('#pf-doc-status'); if(ds) ds.textContent='';
-  $('#profiles').classList.remove('hidden');
-}
-$('#pf-select').onchange = ()=>{ pfEditId = $('#pf-select').value; loadPfFields(); };
-$('#profiles').addEventListener('input', e=>{ if(e.target.id!=='pf-select') commitPfFields(); });
-$('#profiles').addEventListener('change', e=>{ if(e.target.id==='pf-fav') commitPfFields(); });
-$('#pf-new').onclick = ()=>{ pfCreate(); renderPfSelect(); loadPfFields(); };
-$('#pf-dup').onclick = ()=>{
-  const s = state.profiles.find(x=>x.id===pfEditId); if(!s) return;
-  const p = { id:uid(), name:s.name+' (copie)', profile:s.profile, brand:s.brand||'', tones:normTones(s.tones), fav:false };
-  state.profiles.push(p); pfEditId = p.id; persist(); renderPfSelect(); loadPfFields();
-};
-$('#pf-del').onclick = ()=>{
-  if(state.profiles.length<=1){ alert('Garde au moins un profil de voix.'); return; }
-  const s = state.profiles.find(x=>x.id===pfEditId); if(!s) return;
-  if(!confirm('Supprimer le profil « '+s.name+' » ?')) return;
-  state.profiles = state.profiles.filter(x=>x.id!==pfEditId);
-  if(state.activeId===pfEditId) state.activeId = state.profiles[0].id;
-  pfEditId = state.profiles[0].id; persist(); refreshVoice(); renderPfSelect(); loadPfFields();
-};
-$('#pf-export').onclick = ()=>{
-  const p = state.profiles.find(x=>x.id===pfEditId); if(!p) return;
-  const name = (p.name||'profil').replace(/[\\/:*?"<>|]+/g,' ').replace(/\s+/g,'-').slice(0,60) || 'profil';
-  download(name+'.plume.json', JSON.stringify({ name:p.name, profile:p.profile, brand:p.brand||'', tones:p.tones }, null, 2), 'application/json');
-};
-$('#pf-import').onclick = ()=> $('#pf-file').click();
-$('#pf-file').onchange = ()=>{
-  const f = $('#pf-file').files[0]; if(!f) return;
-  const r = new FileReader();
-  r.onload = ()=>{
-    try{
-      const d = JSON.parse(r.result), arr = Array.isArray(d) ? d : [d]; let last=null;
-      arr.forEach(x=>{ if(x && (x.profile||x.brand||x.tones||x.name)){ const p={ id:uid(), name:(x.name||'Profil importé').toString().trim()||'Profil importé', profile:(x.profile||DEFAULT_PROFILE).toString(), brand:(x.brand||'').toString(), tones:normTones(x.tones), fav:false }; state.profiles.push(p); last=p.id; } });
-      if(last){ pfEditId=last; persist(); renderPfSelect(); loadPfFields(); }
-      else alert('Aucun profil valide dans ce fichier.');
-    }catch(err){ alert('Fichier illisible : '+err.message); }
-  };
-  r.readAsText(f); $('#pf-file').value='';
-};
-$('#pf-done').onclick = ()=>{ commitPfFields(); $('#profiles').classList.add('hidden'); };
-
-/* ---------- Import d'un document de marque (PDF / texte) → registre distillé par l'IA ---------- */
-let pdfjsLib = null;
-async function loadPdfjs(){
-  if(pdfjsLib) return pdfjsLib;
-  const mod = await import('https://cdn.jsdelivr.net/npm/pdfjs-dist@4/+esm');
-  mod.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4/build/pdf.worker.min.mjs';
-  pdfjsLib = mod; return mod;
-}
-async function extractPdfText(buf){
-  const pdfjs = await loadPdfjs();
-  const doc = await pdfjs.getDocument({ data:buf }).promise;
-  const pages = Math.min(doc.numPages, 40);
-  let out = '';
-  for(let i=1;i<=pages;i++){
-    const page = await doc.getPage(i);
-    const c = await page.getTextContent();
-    out += c.items.map(it=>it.str).join(' ') + '\n\n';
-  }
-  return out.trim();
-}
-async function distillVoice(text){
-  const clipped = text.slice(0, 12000);
-  const sys = 'Tu es expert en identité de marque et en rédaction. Tu transformes une charte / un document de ton de voix en CONSIGNES DE RÉVISION concises et opérationnelles, destinées à piloter un correcteur IA.';
-  const user = `À partir du document ci-dessous (ton de voix d'une marque), rédige un profil de registre prêt à l'emploi. 10 à 18 lignes maximum, puces autorisées : qui parle et à qui, registre et posture, tournures/mots à privilégier, tics et formules à bannir, ponctuation, longueur de phrase. Pas d'introduction ni de conclusion, uniquement les consignes.\n\nDocument :\n"""${clipped}"""`;
-  return (await callLLM(sys, user)).trim();
-}
-function pfDocStatus(msg, err){ const el=$('#pf-doc-status'); el.textContent=msg||''; el.style.color = err ? 'var(--correct)' : 'var(--ink-soft)'; }
-$('#pf-doc').onclick = ()=> $('#pf-doc-file').click();
-$('#pf-doc-file').onchange = async ()=>{
-  const f = $('#pf-doc-file').files[0]; if(!f) return;
-  $('#pf-doc-file').value = '';
-  if(!state.key){ pfDocStatus('Renseigne d\'abord ta clé API (Réglages).', true); return; }
-  const btn = $('#pf-doc'); btn.disabled = true;
-  try{
-    pfDocStatus('Lecture du document…');
-    let text = '';
-    if(/\.pdf$/i.test(f.name) || f.type==='application/pdf'){
-      text = await extractPdfText(await f.arrayBuffer());
-      if(text.replace(/\s/g,'').length < 40){
-        pfDocStatus('Ce PDF semble scanné (aucun texte). Copie-colle son contenu dans le registre.', true);
-        return;
-      }
-    } else {
-      text = await f.text();
-    }
-    const cur = $('#pf-brand').value.trim();
-    let mode = 'set';
-    if(cur) mode = confirm('Ajouter aux consignes de marque existantes ?\n\nOK = ajouter · Annuler = remplacer') ? 'append' : 'replace';
-    pfDocStatus('Distillation par l\'IA…');
-    const distilled = await distillVoice(text);
-    if(!distilled){ pfDocStatus('Le modèle n\'a rien renvoyé. Réessaie.', true); return; }
-    const header = '— ' + f.name + ' —';
-    $('#pf-brand').value = (mode==='append')
-      ? (cur + '\n\n' + header + '\n' + distilled)
-      : (header + '\n' + distilled);
-    commitPfFields();
-    pfDocStatus('Consignes ajoutées depuis « '+f.name+' ». Les instructions de base sont intactes.');
-  }catch(err){
-    pfDocStatus('Échec : '+err.message, true);
-  } finally { btn.disabled = false; }
-};
-
-/* ---------- Drag & drop de fichiers ---------- */
-let dragCnt = 0;
-const editPane = $('.pane.edit');
-editPane.addEventListener('dragenter', e=>{
-  e.preventDefault(); dragCnt++;
-  if(dragCnt===1){
-    const ov=document.createElement('div'); ov.className='drop-overlay'; ov.textContent='Déposer un fichier .md ou .txt';
-    editPane.appendChild(ov);
-  }
-});
-editPane.addEventListener('dragleave', e=>{
-  e.preventDefault(); dragCnt--;
-  if(dragCnt<=0){ dragCnt=0; const ov=editPane.querySelector('.drop-overlay'); if(ov) ov.remove(); }
-});
-editPane.addEventListener('dragover', e=>{ e.preventDefault(); e.dataTransfer.dropEffect='copy'; });
-editPane.addEventListener('drop', e=>{
-  e.preventDefault(); dragCnt=0;
-  const ov=editPane.querySelector('.drop-overlay'); if(ov) ov.remove();
-  const f = e.dataTransfer.files[0]; if(!f) return;
-  if(!/\.(md|markdown|txt)$/i.test(f.name) && f.type!=='text/plain' && f.type!=='text/markdown') return;
-  if(editor.value.trim() && !confirm('Remplacer le contenu par « '+f.name+' » ? (Annulable avec Ctrl+Z)')) return;
-  const r = new FileReader();
-  r.onload = ()=>{ programmatic=true; editor.value=r.result||''; editor.selectionStart=editor.selectionEnd=0; onInput(); editor.focus(); };
-  r.readAsText(f);
-});
-
-/* ---------- Rechercher / Remplacer (Ctrl+F / Ctrl+H) ---------- */
-const searchBar=$('#search-bar'), sInput=$('#s-input'), sReplaceIn=$('#s-replace');
-let sMatches=[], sIdx=-1;
-function openSearch(focusReplace){
-  searchBar.classList.remove('hidden');
-  if(editor.selectionStart!==editor.selectionEnd) sInput.value=editor.value.slice(editor.selectionStart, editor.selectionEnd);
-  doSearch();
-  (focusReplace ? sReplaceIn : sInput).focus();
-  sInput.select();
-}
-function closeSearch(){ searchBar.classList.add('hidden'); sMatches=[]; sIdx=-1; editor.focus(); }
-function doSearch(){
-  const q=sInput.value; sMatches=[]; sIdx=-1;
-  if(!q){ $('#s-count').textContent=''; return; }
-  const low=q.toLowerCase(), v=editor.value.toLowerCase(); let pos=0;
-  while((pos=v.indexOf(low, pos))>=0){ sMatches.push(pos); pos+=q.length; }
-  $('#s-count').textContent = sMatches.length ? sMatches.length+' résultat'+(sMatches.length>1?'s':'') : 'Aucun';
-  if(sMatches.length){ sIdx=0; selectMatch(); }
-}
-function selectMatch(){
-  if(sIdx<0||!sMatches.length) return;
-  const pos=sMatches[sIdx], len=sInput.value.length;
-  editor.focus(); editor.setSelectionRange(pos, pos+len);
-  const lh=parseFloat(getComputedStyle(editor).lineHeight)||24;
-  const linesBefore=editor.value.slice(0,pos).split('\n').length;
-  editor.scrollTop=Math.max(0,(linesBefore-3)*lh);
-  $('#s-count').textContent=(sIdx+1)+'/'+sMatches.length;
-}
-function sNext(){ if(!sMatches.length) return; sIdx=(sIdx+1)%sMatches.length; selectMatch(); }
-function sPrev(){ if(!sMatches.length) return; sIdx=(sIdx-1+sMatches.length)%sMatches.length; selectMatch(); }
-function sRepOne(){
-  if(sIdx<0||!sMatches.length) return;
-  const pos=sMatches[sIdx], len=sInput.value.length, rep=sReplaceIn.value;
-  programmatic=true;
-  editor.value=editor.value.slice(0,pos)+rep+editor.value.slice(pos+len);
-  editor.selectionStart=pos; editor.selectionEnd=pos+rep.length; onInput(); doSearch();
-}
-function sRepAll(){
-  if(!sMatches.length) return;
-  const q=sInput.value, rep=sReplaceIn.value; if(!q) return;
-  programmatic=true;
-  const re=new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'gi');
-  editor.value=editor.value.replace(re, rep);
-  editor.selectionStart=editor.selectionEnd=0; onInput(); doSearch();
-}
-sInput.addEventListener('input', doSearch);
-$('#s-next').onclick=sNext; $('#s-prev').onclick=sPrev;
-$('#s-rep-one').onclick=sRepOne; $('#s-rep-all').onclick=sRepAll;
-$('#s-close').onclick=closeSearch;
-sInput.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); e.shiftKey?sPrev():sNext(); } if(e.key==='Escape'){ e.preventDefault(); closeSearch(); } });
-sReplaceIn.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); sRepOne(); } if(e.key==='Escape'){ e.preventDefault(); closeSearch(); } });
-
-/* ---------- Historique des révisions IA ---------- */
-const HIST_MAX = 20;
-const MODE_LABELS = {correct:'Correction', style:'Style', vocab:'Vocabulaire', tics:'Tics', length:'Longueur'};
-function addToHistory(mode, original, data){
-  let result='';
-  if(data.revised) result=data.revised;
-  else if(data.alternatives) result=data.alternatives.map(a=>a.text).join('\n---\n');
-  else if(data.vocab) result=data.vocab.map(v=>v.word+' → '+v.options.join(' | ')).join('\n');
-  state.history.unshift({ ts:Date.now(), mode, profile:getActive().name, original:original.slice(0,600), result:result.slice(0,600) });
-  if(state.history.length>HIST_MAX) state.history.length=HIST_MAX;
-  persist();
-}
-function showHistory(){
-  const revs=state.history;
-  if(!revs.length){ setStatus('Aucune révision dans l\'historique.'); return; }
-  let h='';
-  revs.forEach((r,i)=>{
-    const d=new Date(r.ts);
-    const date=d.toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'})+' '+d.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
-    h+=`<div class="hist-item" data-hi="${i}"><div class="hist-meta">`
-      +`<span class="hist-mode ${r.mode}">${MODE_LABELS[r.mode]||r.mode}</span>`
-      +`<span class="hist-date">${date}</span>`
-      +`<span class="hist-prof">${esc(r.profile||'')}</span></div>`
-      +`<div class="hist-excerpt">${esc(r.original)}</div></div>`;
-  });
-  h+=`<div style="padding:12px 16px"><button class="btn ghost" id="hist-clear" style="width:100%;justify-content:center;font-size:11px;color:var(--ink-soft)">Effacer l'historique</button></div>`;
-  body.innerHTML=h;
-  body.querySelectorAll('.hist-item').forEach(el=>{
-    el.onclick=()=>{
-      const r=revs[+el.dataset.hi]; if(!r) return;
-      const date=new Date(r.ts).toLocaleString('fr-FR');
-      body.innerHTML=`<div class="proposal"><div class="pl">${MODE_LABELS[r.mode]||r.mode} · ${date} · ${esc(r.profile||'')}</div></div>`
-        +`<div class="proposal"><div class="pl">Texte d'origine</div><div class="proposed-text" style="color:var(--ink-soft)">${esc(r.original)}</div></div>`
-        +`<div class="proposal"><div class="pl">Résultat</div><div class="proposed-text">${esc(r.result)}</div>`
-        +`<div class="apply-row" style="margin-top:10px"><button class="btn primary" id="hist-insert">Insérer au curseur</button>`
-        +`<button class="btn ghost" id="hist-back">← Retour</button></div></div>`;
-      $('#hist-back').onclick=showHistory;
-      $('#hist-insert').onclick=()=>{
-        const pos=editor.selectionStart;
-        programmatic=true;
-        editor.value=editor.value.slice(0,pos)+r.result+editor.value.slice(editor.selectionEnd);
-        editor.selectionStart=pos; editor.selectionEnd=pos+r.result.length;
-        onInput(); editor.focus(); setStatus('Texte inséré.'); setScope('');
-      };
-    };
-  });
-  const cl=$('#hist-clear'); if(cl) cl.onclick=()=>{ if(!confirm('Effacer tout l\'historique des révisions ?')) return; state.history=[]; persist(); setStatus('Historique effacé.'); };
-}
-$('#act-history').onclick=showHistory;
-
-/* ---------- Init ---------- */
-load();
-applyTheme(state.theme); applyPanel();
-editor.value = state.doc || '';
-prevState = snapshot(); updateHistoryUI();
-setSplit(state.split); setZoom(state.zoom);
-$('#toggle-lisib').classList.toggle('on', state.lisib);
-$('#toggle-spell').classList.toggle('on', state.spell);
-renderPreview(); counts(); refreshFooter(); refreshVoice();
-if(state.spell) loadSpell().then(renderPreview).catch(()=>{});  // recharge le dico si l'option était active
-window.addEventListener('load', renderPreview);
-if(!state.key) setTimeout(openSettings, 350);
 </script>
 </body>
 </html>
