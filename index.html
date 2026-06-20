@@ -72,57 +72,19 @@
   /* ═══ DEMO TERMINAL ═══ */
   .demo{padding:16px 36px 88px}
   .demo-inner{max-width:1200px;margin:0 auto}
-  .terminal{background:#11110F;border-radius:10px;padding:14px 18px 18px;box-shadow:0 32px 64px -20px rgba(17,17,15,.34)}
-  .terminal-topbar{display:flex;align-items:center;gap:8px;margin-bottom:14px}
-  .terminal-dot{width:9px;height:9px;border-radius:50%;background:#3a3833}
-  .terminal-path{margin-left:16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:#74716a}
-  .terminal-meta{margin-left:auto;display:flex;align-items:center;gap:14px;font-family:'JetBrains Mono',monospace;font-size:10.5px;color:#74716a}
-  .terminal-meta .voice{display:inline-flex;align-items:center;gap:5px}
-  .terminal-meta .voice .dot{width:5px;height:5px;border-radius:50%;background:#3A5BB5}
-  .terminal-meta .kbd{padding:2px 7px;border:1px solid #2a2925;border-radius:4px}
-  .terminal-grid{display:grid;grid-template-columns:1fr 380px;gap:10px}
-  .terminal-source{background:#1E1D1A;border-radius:7px;padding:22px 26px;position:relative;min-height:400px}
-  .terminal-source .label{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#5a5852;margin-bottom:18px}
-  .terminal-source pre{font-family:'JetBrains Mono',monospace;font-size:13.5px;line-height:1.75;color:#cfcdc6;margin:0;white-space:pre-wrap}
-  .terminal-source .hl-title{color:#8FB0E8}
-  .terminal-source .hl-sel{background:rgba(143,176,232,.20);color:#fff;padding:1px 2px;border-radius:2px;box-shadow:inset 0 -1px 0 #3A5BB5}
-  .terminal-cmdbar{position:absolute;left:26px;bottom:46px;display:flex;align-items:stretch;background:#fff;border-radius:7px;box-shadow:0 14px 32px -6px rgba(0,0,0,.42);padding:4px}
-  .terminal-cmdbar button{display:inline-flex;align-items:center;gap:6px;padding:7px 12px;font-size:12.5px;border:none;border-radius:4px;font-family:'Inter',sans-serif}
-  .terminal-cmdbar .cmd-primary{font-weight:500;color:#fff;background:#3A5BB5}
-  .terminal-cmdbar .cmd-default{color:#11110F;background:transparent}
-  .terminal-cmdbar .cmd-muted{color:#74716a;background:transparent}
-  .terminal-cmdbar .cmd-sep{width:1px;background:#E8E6E0;margin:4px}
-  .terminal-cmdbar .cmd-kbd{font-family:'JetBrains Mono',monospace;font-size:11px;color:#A8A59C;background:transparent;padding:7px 10px}
-  .terminal-sel-info{position:absolute;left:26px;bottom:18px;font-family:'JetBrains Mono',monospace;font-size:10.5px;color:#3A5BB5;letter-spacing:.04em}
-
-  .terminal-review{background:#fff;border-radius:7px;display:flex;flex-direction:column}
-  .terminal-review-head{padding:16px 20px 0;border-bottom:1px solid #E8E6E0}
-  .terminal-review-head .top{display:flex;align-items:center;margin-bottom:14px}
-  .terminal-review-head h3{font-weight:600;font-size:13.5px;margin:0;color:#11110F}
-  .terminal-review-head .time{margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:10.5px;color:#A8A59C}
-  .terminal-review-tabs{display:flex;gap:18px}
-  .terminal-review-tabs button{padding:6px 0;font-size:12.5px;background:transparent;border:none;border-bottom:2px solid transparent;font-family:'Inter',sans-serif;color:#74716a}
-  .terminal-review-tabs button.active{color:#11110F;border-bottom-color:#3A5BB5;font-weight:500}
-  .diff-item{padding:14px 20px;border-bottom:1px solid #F1EFE9;display:flex;gap:12px;align-items:flex-start}
-  .diff-badge{font-family:'JetBrains Mono',monospace;font-size:10px;padding:2px 7px;border-radius:3px;flex:none;margin-top:1px;font-weight:600}
-  .diff-badge.pct{background:#dde2f0;color:#3A5BB5}
-  .diff-badge.gra{background:rgba(166,113,31,.14);color:#A6711F}
-  .diff-content{flex:1;min-width:0}
-  .diff-text{font-size:13px;line-height:1.55;color:#11110F}
-  .diff-text del{color:#B53A3A;background:rgba(181,58,58,.10);text-decoration:line-through;padding:0 2px}
-  .diff-text ins{color:#3E7D5A;background:rgba(62,125,90,.14);text-decoration:none;padding:0 2px}
-  .diff-note{font-size:11.5px;color:#74716a;margin:6px 0 0;line-height:1.5}
-  .diff-actions{display:flex;gap:6px;margin-top:10px}
-  .diff-actions .btn-accept{font-size:11.5px;padding:4px 10px;background:#11110F;color:#fff;border:none;border-radius:4px}
-  .diff-actions .btn-reject{font-size:11.5px;padding:4px 10px;background:transparent;color:#74716a;border:1px solid #E8E6E0;border-radius:4px}
-  .diff-actions .btn-redo{font-size:11.5px;padding:4px 10px;background:transparent;color:#74716a;border:none;border-radius:4px}
-  .cumul{padding:14px 20px}
-  .cumul .label{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#A8A59C;margin-bottom:10px}
-  .cumul-text{font-size:13px;line-height:1.6;background:#FAFAF8;padding:12px 14px;border:1px solid #E8E6E0;border-radius:5px;color:#11110F}
-  .cumul-text .ins{background:rgba(62,125,90,.16);border-radius:2px;padding:0 2px}
-  .terminal-review-foot{border-top:1px solid #E8E6E0;padding:12px 20px;display:flex;gap:8px}
-  .terminal-review-foot .btn-apply{flex:1;font-size:12.5px;font-weight:500;padding:8px 12px;background:#3A5BB5;color:#fff;border:none;border-radius:5px;font-family:'Inter',sans-serif}
-  .terminal-review-foot .btn-ignore{font-size:12.5px;padding:8px 12px;background:#fff;color:#3d3b35;border:1px solid #E8E6E0;border-radius:5px;font-family:'Inter',sans-serif}
+  .shot-frame{background:#11110F;border-radius:10px;padding:0;box-shadow:0 32px 64px -20px rgba(17,17,15,.34);overflow:hidden;border:1px solid #2a2925}
+  .shot-topbar{display:flex;align-items:center;gap:8px;padding:11px 14px;background:#1E1D1A;border-bottom:1px solid #2a2925}
+  .shot-dot{width:11px;height:11px;border-radius:50%;background:#3a3833}
+  .shot-dot:nth-child(1){background:#ff5f57}
+  .shot-dot:nth-child(2){background:#febc2e}
+  .shot-dot:nth-child(3){background:#28c840}
+  .shot-url{margin-left:14px;font-family:'JetBrains Mono',monospace;font-size:11px;color:#74716a;padding:3px 12px;background:#11110F;border-radius:5px;border:1px solid #2a2925;flex:1;max-width:280px}
+  .shot-theme-toggle{display:inline-flex;gap:1px;padding:2px;background:#11110F;border:1px solid #2a2925;border-radius:5px;margin-left:auto}
+  .shot-theme-toggle button{padding:4px 11px;font-family:'JetBrains Mono',monospace;font-size:10.5px;color:#A8A59C;background:transparent;border:none;border-radius:3px;cursor:pointer}
+  .shot-theme-toggle button.on{background:#3a3833;color:#E8E6E0}
+  .shot-theme-toggle button:hover:not(.on){color:#cfcdc6}
+  .shot-stage{background:#11110F;line-height:0}
+  .shot-stage img{display:block;width:100%;height:auto}
   .demo-caption{text-align:center;margin-top:14px;font-family:'JetBrains Mono',monospace;font-size:11px;color:#74716a;letter-spacing:.04em}
 
   /* ═══ FEATURES ═══ */
@@ -334,94 +296,26 @@
   </div>
 </section>
 
-<!-- ═══════════════ DEMO TERMINAL ═══════════════ -->
+<!-- ═══════════════ APERÇU ÉCRAN ═══════════════ -->
 <section class="demo">
   <div class="demo-inner">
-    <div data-reveal class="terminal">
-      <div class="terminal-topbar">
-        <span class="terminal-dot"></span>
-        <span class="terminal-dot"></span>
-        <span class="terminal-dot"></span>
-        <span class="terminal-path">~/plume · reine-margot-ch1.md</span>
-        <span class="terminal-meta">
-          <span class="voice"><span class="dot"></span> roman, ton littéraire</span>
-          <span class="kbd">⌘K</span>
+    <div data-reveal class="shot-frame">
+      <div class="shot-topbar">
+        <span class="shot-dot"></span>
+        <span class="shot-dot"></span>
+        <span class="shot-dot"></span>
+        <span class="shot-url">plume.app/app.html</span>
+        <span class="shot-theme-toggle" role="tablist">
+          <button data-theme="light" class="on" type="button" aria-pressed="true">clair</button>
+          <button data-theme="dark" type="button" aria-pressed="false">sombre</button>
+          <button data-theme="sel" type="button" aria-pressed="false">sélection</button>
         </span>
       </div>
-      <div class="terminal-grid">
-        <div class="terminal-source">
-          <div class="label">source.md</div>
-          <pre><span class="hl-title"># La nuit du dix-huit août</span>
-
-Le lundi, dix-huitième jour du mois d'août 1572, il
-y avait grande fête au Louvre.
-
-<span class="hl-sel">Les fenêtres ordinairement si sombres de l'antique
-demeure royale étaient ardemment éclairées; les
-places et les rues attenantes, habituellement si
-solitaire, regorgeaient de peuple.</span></pre>
-          <div class="terminal-cmdbar">
-            <button class="cmd-primary"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg> Corriger</button>
-            <button class="cmd-default">Reformuler</button>
-            <button class="cmd-default">Vocabulaire</button>
-            <span class="cmd-sep"></span>
-            <button class="cmd-muted">Tics</button>
-            <button class="cmd-muted">Longueur</button>
-            <span class="cmd-sep"></span>
-            <button class="cmd-kbd">↵</button>
-          </div>
-          <div class="terminal-sel-info">sélection · 178 signes · 30 mots · 4 phrases</div>
-        </div>
-
-        <div class="terminal-review">
-          <div class="terminal-review-head">
-            <div class="top">
-              <h3>Révision</h3>
-              <span class="time">2.1 s</span>
-            </div>
-            <div class="terminal-review-tabs">
-              <button class="active">Corrections · 2</button>
-              <button>Style · 3</button>
-              <button>Vocabulaire</button>
-            </div>
-          </div>
-
-          <div style="flex:1">
-            <div class="diff-item">
-              <span class="diff-badge pct">PCT</span>
-              <div class="diff-content">
-                <div class="diff-text">éclairées<del>;</del><ins>.</ins> <del>les</del> <ins>Les</ins> places et les rues attenantes…</div>
-                <p class="diff-note">Phrase trop longue. Le point marque la respiration, la capitale repart au pas.</p>
-                <div class="diff-actions">
-                  <button class="btn-accept">Accepter</button>
-                  <button class="btn-reject">Refuser</button>
-                  <button class="btn-redo">↺ refaire</button>
-                </div>
-              </div>
-            </div>
-
-            <div class="diff-item">
-              <span class="diff-badge gra">GRA</span>
-              <div class="diff-content">
-                <div class="diff-text">habituellement si <del>solitaire</del><ins>solitaires</ins></div>
-                <p class="diff-note">Accord au pluriel avec « places et rues ».</p>
-              </div>
-            </div>
-
-            <div class="cumul">
-              <div class="label">aperçu cumulé</div>
-              <div class="cumul-text">Les fenêtres ordinairement si sombres de l'antique demeure royale étaient ardemment éclairées<span class="ins">.</span> <span class="ins">L</span>es places et les rues attenantes, habituellement si <span class="ins">solitaires</span>, regorgeaient de peuple.</div>
-            </div>
-          </div>
-
-          <div class="terminal-review-foot">
-            <button class="btn-apply">Appliquer (2)</button>
-            <button class="btn-ignore">Ignorer</button>
-          </div>
-        </div>
+      <div class="shot-stage">
+        <img id="shot-img" src="screenshots/01-editor-light.png" alt="Plume — éditeur en mode clair, sommaire à gauche, panneau de révision à droite" loading="lazy">
       </div>
     </div>
-    <div class="demo-caption">↑ vue éditeur · sélection active, command bar flottante, panneau tabulé</div>
+    <div class="demo-caption">↑ aperçu réel · sommaire à gauche, éditeur Markdown + aperçu, panneau Révision à droite</div>
   </div>
 </section>
 
@@ -621,6 +515,7 @@ demeure <span class="hl">étaient ardemment
         <p>Plume est libre, sans publicité, sans abonnement à pousser. Il vit sur le temps qu'on lui consacre et sur les coûts modestes de son hébergement. Si l'outil vous accompagne dans votre travail, un café ou un déjeuner suffisent.</p>
       </div>
       <div class="donate-right">
+        <!-- TODO : remplacer par https://paypal.me/<identifiant> une fois le compte PayPal.me créé -->
         <a href="https://www.paypal.com/donate" class="donate-btn" target="_blank" rel="noopener">
           <span style="font-weight:700;letter-spacing:.02em">Pay<span style="font-style:italic;font-weight:600">Pal</span></span>
           <span style="opacity:.5">·</span>
@@ -757,6 +652,32 @@ document.querySelectorAll('a[href^="#"]').forEach(function(a){
     if(target){ e.preventDefault(); target.scrollIntoView({behavior:'smooth',block:'start'}); }
   });
 });
+
+/* ═══ Screenshot theme toggle ═══ */
+(function(){
+  var img = document.getElementById('shot-img');
+  if(!img) return;
+  var SRC = {
+    light: 'screenshots/01-editor-light.png',
+    dark: 'screenshots/02-editor-dark.png',
+    sel: 'screenshots/03-editor-selection.png'
+  };
+  var ALT = {
+    light: 'Plume — éditeur en mode clair, sommaire à gauche, panneau de révision à droite',
+    dark: 'Plume — éditeur en mode sombre, contraste augmenté',
+    sel: 'Plume — sélection active, command bar flottante sous le texte sélectionné'
+  };
+  document.querySelectorAll('.shot-theme-toggle button').forEach(function(b){
+    b.addEventListener('click', function(){
+      var t = b.dataset.theme;
+      document.querySelectorAll('.shot-theme-toggle button').forEach(function(x){
+        x.classList.remove('on'); x.setAttribute('aria-pressed','false');
+      });
+      b.classList.add('on'); b.setAttribute('aria-pressed','true');
+      img.src = SRC[t]; img.alt = ALT[t];
+    });
+  });
+})();
 </script>
 </body>
 </html>

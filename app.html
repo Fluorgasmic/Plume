@@ -2417,7 +2417,35 @@ $('#toggle-spell').classList.toggle('on', state.spell);
 renderPreview(); counts(); refreshFooter(); refreshVoice(); if(!state.outlineHidden) renderOutline();
 if(state.spell) loadSpell().then(renderPreview).catch(()=>{});
 window.addEventListener('load', renderPreview);
-if(!state.key) setTimeout(openSettings, 350);
+if(!state.key && !new URLSearchParams(location.search).has('demo')) setTimeout(openSettings, 350);
+
+/* ---------- Mode démo (?demo=1) : pré-rempli, sans modal ---------- */
+(function(){
+  const params = new URLSearchParams(location.search);
+  if (params.get('demo') !== '1') return;
+  // ferme tout modal éventuel
+  document.querySelectorAll('.overlay').forEach(el => el.classList.add('hidden'));
+  // texte de démo (extrait de La Reine Margot, A. Dumas, 1845 — domaine public)
+  editor.value = "# La nuit du dix-huit août\n\nLe lundi, dix-huitième jour du mois d'août 1572, il y avait grande fête au Louvre.\n\nLes fenêtres ordinairement si sombres de l'antique demeure royale étaient ardemment éclairées; les places et les rues attenantes, habituellement si solitaire, regorgeaient de peuple.\n\nToute cette foule qu'attiraient et que retenaient dans le voisinage les lueurs et le bruit, avait l'aspect sombre, inquiet et menaçant.";
+  state.doc = editor.value;
+  state.outlineHidden = false;
+  applyOutline();
+  renderOutline();
+  renderPreview(); counts();
+  // thème via param
+  const theme = params.get('theme');
+  if (theme === 'dark' || theme === 'light') { state.theme = theme; applyTheme(theme); }
+  // sélection via param sel=start,end
+  const sel = params.get('sel');
+  if (sel) {
+    const [s, e] = sel.split(',').map(n => parseInt(n,10));
+    if (Number.isFinite(s) && Number.isFinite(e)) {
+      editor.focus();
+      editor.setSelectionRange(s, e);
+      editor.dispatchEvent(new Event('mouseup'));
+    }
+  }
+})();
 </script>
 </body>
 </html>
