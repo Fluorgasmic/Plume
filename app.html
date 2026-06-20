@@ -312,10 +312,11 @@
   .rev-toggle-float:hover{background:var(--hover); color:var(--ink)}
   .rev-toggle-float svg{width:16px; height:16px}
   body.no-panel .rev-toggle-float{display:flex}
-  .zoom-controls{display:flex; align-items:center; gap:2px; margin-left:8px}
-  .zoom-controls button{width:24px; height:22px; display:inline-flex; align-items:center; justify-content:center; border-radius:4px; font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--ink-muted)}
-  .zoom-controls button:hover{background:var(--hover); color:var(--ink)}
-  .zoom-controls .zoom-val{font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--ink-muted); min-width:32px; text-align:center; cursor:pointer}
+  .zoom-controls{display:inline-flex; align-items:center; gap:1px; margin-left:12px; padding:2px; background:var(--bg-soft); border-radius:6px}
+  .zoom-controls button{width:24px; height:22px; display:inline-flex; align-items:center; justify-content:center; border-radius:4px; font-family:'Inter',sans-serif; font-size:14px; font-weight:600; color:var(--ink-secondary); line-height:1}
+  .zoom-controls button:hover{background:var(--surface); color:var(--ink)}
+  .zoom-controls .zoom-val{font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:500; color:var(--ink-secondary); min-width:42px; text-align:center; cursor:pointer; padding:0 4px; letter-spacing:0; text-transform:none}
+  .zoom-controls .zoom-val:hover{color:var(--ink)}
   @media (max-width:959px){
     aside{position:fixed; right:0; top:48px; bottom:26px; z-index:30; box-shadow:var(--shadow); width:100%; flex-basis:100%}
     .pane.preview{display:none}
@@ -494,7 +495,7 @@
           <button id="zoom-in-vis" title="Agrandir (⌘+)">+</button>
         </div>
       </div>
-      <div class="fmtbar hidden" id="fmtbar">
+      <div class="fmtbar" id="fmtbar">
         <button data-fmt="h1" title="Titre 1">H1</button>
         <button data-fmt="h2" title="Titre 2">H2</button>
         <button data-fmt="h3" title="Titre 3">H3</button>
@@ -1625,6 +1626,19 @@ $('#act-correct').onclick = ()=>runRevision('correct');
 $('#act-style').onclick = ()=>runRevision('style');
 $('#act-vocab').onclick = ()=>runRevision('vocab');
 $('#act-tics').onclick = ()=>runRevision('tics');
+
+// Tabs : un clic sur un onglet bascule l'état actif et lance la révision correspondante
+{
+  const TAB_MAP = { corrections:'correct', style:'style', vocabulaire:'vocab' };
+  document.querySelectorAll('#rev-tabs button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('#rev-tabs button').forEach(b => b.classList.remove('on'));
+      btn.classList.add('on');
+      const mode = TAB_MAP[btn.dataset.tab];
+      if (mode) runRevision(mode);
+    });
+  });
+}
 $('#act-length').onclick = ()=> openLengthForm();
 $('#toggle-lisib').onclick = ()=>{
   state.lisib = !state.lisib; persist();
@@ -2120,6 +2134,31 @@ $('#act-history').onclick=showHistory;
   const ed = editor;
   let cmdVisible = false;
 
+  // Mirror div to measure the visual position of any caret offset (handles word-wrap)
+  let mirror = null;
+  function ensureMirror() {
+    if (mirror) return mirror;
+    mirror = document.createElement('div');
+    mirror.setAttribute('aria-hidden', 'true');
+    mirror.style.cssText = 'position:absolute; visibility:hidden; white-space:pre-wrap; word-wrap:break-word; overflow-wrap:break-word; top:0; left:-9999px;';
+    document.body.appendChild(mirror);
+    return mirror;
+  }
+  function caretCoords(textarea, pos) {
+    const m = ensureMirror();
+    const cs = getComputedStyle(textarea);
+    const copyProps = ['fontFamily','fontSize','fontWeight','letterSpacing','lineHeight','tabSize','textTransform','wordSpacing','paddingTop','paddingRight','paddingBottom','paddingLeft','borderTopWidth','borderRightWidth','borderBottomWidth','borderLeftWidth','boxSizing'];
+    copyProps.forEach(p => { m.style[p] = cs[p]; });
+    m.style.width = textarea.clientWidth + 'px';
+    m.textContent = textarea.value.slice(0, pos);
+    const marker = document.createElement('span');
+    marker.textContent = textarea.value.slice(pos, pos + 1) || '.';
+    m.appendChild(marker);
+    const top = marker.offsetTop;
+    const left = marker.offsetLeft;
+    return { top, left };
+  }
+
   function updateCmdBar() {
     const s = ed.selectionStart, e = ed.selectionEnd;
     if (s === e || document.activeElement !== ed) {
@@ -2134,13 +2173,13 @@ $('#act-history').onclick=showHistory;
 
     const cs = getComputedStyle(ed);
     const lineH = parseFloat(cs.lineHeight) || 24;
-    const padTop = parseFloat(cs.paddingTop) || 0;
     const padLeft = parseFloat(cs.paddingLeft) || 0;
-    const textToEnd = ed.value.slice(0, e);
-    const linesEnd = textToEnd.split('\n').length;
-    const top = padTop + linesEnd * lineH - ed.scrollTop + 8;
-    cmdBar.style.left = padLeft + 'px';
-    cmdBar.style.top = Math.max(8, top) + 'px';
+    // visual position of selection end inside the textarea
+    const { top: caretTop } = caretCoords(ed, e);
+    // place command bar just below the end of selection
+    const top = ed.offsetTop + caretTop + lineH - ed.scrollTop + 8;
+    cmdBar.style.left = (ed.offsetLeft + padLeft) + 'px';
+    cmdBar.style.top = Math.max(ed.offsetTop + 8, top) + 'px';
     if (!cmdVisible) { cmdBar.classList.add('visible'); cmdVisible = true; }
   }
 
