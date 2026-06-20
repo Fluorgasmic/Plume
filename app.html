@@ -305,6 +305,29 @@
 
   body.no-panel aside{display:none !important}
   #toggle-panel.on{background:var(--accent-soft); color:var(--accent)}
+
+  /* ---- Outline (sommaire à gauche) ---- */
+  .outline{flex:0 0 232px; width:232px; display:flex; flex-direction:column; background:var(--paper-raised); border-right:1px solid var(--line); min-height:0; overflow:hidden}
+  body.no-outline .outline{display:none}
+  .outline-head{display:flex; align-items:center; gap:8px; padding:14px 16px 8px}
+  .outline-head h3{font-family:'Inter',sans-serif; font-weight:600; font-size:13px; margin:0; color:var(--ink)}
+  .outline-head .ohead-hide{margin-left:auto; width:24px; height:24px; display:inline-flex; align-items:center; justify-content:center; border-radius:5px; color:var(--ink-muted)}
+  .outline-head .ohead-hide:hover{background:var(--hover); color:var(--ink)}
+  .outline-head .ohead-hide svg{width:14px; height:14px}
+  .outline-body{flex:1; overflow-y:auto; padding:4px 8px 16px}
+  .outline-empty{font-size:11.5px; color:var(--ink-muted); padding:8px 8px 14px; line-height:1.5; font-style:italic}
+  .outline-item{display:flex; align-items:baseline; gap:8px; padding:5px 8px; border-radius:4px; cursor:pointer; font-family:'Inter',sans-serif; font-size:12.5px; color:var(--ink-secondary); line-height:1.35}
+  .outline-item:hover{background:var(--hover); color:var(--ink)}
+  .outline-item.h1{font-weight:600; color:var(--ink); padding-left:8px}
+  .outline-item.h2{padding-left:18px; font-weight:500}
+  .outline-item.h3{padding-left:28px; font-size:12px}
+  .outline-item.h4{padding-left:38px; font-size:11.5px; color:var(--ink-muted)}
+  .outline-item.h5,.outline-item.h6{padding-left:48px; font-size:11px; color:var(--ink-muted)}
+  .outline-item .olvl{font-family:'JetBrains Mono',monospace; font-size:9px; color:var(--ink-mono); flex:none}
+  .outline-toggle-float{position:fixed; left:12px; top:56px; z-index:25; width:32px; height:32px; display:none; align-items:center; justify-content:center; background:var(--paper-raised); border:1px solid var(--line); border-radius:6px; box-shadow:var(--shadow); color:var(--ink-muted)}
+  .outline-toggle-float:hover{background:var(--hover); color:var(--ink)}
+  .outline-toggle-float svg{width:16px; height:16px}
+  body.no-outline .outline-toggle-float{display:flex}
   .rev-toggle{width:24px; height:24px; display:inline-flex; align-items:center; justify-content:center; border-radius:5px; color:var(--ink-muted); margin-left:auto; flex:none}
   .rev-toggle:hover{background:var(--hover); color:var(--ink)}
   .rev-toggle svg{width:14px; height:14px}
@@ -382,7 +405,7 @@
   .cmd-bar-inner button.cmd-primary .cmd-key{color:rgba(255,255,255,.7)}
   .cmd-bar-inner .cmd-sep{width:1px; background:var(--line); margin:4px 4px}
   .cmd-bar-inner .cmd-secondary{color:var(--ink-muted)}
-  .cmd-bar-stat{font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--accent); letter-spacing:.04em; padding-left:8px; font-weight:500}
+  .cmd-bar-stat{font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--accent); letter-spacing:.04em; padding:4px 10px; font-weight:500; background:var(--surface); border:1px solid var(--line); border-radius:5px; box-shadow:0 4px 12px -4px rgba(0,0,0,.12); align-self:flex-start}
 
   /* ---- ⌘K palette ---- */
   .cmdk-overlay{position:fixed; inset:0; background:rgba(17,17,15,.20); backdrop-filter:blur(3px); z-index:80; display:none}
@@ -485,7 +508,21 @@
 <input type="file" id="file-input" accept=".md,.markdown,.txt,text/markdown,text/plain" hidden>
 
 <main>
+  <button class="outline-toggle-float" id="outline-show" title="Afficher le sommaire">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+  </button>
   <div class="panes">
+    <aside class="outline" id="outline">
+      <div class="outline-head">
+        <h3>Sommaire</h3>
+        <button class="ohead-hide" id="outline-hide" title="Masquer le sommaire">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+      </div>
+      <div class="outline-body" id="outline-body">
+        <div class="outline-empty">Ajoutez des titres avec <b>#</b>, <b>##</b>, <b>###</b>… pour voir l'arborescence ici.</div>
+      </div>
+    </aside>
     <div class="pane edit">
       <div class="pane-label" style="display:flex; align-items:center">
         <span>source.md</span>
@@ -767,7 +804,7 @@ function normTones(t){
 let state = {
   provider:'anthropic', model:PROVIDERS.anthropic.default, models:{},
   key:'', profile:DEFAULT_PROFILE, tones:cloneTones(),
-  profiles:[], activeId:'', auto:false, lisib:true, spell:true, theme:'light', panelHidden:false, doc:'', split:50, zoom:1
+  profiles:[], activeId:'', auto:false, lisib:true, spell:true, theme:'light', panelHidden:false, outlineHidden:true, doc:'', split:50, zoom:1
 };
 const uid = ()=> 'p'+Math.random().toString(36).slice(2,9)+Date.now().toString(36).slice(-3);
 
@@ -1652,6 +1689,51 @@ function applyPanel(){
 $('#toggle-panel').onclick = ()=>{ state.panelHidden = !state.panelHidden; persist(); applyPanel(); };
 $('#rev-hide').onclick = ()=>{ state.panelHidden = true; persist(); applyPanel(); };
 $('#rev-show').onclick = ()=>{ state.panelHidden = false; persist(); applyPanel(); };
+
+/* ---------- Outline (sommaire) ---------- */
+function applyOutline(){ document.body.classList.toggle('no-outline', !!state.outlineHidden); }
+function renderOutline(){
+  const body = $('#outline-body');
+  const lines = editor.value.split('\n');
+  const items = [];
+  let inFence = false;
+  for (let i = 0; i < lines.length; i++) {
+    const ln = lines[i];
+    if (/^```/.test(ln)) { inFence = !inFence; continue; }
+    if (inFence) continue;
+    const m = ln.match(/^(#{1,6})\s+(.+?)\s*#*\s*$/);
+    if (m) {
+      const level = m[1].length;
+      const title = m[2].trim();
+      // char offset of this line's start
+      let offset = 0;
+      for (let j = 0; j < i; j++) offset += lines[j].length + 1;
+      items.push({ level, title, offset, endOffset: offset + ln.length });
+    }
+  }
+  if (!items.length) {
+    body.innerHTML = '<div class="outline-empty">Ajoutez des titres avec <b>#</b>, <b>##</b>, <b>###</b>… pour voir l\'arborescence ici.</div>';
+    return;
+  }
+  body.innerHTML = items.map(it => `<div class="outline-item h${it.level}" data-offset="${it.offset}" data-end="${it.endOffset}" title="${esc(it.title)}"><span class="olvl">H${it.level}</span><span>${esc(it.title)}</span></div>`).join('');
+  body.querySelectorAll('.outline-item').forEach(el => {
+    el.addEventListener('click', () => {
+      const off = parseInt(el.dataset.offset, 10);
+      const end = parseInt(el.dataset.end, 10);
+      editor.focus();
+      editor.setSelectionRange(off, end);
+      // scroll target line near top
+      const cs = getComputedStyle(editor);
+      const lineH = parseFloat(cs.lineHeight) || 24;
+      const padTop = parseFloat(cs.paddingTop) || 0;
+      const linesBefore = editor.value.slice(0, off).split('\n').length - 1;
+      editor.scrollTop = Math.max(0, linesBefore * lineH - 12);
+    });
+  });
+}
+$('#outline-hide').onclick = ()=>{ state.outlineHidden = true; persist(); applyOutline(); };
+$('#outline-show').onclick = ()=>{ state.outlineHidden = false; persist(); applyOutline(); renderOutline(); };
+editor.addEventListener('input', () => { if (!state.outlineHidden) renderOutline(); });
 $('#toggle-spell').onclick = async ()=>{
   const btn = $('#toggle-spell');
   if(!state.spell && !spell){
@@ -2300,13 +2382,13 @@ document.addEventListener('keydown', e => {
 
 /* ---------- Init ---------- */
 load();
-applyTheme(state.theme); applyPanel();
+applyTheme(state.theme); applyPanel(); applyOutline();
 editor.value = state.doc || '';
 prevState = snapshot(); updateHistoryUI();
 setSplit(state.split); setZoom(state.zoom);
 $('#toggle-lisib').classList.toggle('on', state.lisib);
 $('#toggle-spell').classList.toggle('on', state.spell);
-renderPreview(); counts(); refreshFooter(); refreshVoice();
+renderPreview(); counts(); refreshFooter(); refreshVoice(); if(!state.outlineHidden) renderOutline();
 if(state.spell) loadSpell().then(renderPreview).catch(()=>{});
 window.addEventListener('load', renderPreview);
 if(!state.key) setTimeout(openSettings, 350);
