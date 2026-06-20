@@ -204,6 +204,10 @@
   .rev-head .count{font-family:'JetBrains Mono',monospace; font-size:10.5px; color:var(--ink-mono)}
   .rev-head .rev-time{margin-left:auto; font-family:'JetBrains Mono',monospace; font-size:10.5px; color:var(--ink-muted); display:inline-flex; align-items:center; gap:5px}
   .rev-head .rev-time .dot{width:5px; height:5px; border-radius:50%; background:var(--accept)}
+  .scope-seg{display:inline-flex; gap:1px; padding:2px; background:var(--bg-soft); border-radius:5px; margin-top:12px; width:fit-content}
+  .scope-seg button{padding:4px 11px; font-size:11.5px; color:var(--ink-soft); background:transparent; border:none; border-radius:4px; font-family:inherit}
+  .scope-seg button.on{background:var(--surface); color:var(--ink); font-weight:500; box-shadow:0 1px 2px rgba(0,0,0,.06)}
+  .scope-seg button:hover:not(.on){color:var(--ink)}
   .rev-tabs{display:flex; gap:22px; margin-top:14px; border-bottom:1px solid var(--line)}
   .rev-tabs button{padding:8px 0 10px; font-size:13px; color:var(--ink-muted); background:transparent; border:none; border-bottom:2px solid transparent; display:inline-flex; align-items:center; gap:7px; font-family:inherit}
   .rev-tabs button.on{color:var(--ink); font-weight:500; border-bottom-color:var(--accent)}
@@ -593,6 +597,10 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
         </button>
       </div>
+      <div class="scope-seg" id="scope-seg">
+        <button data-scope="sel" class="on" title="Réviser la sélection (ou le paragraphe courant)">Sélection</button>
+        <button data-scope="all" title="Réviser tout le document">Tout le document</button>
+      </div>
       <div class="rev-tabs" id="rev-tabs">
         <button class="on" data-tab="corrections">Corrections <span class="tab-count" id="tab-count-cor" style="display:none"></span></button>
         <button data-tab="style">Style <span class="tab-count" id="tab-count-sty" style="display:none"></span></button>
@@ -804,7 +812,7 @@ function normTones(t){
 let state = {
   provider:'anthropic', model:PROVIDERS.anthropic.default, models:{},
   key:'', profile:DEFAULT_PROFILE, tones:cloneTones(),
-  profiles:[], activeId:'', auto:false, lisib:true, spell:true, theme:'light', panelHidden:false, outlineHidden:true, doc:'', split:50, zoom:1
+  profiles:[], activeId:'', auto:false, lisib:true, spell:true, theme:'light', panelHidden:false, outlineHidden:true, scopeAll:false, doc:'', split:50, zoom:1
 };
 const uid = ()=> 'p'+Math.random().toString(36).slice(2,9)+Date.now().toString(36).slice(-3);
 
@@ -1184,6 +1192,10 @@ $('#zoom-pct-vis').onclick = ()=>{ setZoom(1); persist(); };
 
 /* ---------- Sélection / paragraphe ---------- */
 function getTarget(){
+  // Mode "tout le document" : on ignore la sélection
+  if (state.scopeAll) {
+    return { text: editor.value, start: 0, end: editor.value.length, isSel: false, isAll: true };
+  }
   const s = editor.selectionStart, e = editor.selectionEnd;
   if(e > s) return { text: editor.value.slice(s,e), start:s, end:e, isSel:true };
   // paragraphe courant: bornes au double saut de ligne
@@ -1676,6 +1688,20 @@ $('#act-tics').onclick = ()=>runRevision('tics');
     });
   });
 }
+
+// Portée : sélection vs tout le document
+function applyScope(){
+  document.querySelectorAll('#scope-seg button').forEach(b => {
+    b.classList.toggle('on', (b.dataset.scope === 'all') === !!state.scopeAll);
+  });
+}
+document.querySelectorAll('#scope-seg button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    state.scopeAll = (btn.dataset.scope === 'all');
+    applyScope();
+    persist();
+  });
+});
 $('#act-length').onclick = ()=> openLengthForm();
 $('#toggle-lisib').onclick = ()=>{
   state.lisib = !state.lisib; persist();
@@ -2382,7 +2408,7 @@ document.addEventListener('keydown', e => {
 
 /* ---------- Init ---------- */
 load();
-applyTheme(state.theme); applyPanel(); applyOutline();
+applyTheme(state.theme); applyPanel(); applyOutline(); applyScope();
 editor.value = state.doc || '';
 prevState = snapshot(); updateHistoryUI();
 setSplit(state.split); setZoom(state.zoom);
