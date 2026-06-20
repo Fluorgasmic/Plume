@@ -79,12 +79,24 @@
   .shot-dot:nth-child(2){background:#febc2e}
   .shot-dot:nth-child(3){background:#28c840}
   .shot-url{margin-left:14px;font-family:'JetBrains Mono',monospace;font-size:11px;color:#74716a;padding:3px 12px;background:#11110F;border-radius:5px;border:1px solid #2a2925;flex:1;max-width:280px}
-  .shot-theme-toggle{display:inline-flex;gap:1px;padding:2px;background:#11110F;border:1px solid #2a2925;border-radius:5px;margin-left:auto}
-  .shot-theme-toggle button{padding:4px 11px;font-family:'JetBrains Mono',monospace;font-size:10.5px;color:#A8A59C;background:transparent;border:none;border-radius:3px;cursor:pointer}
-  .shot-theme-toggle button.on{background:#3a3833;color:#E8E6E0}
-  .shot-theme-toggle button:hover:not(.on){color:#cfcdc6}
-  .shot-stage{background:#11110F;line-height:0}
-  .shot-stage img{display:block;width:100%;height:auto}
+  .tour-controls{display:inline-flex;gap:6px;align-items:center;margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:11px;color:#74716a}
+  .tour-controls button{display:inline-flex;align-items:center;justify-content:center;width:26px;height:24px;background:#11110F;border:1px solid #2a2925;color:#A8A59C;border-radius:5px;cursor:pointer;padding:0}
+  .tour-controls button:hover{color:#E8E6E0;border-color:#3a3833}
+  .tour-controls button svg{width:11px;height:11px}
+  .tour-controls .tour-progress{font-variant-numeric:tabular-nums;color:#A8A59C;padding:0 6px}
+  .shot-stage{background:#11110F;line-height:0;position:relative;overflow:hidden}
+  .shot-stage img{display:block;width:100%;height:auto;transition:opacity .35s ease}
+  .shot-stage img.fading{opacity:.25}
+  .tour-mask{position:absolute;border-radius:6px;box-shadow:0 0 0 9999px rgba(11,11,9,.62), 0 0 0 2px rgba(143,176,232,.85) inset, 0 0 36px rgba(143,176,232,.35);transition:left .55s cubic-bezier(.22,.61,.36,1), top .55s cubic-bezier(.22,.61,.36,1), width .55s cubic-bezier(.22,.61,.36,1), height .55s cubic-bezier(.22,.61,.36,1), opacity .35s ease;pointer-events:none}
+  .tour-mask.off{opacity:0;box-shadow:0 0 0 9999px rgba(11,11,9,0), 0 0 0 0 rgba(143,176,232,0) inset, 0 0 0 rgba(143,176,232,0)}
+  .tour-caption{position:absolute;left:50%;bottom:24px;transform:translateX(-50%);max-width:560px;width:calc(100% - 48px);background:rgba(255,255,255,.96);backdrop-filter:blur(8px);border:1px solid #E8E6E0;border-radius:8px;padding:14px 18px;box-shadow:0 12px 32px -8px rgba(0,0,0,.32);transition:opacity .25s ease, transform .35s ease;pointer-events:none}
+  .tour-caption.below{bottom:auto;top:24px}
+  .tour-caption.swap{opacity:0;transform:translateX(-50%) translateY(8px)}
+  .tour-caption .tc-eyebrow{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#3A5BB5;margin-bottom:4px;font-weight:600}
+  .tour-caption h3{font-family:'Inter',sans-serif;font-weight:600;font-size:15px;margin:0 0 4px;color:#11110F;line-height:1.25}
+  .tour-caption p{font-family:'Inter',sans-serif;font-size:13px;line-height:1.5;margin:0;color:#3d3b35}
+  .tour-progress-bar{position:absolute;left:0;right:0;bottom:0;height:3px;background:rgba(255,255,255,.08);pointer-events:none}
+  .tour-progress-bar .fill{height:100%;width:0;background:#3A5BB5;transition:width .15s linear}
   .demo-caption{text-align:center;margin-top:14px;font-family:'JetBrains Mono',monospace;font-size:11px;color:#74716a;letter-spacing:.04em}
 
   /* ═══ FEATURES ═══ */
@@ -305,17 +317,31 @@
         <span class="shot-dot"></span>
         <span class="shot-dot"></span>
         <span class="shot-url">plume.app/app.html</span>
-        <span class="shot-theme-toggle" role="tablist">
-          <button data-theme="light" class="on" type="button" aria-pressed="true">clair</button>
-          <button data-theme="dark" type="button" aria-pressed="false">sombre</button>
-          <button data-theme="sel" type="button" aria-pressed="false">sélection</button>
+        <span class="tour-controls">
+          <button id="tour-prev" title="Étape précédente" type="button" aria-label="Précédent">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+          </button>
+          <button id="tour-toggle" title="Pause / lecture" type="button" aria-label="Pause">
+            <svg id="tour-toggle-icon" viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>
+          </button>
+          <button id="tour-next" title="Étape suivante" type="button" aria-label="Suivant">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+          </button>
+          <span class="tour-progress"><span id="tour-step">1</span> / <span id="tour-total">10</span></span>
         </span>
       </div>
-      <div class="shot-stage">
-        <img id="shot-img" src="screenshots/01-editor-light.png" alt="Plume — éditeur en mode clair, sommaire à gauche, panneau de révision à droite" loading="lazy">
+      <div class="shot-stage" id="tour-stage">
+        <img id="shot-img" src="screenshots/01-editor-light.png" alt="Plume — éditeur" loading="lazy">
+        <div class="tour-mask off" id="tour-mask"></div>
+        <div class="tour-caption" id="tour-caption">
+          <div class="tc-eyebrow" id="tc-eyebrow">étape 1 / 10</div>
+          <h3 id="tc-title">Plume — un éditeur Markdown avec révision IA</h3>
+          <p id="tc-sub">Sommaire à gauche, éditeur source au centre, aperçu et panneau de révision à droite.</p>
+        </div>
+        <div class="tour-progress-bar"><div class="fill" id="tour-fill"></div></div>
       </div>
     </div>
-    <div class="demo-caption">↑ aperçu réel · sommaire à gauche, éditeur Markdown + aperçu, panneau Révision à droite</div>
+    <div class="demo-caption">↑ visite guidée auto · cliquez sur l'image pour mettre en pause</div>
   </div>
 </section>
 
@@ -653,7 +679,7 @@ document.querySelectorAll('a[href^="#"]').forEach(function(a){
   });
 });
 
-/* ═══ Screenshot theme toggle ═══ */
+/* ═══ Tour guidé du screenshot ═══ */
 (function(){
   var img = document.getElementById('shot-img');
   if(!img) return;
@@ -662,21 +688,134 @@ document.querySelectorAll('a[href^="#"]').forEach(function(a){
     dark: 'screenshots/02-editor-dark.png',
     sel: 'screenshots/03-editor-selection.png'
   };
-  var ALT = {
-    light: 'Plume — éditeur en mode clair, sommaire à gauche, panneau de révision à droite',
-    dark: 'Plume — éditeur en mode sombre, contraste augmenté',
-    sel: 'Plume — sélection active, command bar flottante sous le texte sélectionné'
-  };
-  document.querySelectorAll('.shot-theme-toggle button').forEach(function(b){
-    b.addEventListener('click', function(){
-      var t = b.dataset.theme;
-      document.querySelectorAll('.shot-theme-toggle button').forEach(function(x){
-        x.classList.remove('on'); x.setAttribute('aria-pressed','false');
-      });
-      b.classList.add('on'); b.setAttribute('aria-pressed','true');
-      img.src = SRC[t]; img.alt = ALT[t];
-    });
+  /* Coords en % du conteneur (la stage prend la taille de l'img qui est 1480×880).
+     mask = null  → pas de surlignage (vue d'ensemble)
+     caption.pos = 'top' force la légende en haut sinon défaut = bas */
+  var STEPS = [
+    { img:'light', mask:null,
+      eyebrow:'visite guidée · 1 / 10',
+      title:'Plume — éditeur Markdown avec révision IA',
+      sub:'Sommaire à gauche, source au centre, aperçu et révision à droite.' },
+    { img:'light', mask:{l:0.5, t:4.0, w:15.0, h:95.0},
+      eyebrow:'sommaire',
+      title:'Tous vos titres, listés à gauche',
+      sub:'Parser des # à ###### pour naviguer d\'un clic. Mise à jour à la frappe.' },
+    { img:'light', mask:{l:15.8, t:4.0, w:36.0, h:96.0},
+      eyebrow:'éditeur',
+      title:'Markdown brut, barre de formatage, zoom',
+      sub:'Raccourcis, recherche-remplace, zoom 70 % → 180 % pour les longues sessions.' },
+    { img:'light', mask:{l:41.5, t:4.0, w:30.0, h:96.0},
+      eyebrow:'aperçu',
+      title:'Rendu typographique en serif, temps réel',
+      sub:'Newsreader. Lisibilité analysée (phrases longues, adverbes, mots inconnus).' },
+    { img:'sel', mask:{l:7.0, t:34.0, w:32.0, h:9.0}, captionPos:'top',
+      eyebrow:'command bar',
+      title:'Sélectionnez un passage → la command bar apparaît',
+      sub:'Corriger, Reformuler, Vocabulaire — au-dessous de votre sélection, sans bouger la souris.' },
+    { img:'light', mask:{l:71.5, t:4.0, w:28.0, h:96.0},
+      eyebrow:'panneau révision',
+      title:'Diffs, propositions, aperçu cumulé',
+      sub:'Acceptez, refusez, refaites — phrase par phrase ou en bloc.' },
+    { img:'light', mask:{l:71.5, t:8.5, w:13.5, h:3.5},
+      eyebrow:'portée',
+      title:'Sélection ou tout le document',
+      sub:'Un seul interrupteur. La révision suit ce que vous choisissez.' },
+    { img:'light', mask:{l:71.5, t:12.5, w:18.0, h:4.0},
+      eyebrow:'onglets',
+      title:'Corrections · Style · Vocabulaire',
+      sub:'Trois axes de relecture, chacun avec son grain. Un clic, un type de proposition.' },
+    { img:'light', mask:{l:64.0, t:0.5, w:11.0, h:3.0},
+      eyebrow:'palette',
+      title:'⌘K ouvre la palette de commandes',
+      sub:'Toutes les actions à la frappe : profils de voix, modèles, raccourcis.' },
+    { img:'dark', mask:null,
+      eyebrow:'thème',
+      title:'Mode sombre prêt aux longues nuits',
+      sub:'Contraste augmenté, surlignages lisibles, accent indigo ajusté.' }
+  ];
+
+  var STEP_MS = 4200;
+  var TICK_MS = 50;
+  var idx = 0;
+  var elapsed = 0;
+  var playing = true;
+  var timer = null;
+  var currentImg = 'light';
+
+  var maskEl = document.getElementById('tour-mask');
+  var capEl = document.getElementById('tour-caption');
+  var ebEl = document.getElementById('tc-eyebrow');
+  var tEl = document.getElementById('tc-title');
+  var sEl = document.getElementById('tc-sub');
+  var fillEl = document.getElementById('tour-fill');
+  var stepNumEl = document.getElementById('tour-step');
+  var stepTotalEl = document.getElementById('tour-total');
+  var toggleBtn = document.getElementById('tour-toggle');
+  var toggleIcon = document.getElementById('tour-toggle-icon');
+  stepTotalEl.textContent = STEPS.length;
+
+  var PLAY_ICON = '<polygon points="6 4 20 12 6 20 6 4" fill="currentColor"/>';
+  var PAUSE_ICON = '<rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/>';
+
+  function applyStep(){
+    var s = STEPS[idx];
+    stepNumEl.textContent = idx + 1;
+    if (s.img !== currentImg){
+      img.classList.add('fading');
+      setTimeout(function(){
+        img.src = SRC[s.img];
+        currentImg = s.img;
+        img.onload = function(){ img.classList.remove('fading'); };
+      }, 180);
+    }
+    capEl.classList.add('swap');
+    setTimeout(function(){
+      ebEl.textContent = (s.eyebrow || '') + ' · ' + (idx+1) + ' / ' + STEPS.length;
+      tEl.textContent = s.title;
+      sEl.textContent = s.sub;
+      capEl.classList.toggle('below', s.captionPos === 'top');
+      capEl.classList.remove('swap');
+    }, 180);
+    if (s.mask){
+      maskEl.classList.remove('off');
+      maskEl.style.left = s.mask.l + '%';
+      maskEl.style.top = s.mask.t + '%';
+      maskEl.style.width = s.mask.w + '%';
+      maskEl.style.height = s.mask.h + '%';
+    } else {
+      maskEl.classList.add('off');
+    }
+    elapsed = 0;
+    fillEl.style.width = '0%';
+  }
+  function tick(){
+    if (!playing) return;
+    elapsed += TICK_MS;
+    fillEl.style.width = Math.min(100, (elapsed / STEP_MS) * 100) + '%';
+    if (elapsed >= STEP_MS){
+      idx = (idx + 1) % STEPS.length;
+      applyStep();
+    }
+  }
+  function start(){ if(timer) clearInterval(timer); timer = setInterval(tick, TICK_MS); }
+  function setPlaying(p){
+    playing = p;
+    toggleIcon.innerHTML = p ? PAUSE_ICON : PLAY_ICON;
+    toggleBtn.title = p ? 'Pause' : 'Reprendre';
+  }
+  document.getElementById('tour-prev').addEventListener('click', function(){
+    idx = (idx - 1 + STEPS.length) % STEPS.length; applyStep();
   });
+  document.getElementById('tour-next').addEventListener('click', function(){
+    idx = (idx + 1) % STEPS.length; applyStep();
+  });
+  toggleBtn.addEventListener('click', function(){ setPlaying(!playing); });
+  document.getElementById('tour-stage').addEventListener('click', function(e){
+    if (e.target.closest('.tour-controls')) return;
+    setPlaying(!playing);
+  });
+
+  applyStep(); start();
 })();
 </script>
 </body>
