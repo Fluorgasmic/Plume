@@ -23,6 +23,10 @@
 - **Annuler / Rétablir** (boutons ↶ ↷ ou `Ctrl/Cmd+Z` et `Ctrl/Cmd+Maj+Z`) couvrent aussi bien la frappe que les révisions et le formatage appliqués.
 - **Apparence** (Réglages) : thème **Clair**, **Sombre** ou **Système** (suit les préférences de l'OS).
 - **Ouvrir** un fichier Markdown/texte, et **exporter** au choix en **Markdown (.md)**, **Texte (.txt)**, **Page web (.html)** ou **Word (.doc)** (ouvrable dans Word et LibreOffice). Le nom de fichier reprend le premier titre du document.
+- **Drag & drop** : glisse un fichier `.md` ou `.txt` directement dans l'éditeur pour l'ouvrir.
+- **Rechercher / Remplacer** (`Ctrl+F` ou `Cmd+F`, `Ctrl+H` pour le remplacement) : recherche dans l'éditeur avec navigation entre les résultats, remplacement unitaire ou global.
+- **Historique des révisions** : les 20 dernières révisions IA sont conservées avec horodatage, mode et profil. Bouton « Historique » dans le panneau de droite pour consulter une révision passée et l'insérer au curseur.
+- **Compteur de tokens** : estimation en temps réel dans le pied de page (`~N tok`, environ 4 caractères par token en français).
 
 > **Vitesse :** la latence dépend surtout du modèle distant. Pour des réponses plus rapides, choisis un modèle « léger » (`*-flash`, `*-mini`, `claude-haiku-*`).
 - La proposition s'affiche dans le panneau de droite avec le détail des modifications. **Rien n'est modifié tant que tu ne cliques pas sur « Appliquer ».**

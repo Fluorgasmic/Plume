@@ -106,7 +106,7 @@
   main{flex:1; display:flex; min-height:0}
   .panes{flex:1; display:flex; min-height:0; min-width:0}
   .pane{min-width:0; display:flex; flex-direction:column; overflow:hidden}
-  .pane.edit{flex:var(--eg,1) 1 0}
+  .pane.edit{flex:var(--eg,1) 1 0; position:relative}
   .pane.preview{flex:var(--pg,1) 1 0}
   .gutter{flex:0 0 7px; cursor:col-resize; background:var(--line); transition:background .12s}
   .gutter:hover,.gutter.drag{background:var(--accent)}
@@ -270,6 +270,43 @@
     aside{position:fixed; right:0; top:54px; bottom:30px; z-index:30; box-shadow:var(--shadow)}
     .pane.preview{display:none}
   }
+  /* ---- Search & Replace ---- */
+  .search-bar{
+    display:flex; align-items:center; gap:6px; flex-wrap:wrap;
+    padding:6px 12px; background:var(--paper-raised); border-bottom:1px solid var(--line);
+  }
+  .search-bar input{
+    padding:6px 10px; border:1px solid var(--line-strong); border-radius:var(--r);
+    font-family:inherit; font-size:13px; background:var(--surface); color:var(--ink); min-width:140px;
+  }
+  .search-bar .s-count{font-size:12px; color:var(--ink-soft); min-width:56px}
+  .search-bar .s-btn{padding:4px 8px; border-radius:6px; font-size:13px; color:var(--ink-soft); border:1px solid var(--line-strong)}
+  .search-bar .s-btn:hover{background:var(--hover); color:var(--ink)}
+  .search-bar .s-close{padding:4px 7px; border-radius:6px; font-size:15px; color:var(--ink-soft)}
+  .search-bar .s-close:hover{color:var(--ink)}
+  .search-bar .s-sep{width:1px; height:18px; background:var(--line); margin:0 2px}
+
+  /* ---- Drag & drop overlay ---- */
+  .drop-overlay{
+    position:absolute; inset:0; z-index:10;
+    background:rgba(44,62,99,.12); border:2px dashed var(--accent);
+    display:flex; align-items:center; justify-content:center;
+    font-size:15px; color:var(--accent); font-weight:500; pointer-events:none;
+    border-radius:var(--r);
+  }
+
+  /* ---- Revision history ---- */
+  .hist-item{padding:12px 16px; border-bottom:1px solid var(--line); cursor:pointer; transition:background .1s}
+  .hist-item:hover{background:var(--hover)}
+  .hist-meta{display:flex; gap:8px; align-items:center; margin-bottom:6px}
+  .hist-date{font-size:11px; color:var(--ink-soft)}
+  .hist-mode{font-size:10px; font-weight:600; letter-spacing:.05em; text-transform:uppercase; padding:2px 6px; border-radius:5px}
+  .hist-mode.correct{background:var(--tag-correct-bg); color:var(--correct)}
+  .hist-mode.style{background:var(--tag-style-bg); color:var(--style)}
+  .hist-mode.vocab,.hist-mode.tics,.hist-mode.length{background:var(--accent-soft); color:var(--accent)}
+  .hist-prof{font-size:11px; color:var(--ink-soft); font-style:italic}
+  .hist-excerpt{font-size:12px; color:var(--ink-soft); line-height:1.4; max-height:2.8em; overflow:hidden}
+
   @media (prefers-reduced-motion:reduce){*{animation:none !important; transition:none !important}}
 </style>
 </head>
@@ -360,6 +397,17 @@
         <button data-fmt="ol" title="Liste numérotée">1.</button>
         <button data-fmt="link" title="Lien">Lien</button>
       </div>
+      <div class="search-bar hidden" id="search-bar">
+        <input type="text" id="s-input" placeholder="Rechercher…" autocomplete="off">
+        <span class="s-count" id="s-count"></span>
+        <button class="s-btn" id="s-prev" title="Précédent (Maj+Entrée)">&#8593;</button>
+        <button class="s-btn" id="s-next" title="Suivant (Entrée)">&#8595;</button>
+        <span class="s-sep"></span>
+        <input type="text" id="s-replace" placeholder="Remplacer…" autocomplete="off">
+        <button class="s-btn" id="s-rep-one" title="Remplacer l'occurrence courante">Rempl.</button>
+        <button class="s-btn" id="s-rep-all" title="Remplacer toutes les occurrences">Tout</button>
+        <button class="s-close" id="s-close" title="Fermer (Échap)">&#10005;</button>
+      </div>
       <textarea id="editor" spellcheck="true" placeholder="Sélectionne un passage, puis lance une révision. Sans sélection, le paragraphe courant est traité.
 
 # Titre
@@ -376,6 +424,7 @@ Ton texte ici…"></textarea>
   <aside>
     <div class="rev-head">
       <h2>Révision</h2>
+      <button class="btn ghost" id="act-history" title="Historique des révisions IA" style="margin-left:auto; padding:5px 9px; font-size:11px">Historique</button>
       <span class="count" id="rev-scope"></span>
     </div>
     <div class="rev-body" id="rev-body">
@@ -391,6 +440,7 @@ Ton texte ici…"></textarea>
 <footer>
   <span id="stat-words">0 mot</span>
   <span id="stat-chars">0 signe</span>
+  <span id="stat-tokens" title="Estimation : ~4 caractères par token en français"></span>
   <span id="stat-sel" class="sel-stat hidden"></span>
   <span id="stat-model"></span>
   <span class="save" id="stat-save"><span class="dot"></span>Enregistré localement</span>
@@ -585,6 +635,7 @@ function load(){
     fav: !!p.fav
   }));
   if(!state.activeId || !state.profiles.some(p=>p.id===state.activeId)) state.activeId = state.profiles[0].id;
+  if(!Array.isArray(state.history)) state.history = [];
   // une fois : active Lisibilité + Orthographe par défaut (y compris pour les installs existantes)
   if(state.uiDefaults !== 1){ state.lisib = true; state.spell = true; state.uiDefaults = 1; }
 }
@@ -775,6 +826,7 @@ function counts(){
   const w = t ? t.split(/\s+/).length : 0;
   $('#stat-words').textContent = w + (w>1?' mots':' mot');
   $('#stat-chars').textContent = editor.value.length + ' signes';
+  $('#stat-tokens').textContent = '~' + Math.ceil(editor.value.length/4) + ' tok';
   updateSelStat();
 }
 // repères de longueur courants pour le copywriting (signes)
@@ -884,6 +936,8 @@ document.addEventListener('keydown', e=>{
     const inOtherField = ae && ae!==editor && (ae.tagName==='INPUT' || ae.tagName==='TEXTAREA');
     if(k==='b'){ e.preventDefault(); FMT.bold(); }
     else if(k==='i'){ e.preventDefault(); FMT.italic(); }
+    else if(k==='f'){ e.preventDefault(); openSearch(); }
+    else if(k==='h' && !e.shiftKey){ e.preventDefault(); openSearch(true); }
     else if(k==='z' && !e.shiftKey){ if(inOtherField) return; e.preventDefault(); undo(); }
     else if((k==='z' && e.shiftKey) || k==='y'){ if(inOtherField) return; e.preventDefault(); redo(); }
   }
@@ -1210,6 +1264,7 @@ Passage:
     let raw = await callLLM(sys, user, onChunk, temp);
     if(!raw.trim()) raw = await callLLM(sys, user, null, temp); // repli non-streamé si aucun fragment reçu
     const data = parseResponse(mode, raw);
+    addToHistory(mode, tgt.text, data);
     renderResult(mode, data, tgt, consigne, lenTarget);
   }catch(err){
     setStatus('La révision a échoué : '+err.message+'<br><br>Vérifie la clé, le modèle et le fournisseur dans les réglages.', true);
@@ -1771,6 +1826,134 @@ $('#pf-doc-file').onchange = async ()=>{
     pfDocStatus('Échec : '+err.message, true);
   } finally { btn.disabled = false; }
 };
+
+/* ---------- Drag & drop de fichiers ---------- */
+let dragCnt = 0;
+const editPane = $('.pane.edit');
+editPane.addEventListener('dragenter', e=>{
+  e.preventDefault(); dragCnt++;
+  if(dragCnt===1){
+    const ov=document.createElement('div'); ov.className='drop-overlay'; ov.textContent='Déposer un fichier .md ou .txt';
+    editPane.appendChild(ov);
+  }
+});
+editPane.addEventListener('dragleave', e=>{
+  e.preventDefault(); dragCnt--;
+  if(dragCnt<=0){ dragCnt=0; const ov=editPane.querySelector('.drop-overlay'); if(ov) ov.remove(); }
+});
+editPane.addEventListener('dragover', e=>{ e.preventDefault(); e.dataTransfer.dropEffect='copy'; });
+editPane.addEventListener('drop', e=>{
+  e.preventDefault(); dragCnt=0;
+  const ov=editPane.querySelector('.drop-overlay'); if(ov) ov.remove();
+  const f = e.dataTransfer.files[0]; if(!f) return;
+  if(!/\.(md|markdown|txt)$/i.test(f.name) && f.type!=='text/plain' && f.type!=='text/markdown') return;
+  if(editor.value.trim() && !confirm('Remplacer le contenu par « '+f.name+' » ? (Annulable avec Ctrl+Z)')) return;
+  const r = new FileReader();
+  r.onload = ()=>{ programmatic=true; editor.value=r.result||''; editor.selectionStart=editor.selectionEnd=0; onInput(); editor.focus(); };
+  r.readAsText(f);
+});
+
+/* ---------- Rechercher / Remplacer (Ctrl+F / Ctrl+H) ---------- */
+const searchBar=$('#search-bar'), sInput=$('#s-input'), sReplaceIn=$('#s-replace');
+let sMatches=[], sIdx=-1;
+function openSearch(focusReplace){
+  searchBar.classList.remove('hidden');
+  if(editor.selectionStart!==editor.selectionEnd) sInput.value=editor.value.slice(editor.selectionStart, editor.selectionEnd);
+  doSearch();
+  (focusReplace ? sReplaceIn : sInput).focus();
+  sInput.select();
+}
+function closeSearch(){ searchBar.classList.add('hidden'); sMatches=[]; sIdx=-1; editor.focus(); }
+function doSearch(){
+  const q=sInput.value; sMatches=[]; sIdx=-1;
+  if(!q){ $('#s-count').textContent=''; return; }
+  const low=q.toLowerCase(), v=editor.value.toLowerCase(); let pos=0;
+  while((pos=v.indexOf(low, pos))>=0){ sMatches.push(pos); pos+=q.length; }
+  $('#s-count').textContent = sMatches.length ? sMatches.length+' résultat'+(sMatches.length>1?'s':'') : 'Aucun';
+  if(sMatches.length){ sIdx=0; selectMatch(); }
+}
+function selectMatch(){
+  if(sIdx<0||!sMatches.length) return;
+  const pos=sMatches[sIdx], len=sInput.value.length;
+  editor.focus(); editor.setSelectionRange(pos, pos+len);
+  const lh=parseFloat(getComputedStyle(editor).lineHeight)||24;
+  const linesBefore=editor.value.slice(0,pos).split('\n').length;
+  editor.scrollTop=Math.max(0,(linesBefore-3)*lh);
+  $('#s-count').textContent=(sIdx+1)+'/'+sMatches.length;
+}
+function sNext(){ if(!sMatches.length) return; sIdx=(sIdx+1)%sMatches.length; selectMatch(); }
+function sPrev(){ if(!sMatches.length) return; sIdx=(sIdx-1+sMatches.length)%sMatches.length; selectMatch(); }
+function sRepOne(){
+  if(sIdx<0||!sMatches.length) return;
+  const pos=sMatches[sIdx], len=sInput.value.length, rep=sReplaceIn.value;
+  programmatic=true;
+  editor.value=editor.value.slice(0,pos)+rep+editor.value.slice(pos+len);
+  editor.selectionStart=pos; editor.selectionEnd=pos+rep.length; onInput(); doSearch();
+}
+function sRepAll(){
+  if(!sMatches.length) return;
+  const q=sInput.value, rep=sReplaceIn.value; if(!q) return;
+  programmatic=true;
+  const re=new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'gi');
+  editor.value=editor.value.replace(re, rep);
+  editor.selectionStart=editor.selectionEnd=0; onInput(); doSearch();
+}
+sInput.addEventListener('input', doSearch);
+$('#s-next').onclick=sNext; $('#s-prev').onclick=sPrev;
+$('#s-rep-one').onclick=sRepOne; $('#s-rep-all').onclick=sRepAll;
+$('#s-close').onclick=closeSearch;
+sInput.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); e.shiftKey?sPrev():sNext(); } if(e.key==='Escape'){ e.preventDefault(); closeSearch(); } });
+sReplaceIn.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); sRepOne(); } if(e.key==='Escape'){ e.preventDefault(); closeSearch(); } });
+
+/* ---------- Historique des révisions IA ---------- */
+const HIST_MAX = 20;
+const MODE_LABELS = {correct:'Correction', style:'Style', vocab:'Vocabulaire', tics:'Tics', length:'Longueur'};
+function addToHistory(mode, original, data){
+  let result='';
+  if(data.revised) result=data.revised;
+  else if(data.alternatives) result=data.alternatives.map(a=>a.text).join('\n---\n');
+  else if(data.vocab) result=data.vocab.map(v=>v.word+' → '+v.options.join(' | ')).join('\n');
+  state.history.unshift({ ts:Date.now(), mode, profile:getActive().name, original:original.slice(0,600), result:result.slice(0,600) });
+  if(state.history.length>HIST_MAX) state.history.length=HIST_MAX;
+  persist();
+}
+function showHistory(){
+  const revs=state.history;
+  if(!revs.length){ setStatus('Aucune révision dans l\'historique.'); return; }
+  let h='';
+  revs.forEach((r,i)=>{
+    const d=new Date(r.ts);
+    const date=d.toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'})+' '+d.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+    h+=`<div class="hist-item" data-hi="${i}"><div class="hist-meta">`
+      +`<span class="hist-mode ${r.mode}">${MODE_LABELS[r.mode]||r.mode}</span>`
+      +`<span class="hist-date">${date}</span>`
+      +`<span class="hist-prof">${esc(r.profile||'')}</span></div>`
+      +`<div class="hist-excerpt">${esc(r.original)}</div></div>`;
+  });
+  h+=`<div style="padding:12px 16px"><button class="btn ghost" id="hist-clear" style="width:100%;justify-content:center;font-size:11px;color:var(--ink-soft)">Effacer l'historique</button></div>`;
+  body.innerHTML=h;
+  body.querySelectorAll('.hist-item').forEach(el=>{
+    el.onclick=()=>{
+      const r=revs[+el.dataset.hi]; if(!r) return;
+      const date=new Date(r.ts).toLocaleString('fr-FR');
+      body.innerHTML=`<div class="proposal"><div class="pl">${MODE_LABELS[r.mode]||r.mode} · ${date} · ${esc(r.profile||'')}</div></div>`
+        +`<div class="proposal"><div class="pl">Texte d'origine</div><div class="proposed-text" style="color:var(--ink-soft)">${esc(r.original)}</div></div>`
+        +`<div class="proposal"><div class="pl">Résultat</div><div class="proposed-text">${esc(r.result)}</div>`
+        +`<div class="apply-row" style="margin-top:10px"><button class="btn primary" id="hist-insert">Insérer au curseur</button>`
+        +`<button class="btn ghost" id="hist-back">← Retour</button></div></div>`;
+      $('#hist-back').onclick=showHistory;
+      $('#hist-insert').onclick=()=>{
+        const pos=editor.selectionStart;
+        programmatic=true;
+        editor.value=editor.value.slice(0,pos)+r.result+editor.value.slice(editor.selectionEnd);
+        editor.selectionStart=pos; editor.selectionEnd=pos+r.result.length;
+        onInput(); editor.focus(); setStatus('Texte inséré.'); setScope('');
+      };
+    };
+  });
+  const cl=$('#hist-clear'); if(cl) cl.onclick=()=>{ if(!confirm('Effacer tout l\'historique des révisions ?')) return; state.history=[]; persist(); setStatus('Historique effacé.'); };
+}
+$('#act-history').onclick=showHistory;
 
 /* ---------- Init ---------- */
 load();
