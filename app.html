@@ -991,6 +991,7 @@ function splitSentences(par){
 }
 function checkWord(w){
   if(!spell || w.length<=1 || /\d/.test(w)) return true;
+  if(!/[A-Za-zÀ-ÖØ-öø-ÿ]/.test(w)) return true;   // ignore tirets/séparateurs purs (---, ——)
   if(/^[A-ZÀ-Þ]/.test(w)) return true;            // ignore les capitalisés (noms propres, débuts de phrase)
   return spell.correct(w) || spell.correct(w.toLowerCase());
 }
@@ -2623,27 +2624,93 @@ let llmDiagnostics = []; // remplis quand l'audit/correct s'exécute
 function buildDiagnostics(text){
   const ranges = [];
   if(!state.inlineDiag) return ranges;
-  // Phrases longues / très longues
-  const sre = /[^.!?…]+[.!?…]+|\S[^.!?…]*$/g; let m;
-  while((m = sre.exec(text))){
-    const sent = m[0], w = countWords(sent);
-    if(w >= 25) ranges.push({s:m.index, e:m.index+sent.length, cls:'d-vhard', kind:'Phrase très longue', note:`${w} mots — coupez en deux.`});
-    else if(w >= 18) ranges.push({s:m.index, e:m.index+sent.length, cls:'d-hard', kind:'Phrase longue', note:`${w} mots — envisagez une césure.`});
+
+  // Repère les régions de code (entre ```...```) à ignorer
+  const codeRegions = [];
+  {
+    const lines = text.split('\n');
+    let pos = 0, fenceStart = -1;
+    for(const ln of lines){
+      if(/^\s*```/.test(ln)){
+        if(fenceStart < 0) fenceStart = pos;
+        else { codeRegions.push([fenceStart, pos + ln.length + 1]); fenceStart = -1; }
+      }
+      pos += ln.length + 1;
+    }
+    if(fenceStart >= 0) codeRegions.push([fenceStart, text.length]);
   }
-  // Adverbes en -ment
+  function inCode(idx){
+    for(const [a,b] of codeRegions) if(idx >= a && idx < b) return true;
+    return false;
+  }
+  // Détecte si un offset est à l'intérieur d'un span `inline code` sur sa ligne
+  function inInlineCode(idx){
+    const lineStart = text.lastIndexOf('\n', idx - 1) + 1;
+    const before = text.slice(lineStart, idx);
+    const nBacks = (before.match(/`/g) || []).length;
+    return nBacks % 2 === 1;
+  }
+  // Ligne markdown « structurelle » : liste, titre, citation, séparateur, tableau
+  function isMdStructural(ln){
+    return /^(\s*[-*+]\s|\s*\d+\.\s|\s*#{1,6}\s|\s*>\s|\s*\|)/.test(ln) ||
+           /^\s*-{3,}\s*$/.test(ln);
+  }
+
+  // Phrases longues / très longues — découpe d'abord par ligne, puis par terminateur
+  const lines = text.split('\n');
+  let pos = 0;
+  for(const ln of lines){
+    const lineStart = pos;
+    pos += ln.length + 1;
+    if(!ln.trim()) continue;
+    if(inCode(lineStart)) continue;
+    if(isMdStructural(ln)) continue;
+    const sre = /[^.!?…]+[.!?…]+|[^.!?…\s][^.!?…]*$/g;
+    let m;
+    while((m = sre.exec(ln))){
+      const sent = m[0]; const w = countWords(sent); if(!w) continue;
+      const absStart = lineStart + m.index;
+      const absEnd = absStart + m[0].replace(/\s+$/,'').length;
+      if(w >= 25) ranges.push({s:absStart, e:absEnd, cls:'d-vhard', kind:'Phrase très longue', note:`${w} mots — coupez en deux.`});
+      else if(w >= 18) ranges.push({s:absStart, e:absEnd, cls:'d-hard', kind:'Phrase longue', note:`${w} mots — envisagez une césure.`});
+    }
+  }
+
+  // Adverbes en -ment (sauf code)
   RE_ADVG.lastIndex = 0;
+  let m;
   while((m = RE_ADVG.exec(text))){
+    if(inCode(m.index) || inInlineCode(m.index)) continue;
     ranges.push({s:m.index, e:m.index+m[0].length, cls:'d-adv', kind:'Adverbe en -ment', note:'Vérifiez s\'il apporte vraiment quelque chose.'});
   }
-  // Orthographe
+
+  // Orthographe — heuristiques anti-faux positifs pour le contenu technique
   if(state.spell && spell){
+    // Repère les lignes-listes qui contiennent des séparateurs techniques (· ou — ou :)
+    // pour ne pas y déclencher l'ortho (typiquement des références modèles/marques)
+    const techListLines = new Set();
+    {
+      let p = 0;
+      for(const ln of lines){
+        if(/^\s*[-*+]\s/.test(ln) && /[·—:]/.test(ln)) techListLines.add(p);
+        p += ln.length + 1;
+      }
+    }
+    function inTechListLine(idx){
+      // Trouve le début de ligne contenant idx
+      const lineStart = text.lastIndexOf('\n', idx - 1) + 1;
+      return techListLines.has(lineStart);
+    }
     RE_WORDG.lastIndex = 0;
     while((m = RE_WORDG.exec(text))){
-      const w = m[0]; if(!checkWord(w)){
+      if(inCode(m.index) || inInlineCode(m.index) || inTechListLine(m.index)) continue;
+      const w = m[0];
+      if(!checkWord(w)){
         ranges.push({s:m.index, e:m.index+w.length, cls:'d-spell', kind:'Mot inconnu', note:'Pas dans le dictionnaire local.'});
       }
     }
   }
+
   // Items LLM (audit, etc.)
   llmDiagnostics.forEach(d=>{
     if(!d.extract) return;
@@ -2651,7 +2718,7 @@ function buildDiagnostics(text){
     if(idx < 0) return;
     ranges.push({s:idx, e:idx + d.extract.length, cls:'d-llm', kind:d.kind || 'Suggestion LLM', note:d.note || ''});
   });
-  // Trie par position et fusionne les chevauchements (on garde le plus prioritaire)
+
   ranges.sort((a,b) => a.s - b.s || b.e - a.e);
   return ranges;
 }
