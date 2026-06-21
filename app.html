@@ -307,6 +307,36 @@
   .tone-row .tone-instr{flex:1; min-width:0}
   .modal-foot{display:flex; gap:10px; justify-content:flex-end; padding:14px 22px 22px; border-top:1px solid var(--line); margin-top:6px}
 
+  /* ---- Audit (révision complète) ---- */
+  .audit-head{padding:14px 22px 4px}
+  .audit-stat{font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--ink-muted); letter-spacing:.02em}
+  .audit-stat .audit-n{font-weight:600; color:var(--ink); font-size:13px; margin-right:2px}
+  .audit-stat .audit-imp{font-weight:600; color:var(--correct); margin-right:2px}
+  .audit-synth{padding:6px 22px 18px}
+  .audit-synth .pl{font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:var(--ink-mono); margin-bottom:7px}
+  .audit-synth-body{font-size:13.5px; line-height:1.6; color:var(--ink); background:var(--paper); border-left:3px solid var(--accent); padding:10px 14px; border-radius:0 6px 6px 0}
+  .audit-section{border-top:1px solid var(--line); margin-top:4px}
+  .audit-section-h{display:flex; align-items:center; gap:8px; padding:12px 22px 8px}
+  .audit-section-label{font-family:'Inter',sans-serif; font-size:12.5px; font-weight:600; color:var(--ink)}
+  .audit-section-count{font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--ink-mono); margin-left:auto; padding:1px 7px; background:var(--bg-soft); border-radius:8px; font-weight:600}
+  .audit-item{display:flex; gap:0; padding:10px 22px 14px 14px; border-bottom:1px solid var(--line-soft); position:relative}
+  .audit-item-bar{flex:0 0 3px; width:3px; border-radius:2px; margin-right:10px; align-self:stretch; background:var(--ink-mono)}
+  .audit-item.imp-1 .audit-item-bar{background:var(--correct)}
+  .audit-item.imp-2 .audit-item-bar{background:var(--style)}
+  .audit-item.imp-3 .audit-item-bar{background:var(--accent-soft)}
+  .audit-item-body{flex:1; min-width:0}
+  .audit-extract{font-size:12.5px; line-height:1.5; color:var(--ink-soft); font-style:italic; margin-bottom:5px; padding:5px 9px; background:var(--paper); border:1px solid var(--line-soft); border-radius:4px}
+  .audit-prop{font-size:13px; line-height:1.5; color:var(--accent); margin-bottom:5px; font-weight:500}
+  .audit-note{font-size:11.5px; line-height:1.5; color:var(--ink-muted); margin-bottom:8px}
+  .audit-actions{display:flex; gap:6px; margin-top:6px}
+  .audit-actions button{font-size:11px; padding:4px 9px; border-radius:4px; font-family:inherit; cursor:pointer}
+  .audit-actions .btn-accept{background:var(--ink); color:var(--on-accent); border:none}
+  .audit-actions .btn-reject{background:transparent; color:var(--ink-muted); border:1px solid var(--line)}
+  .audit-applied{opacity:.55}
+  .audit-applied .audit-extract{text-decoration:line-through}
+  .tag.cor{background:var(--accent-soft); color:var(--accent)}
+  .tag.str{background:rgba(62,125,90,.16); color:var(--accept)}
+  .tag.tic{background:rgba(181,58,58,.10); color:var(--correct)}
   body.no-panel aside{display:none !important}
   #toggle-panel.on{background:var(--accent-soft); color:var(--accent)}
 
@@ -504,6 +534,7 @@
   <button id="act-vocab">Vocabulaire</button>
   <button id="act-length">Longueur</button>
   <button id="act-tics">Tics</button>
+  <button id="act-audit">Audit</button>
   <button id="act-undo">↶</button>
   <button id="act-redo">↷</button>
   <button id="toggle-panel">Panel</button>
@@ -610,7 +641,9 @@
     <div class="rev-body" id="rev-body">
       <div class="empty">
         Sélectionnez un passage pour appeler Plume.<br><br>
-        La command bar apparaît sous la sélection. Vous pouvez aussi utiliser <b>⌘K</b> pour ouvrir la palette de commandes.
+        La command bar apparaît sous la sélection. Vous pouvez aussi utiliser <b>⌘K</b> pour ouvrir la palette de commandes.<br><br>
+        <button class="btn primary" id="empty-audit-btn" style="padding:8px 14px; font-size:12.5px">Lancer un audit complet du document <span style="font-family:'JetBrains Mono',monospace; opacity:.75; margin-left:6px">⌘⇧A</span></button>
+        <div style="font-size:11.5px; color:var(--ink-muted); margin-top:8px; line-height:1.5">Une passe globale : synthèse, corrections, style, vocabulaire, structure — en un appel.</div>
       </div>
     </div>
     <button class="btn ghost" id="act-history" title="Historique des révisions IA" style="padding:5px 9px; font-size:11px; margin:8px 22px; align-self:flex-start">Historique</button>
@@ -1294,6 +1327,25 @@ function parseResponse(mode, raw){
   if(revSplit!=null){
     out.revised = revSplit.split(/<<<(?:CHANGES|VOCAB)>>>/)[0].trim();
   }
+  if(mode==='audit'){
+    out.synthese = '';
+    out.items = [];
+    const syn = txt.split('<<<SYNTHESE>>>')[1];
+    if(syn) out.synthese = syn.split(/<<<ITEMS>>>/)[0].trim();
+    const ib = txt.split('<<<ITEMS>>>')[1];
+    if(ib){
+      ib.trim().split('\n').forEach(line=>{
+        line = line.replace(/^[-*]\s*/,'').trim(); if(!line) return;
+        const p = line.split(':::').map(s=>s.trim());
+        if(p.length>=4){
+          const type = (p[0]||'').toUpperCase().slice(0,3);
+          const imp = Math.max(1, Math.min(3, parseInt(p[1],10) || 2));
+          out.items.push({ type, imp, extrait:p[2]||'', proposition:p[3]||'', note:p[4]||'' });
+        }
+      });
+    }
+    return out;
+  }
   if(mode==='vocab' || mode==='tics'){
     out.vocab = [];
     const vb = txt.split('<<<VOCAB>>>')[1];
@@ -1383,7 +1435,7 @@ async function runRevision(mode, consigne='', fixedTgt=null, lenTarget=0){
     + '\n\nTu suis EXACTEMENT le format de réponse demandé, sans rien ajouter avant ni après les balises.';
   const consigneLine = consigne ? `Consigne ponctuelle pour CETTE révision, à respecter en priorité (sans changer le format) : ${consigne}\n\n` : '';
   const ctx = (mode==='length') ? '' : buildContext(tgt);   // contexte environnant (sauf pour l'ajustement de longueur)
-  const TEMP = { correct:0, length:0.2, tics:0.3, vocab:0.55, style:0.7 };
+  const TEMP = { correct:0, length:0.2, tics:0.3, vocab:0.55, style:0.7, audit:0.35 };
   const temp = TEMP[mode];
   let user;
   if(mode==='correct'){
@@ -1440,6 +1492,38 @@ terme ::: option1 | option2
 Une ligne par tic repéré.
 
 Texte:
+"""${tgt.text}"""`;
+  } else if(mode==='audit'){
+    user = `Tu es un éditeur littéraire exigeant. Analyse le texte ci-dessous comme un tout et produis un rapport de relecture structuré.
+
+Couvre cinq angles :
+1. SYNTHÈSE — 2 à 4 phrases sobres : forces, faiblesses, ton perçu, public implicite.
+2. CORRECTIONS — orthographe, grammaire, conjugaison, ponctuation (factuelles).
+3. STYLE — clarté, rythme, longueurs de phrases, redondances, formules creuses, voix passive abusive.
+4. VOCABULAIRE — mots faibles, anglicismes inutiles, tics, répétitions, niveau de langue incohérent.
+5. STRUCTURE — équilibre des paragraphes, transitions, ouvertures, conclusions, progression logique, titres.
+
+Règles impératives :
+- Sois exigeant mais juste : ne signale que de vrais problèmes, pas du bruit.
+- Chaque "extrait" doit apparaître TEL QUEL dans le texte (copier-coller exact, sans guillemets ajoutés).
+- Chaque "proposition" est une réécriture courte et concrète, prête à substituer l'extrait.
+- Pour STRUCTURE, l'extrait peut être un ¶ entier ou une phrase d'ancrage; la proposition peut être un conseil (« couper en deux phrases », « inverser l'ordre », « ajouter une transition »).
+- "importance" vaut 1 (à corriger), 2 (à considérer) ou 3 (suggestion).
+
+Réponds EXACTEMENT dans ce format, sans rien d'autre :
+<<<SYNTHESE>>>
+(2 à 4 phrases)
+
+<<<ITEMS>>>
+COR ::: importance ::: extrait ::: proposition ::: note courte
+STY ::: importance ::: extrait ::: proposition ::: note courte
+VOC ::: importance ::: extrait ::: proposition ::: note courte
+TIC ::: importance ::: extrait ::: proposition ::: note courte
+STR ::: importance ::: extrait ::: proposition ::: note courte
+
+Une ligne par item, jusqu'à environ 20-25 items pour ne pas noyer.
+
+Texte (${tgt.text.length} signes) :
 """${tgt.text}"""`;
   } else { // vocab
     user = `Pour le passage ci-dessous, propose pour les termes pertinents des variantes de vocabulaire plus justes ou plus soutenues, fidèles au sens et au registre.
@@ -1516,7 +1600,76 @@ function diffHunks(orig, rev){
   return hunks;
 }
 
+function renderAudit(data, tgt, consigne){
+  const items = data.items || [];
+  const counts = items.reduce((a,it)=>{ a[it.type] = (a[it.type]||0)+1; a._imp1 = (a._imp1||0) + (it.imp===1?1:0); return a; }, {});
+  const TYPES = [
+    { k:'COR', label:'Corrections' },
+    { k:'STY', label:'Style' },
+    { k:'VOC', label:'Vocabulaire' },
+    { k:'TIC', label:'Tics' },
+    { k:'STR', label:'Structure' }
+  ];
+  let h = '';
+  h += `<div class="audit-head"><div class="audit-stat"><span class="audit-n">${items.length}</span> remarques · <span class="audit-imp">${counts._imp1||0}</span> prioritaires</div></div>`;
+  if(data.synthese){
+    h += `<div class="audit-synth"><div class="pl">Synthèse</div><div class="audit-synth-body">${esc(data.synthese)}</div></div>`;
+  }
+  TYPES.forEach(t=>{
+    const arr = items.filter(it=>it.type===t.k);
+    if(!arr.length) return;
+    h += `<div class="audit-section"><div class="audit-section-h"><span class="tag ${t.k.toLowerCase()}">${t.k}</span><span class="audit-section-label">${t.label}</span><span class="audit-section-count">${arr.length}</span></div>`;
+    arr.sort((a,b)=>a.imp-b.imp).forEach((it,i)=>{
+      const ext = esc(it.extrait || '');
+      const prop = esc(it.proposition || '');
+      const note = esc(it.note || '');
+      const impCls = it.imp===1?'imp-1':(it.imp===2?'imp-2':'imp-3');
+      h += `<div class="audit-item ${impCls}" data-type="${t.k}" data-extract="${esc(it.extrait||'')}" data-prop="${esc(it.proposition||'')}">`
+        + `<div class="audit-item-bar"></div><div class="audit-item-body">`
+        + (ext ? `<div class="audit-extract">${ext}</div>` : '')
+        + (prop ? `<div class="audit-prop">→ ${prop}</div>` : '')
+        + (note ? `<div class="audit-note">${note}</div>` : '')
+        + `<div class="audit-actions">`
+        + (ext && prop && t.k!=='STR' ? `<button class="btn-accept audit-apply">Appliquer</button>` : '')
+        + (ext ? `<button class="btn-reject audit-locate">Localiser</button>` : '')
+        + `</div></div></div>`;
+    });
+    h += `</div>`;
+  });
+  if(!items.length){
+    h += `<div class="status">Aucune remarque. Le texte semble en bon état.</div>`;
+  }
+  h += refineFooter(consigne);
+  body.innerHTML = srcBanner(tgt) + h;
+  // Wire actions
+  body.querySelectorAll('.audit-locate').forEach(btn=>{
+    btn.onclick = ()=>{
+      const ext = btn.closest('.audit-item').dataset.extract;
+      if(!ext) return;
+      const idx = editor.value.indexOf(ext);
+      if(idx>=0){ editor.focus(); editor.setSelectionRange(idx, idx+ext.length); editor.scrollTop = Math.max(0, (editor.value.slice(0,idx).split('\n').length-2) * (parseFloat(getComputedStyle(editor).lineHeight)||24)); }
+    };
+  });
+  body.querySelectorAll('.audit-apply').forEach(btn=>{
+    btn.onclick = ()=>{
+      const item = btn.closest('.audit-item');
+      const ext = item.dataset.extract, prop = item.dataset.prop;
+      if(!ext || !prop) return;
+      const idx = editor.value.indexOf(ext);
+      if(idx<0){ btn.textContent = 'Introuvable'; btn.disabled = true; return; }
+      programmatic = true;
+      editor.value = editor.value.slice(0, idx) + prop + editor.value.slice(idx + ext.length);
+      editor.selectionStart = idx; editor.selectionEnd = idx + prop.length;
+      onInput();
+      item.classList.add('audit-applied');
+      btn.textContent = 'Appliqué'; btn.disabled = true;
+    };
+  });
+  wireRefine('audit', tgt, 0);
+}
+
 function renderResult(mode, data, tgt, consigne, lenTarget){
+  if(mode==='audit'){ renderAudit(data, tgt, consigne); return; }
   let h = srcBanner(tgt);
   if(mode==='correct' && data.revised){
     const hunks = diffHunks(tgt.text, data.revised);
@@ -1675,6 +1828,21 @@ $('#act-correct').onclick = ()=>runRevision('correct');
 $('#act-style').onclick = ()=>runRevision('style');
 $('#act-vocab').onclick = ()=>runRevision('vocab');
 $('#act-tics').onclick = ()=>runRevision('tics');
+$('#act-audit').onclick = ()=>{
+  // L'audit porte toujours sur le document entier
+  const tgt = { text: editor.value, start: 0, end: editor.value.length, isSel:false, isAll:true };
+  if(!tgt.text.trim()){ setStatus('Rien à auditer : le texte est vide.', true); return; }
+  runRevision('audit', '', tgt, 0);
+};
+// Bouton dans l'état vide du panneau (présent dans le HTML initial)
+{ const b = $('#empty-audit-btn'); if(b) b.onclick = ()=> $('#act-audit').click(); }
+
+// Raccourci ⌘⇧A pour lancer l'audit
+document.addEventListener('keydown', e=>{
+  if((e.metaKey||e.ctrlKey) && e.shiftKey && (e.key==='A'||e.key==='a')){
+    e.preventDefault(); $('#act-audit').click();
+  }
+});
 
 // Tabs : un clic sur un onglet bascule l'état actif et lance la révision correspondante
 {
@@ -2309,6 +2477,9 @@ $('#act-history').onclick=showHistory;
 
 /* ---------- ⌘K palette ---------- */
 const CMDK_ITEMS = [
+  { section: 'Révision complète', items: [
+    { tag: 'AUD', tagClass: 'vocab', label: 'Audit du document — synthèse + corrections + style + structure', key: '⌘⇧A', action: () => $('#act-audit').click() },
+  ]},
   { section: 'Sur la sélection', items: [
     { tag: 'COR', tagClass: 'vocab', label: 'Corriger la sélection', key: '↵', action: () => $('#act-correct').click() },
     { tag: 'STY', tagClass: 'style', label: 'Reformuler la sélection', key: '⇧↵', action: () => $('#act-style').click() },
