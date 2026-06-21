@@ -184,6 +184,12 @@
   .editor-mirror .d-spell{text-decoration:underline wavy; text-decoration-color:var(--correct); text-decoration-thickness:1px; text-underline-offset:3px}
   .editor-mirror .d-llm{background:var(--accent-soft); border-radius:2px; box-shadow:inset 0 -1.5px 0 var(--accent)}
   body.no-inline-diag .editor-mirror{display:none}
+  /* Focus mode — deux bandes qui voilent ce qui n'est pas en cours d'écriture */
+  .focus-mask{position:absolute; left:0; right:0; pointer-events:none; background:var(--paper); opacity:0; transition:opacity .25s ease, top .18s ease, height .18s ease; z-index:2}
+  body.theme-dark .focus-mask{background:var(--paper)}
+  .focus-mask.on{opacity:.62}
+  .focus-mask.top{top:0}
+  .focus-mask.bot{bottom:0}
   .diag-tip{position:absolute; z-index:20; pointer-events:none; opacity:0; transition:opacity .12s; background:var(--paper-raised); border:1px solid var(--line); border-radius:6px; box-shadow:var(--shadow); padding:6px 10px; font-size:11.5px; max-width:280px; line-height:1.4; color:var(--ink); font-family:'Inter',sans-serif}
   .diag-tip.visible{opacity:1}
   .diag-tip .dt-kind{font-family:'JetBrains Mono',monospace; font-size:9.5px; color:var(--ink-mono); letter-spacing:.08em; text-transform:uppercase; margin-bottom:2px}
@@ -589,7 +595,8 @@
           <span class="zoom-val" id="zoom-pct-vis" title="Réinitialiser le zoom">100%</span>
           <button id="zoom-in-vis" title="Agrandir (⌘+)">+</button>
         </div>
-        <button id="toggle-inline-diag" class="lisib-toggle" style="margin-left:auto" title="Soulignements dans l'éditeur : phrases longues, adverbes, mots inconnus, items LLM">Annoter</button>
+        <button id="toggle-focus" class="lisib-toggle" style="margin-left:auto" title="Focus écriture : voile tout sauf la phrase ou le paragraphe en cours">Focus : off</button>
+        <button id="toggle-inline-diag" class="lisib-toggle" title="Soulignements dans l'éditeur : phrases longues, adverbes, mots inconnus, items LLM">Annoter</button>
       </div>
       <div class="fmtbar" id="fmtbar">
         <button data-fmt="h1" title="Titre 1">H1</button>
@@ -620,6 +627,8 @@
       <div class="editor-wrap" id="editor-wrap">
         <div class="editor-mirror" id="editor-mirror" aria-hidden="true"></div>
         <textarea id="editor" spellcheck="true" placeholder="Sélectionnez un passage pour appeler Plume"></textarea>
+        <div class="focus-mask top" id="focus-top" aria-hidden="true"></div>
+        <div class="focus-mask bot" id="focus-bot" aria-hidden="true"></div>
       </div>
       <div class="diag-tip" id="diag-tip"></div>
       <div class="cmd-bar" id="cmd-bar">
@@ -873,7 +882,7 @@ function normTones(t){
 let state = {
   provider:'anthropic', model:PROVIDERS.anthropic.default, models:{},
   key:'', profile:DEFAULT_PROFILE, tones:cloneTones(),
-  profiles:[], activeId:'', auto:false, lisib:true, spell:true, inlineDiag:true, theme:'light', panelHidden:false, outlineHidden:true, scopeAll:false, doc:'', split:50, zoom:1
+  profiles:[], activeId:'', auto:false, lisib:true, spell:true, inlineDiag:true, focusMode:'off', theme:'light', panelHidden:false, outlineHidden:true, scopeAll:false, doc:'', split:50, zoom:1
 };
 const uid = ()=> 'p'+Math.random().toString(36).slice(2,9)+Date.now().toString(36).slice(-3);
 
@@ -2734,6 +2743,86 @@ $('#toggle-inline-diag').onclick = ()=>{
   applyInlineDiag();
 };
 
+/* ---------- Focus mode (phrase ou paragraphe) ---------- */
+const focusTop = $('#focus-top'), focusBot = $('#focus-bot');
+const FOCUS_CYCLE = ['off','sentence','paragraph'];
+const FOCUS_LABEL = { off:'Focus : off', sentence:'Focus : phrase', paragraph:'Focus : ¶' };
+
+function focusBounds(text, caret){
+  const mode = state.focusMode;
+  if(mode === 'paragraph'){
+    let s = text.lastIndexOf('\n\n', Math.max(0, caret-1));
+    s = s < 0 ? 0 : s + 2;
+    let e = text.indexOf('\n\n', caret);
+    if(e < 0) e = text.length;
+    return { s, e };
+  }
+  // sentence : on coupe sur . ! ? … et les sauts de ligne
+  // backward jusqu'à un terminateur (puis on saute les espaces)
+  let s = caret;
+  while(s > 0){
+    const c = text[s-1];
+    if(c === '.' || c === '!' || c === '?' || c === '…' || c === '\n'){ break; }
+    s--;
+  }
+  while(s < text.length && /\s/.test(text[s])) s++;
+  let e = caret;
+  while(e < text.length){
+    const c = text[e];
+    e++;
+    if(c === '.' || c === '!' || c === '?' || c === '…' || c === '\n') break;
+  }
+  if(e <= s){ e = s + 1; }
+  return { s, e };
+}
+
+function updateFocus(){
+  if(state.focusMode === 'off'){
+    focusTop.classList.remove('on');
+    focusBot.classList.remove('on');
+    return;
+  }
+  const caret = editor.selectionStart;
+  const { s, e } = focusBounds(editor.value, caret);
+  // Position visuelle du début et de la fin (en s'aidant du mirror si dispo, sinon caretCoords)
+  const cs = getComputedStyle(editor);
+  const lineH = parseFloat(cs.lineHeight) || 24;
+  const padTop = parseFloat(cs.paddingTop) || 0;
+  const { top: yStart } = caretCoords(editor, s);
+  const { top: yEnd } = caretCoords(editor, Math.max(s, e-1));
+  // Hauteur visible de l'éditeur
+  const h = editor.clientHeight;
+  // Top mask: de 0 jusqu'au début de la zone
+  const startPx = yStart - editor.scrollTop;
+  const endPx = yEnd + lineH - editor.scrollTop;
+  focusTop.style.top = '0';
+  focusTop.style.height = Math.max(0, startPx) + 'px';
+  focusBot.style.top = Math.min(h, endPx) + 'px';
+  focusBot.style.height = Math.max(0, h - endPx) + 'px';
+  focusTop.classList.add('on');
+  focusBot.classList.add('on');
+}
+
+editor.addEventListener('keyup', updateFocus);
+editor.addEventListener('mouseup', updateFocus);
+editor.addEventListener('input', updateFocus);
+editor.addEventListener('scroll', updateFocus);
+editor.addEventListener('focus', updateFocus);
+editor.addEventListener('blur', () => { /* on laisse les bandes en place pour ne pas clignoter */ });
+window.addEventListener('resize', updateFocus);
+
+function applyFocus(){
+  const btn = $('#toggle-focus');
+  btn.textContent = FOCUS_LABEL[state.focusMode] || 'Focus : off';
+  btn.classList.toggle('on', state.focusMode !== 'off');
+  updateFocus();
+}
+$('#toggle-focus').onclick = ()=>{
+  const i = FOCUS_CYCLE.indexOf(state.focusMode);
+  state.focusMode = FOCUS_CYCLE[(i + 1) % FOCUS_CYCLE.length];
+  persist(); applyFocus();
+};
+
 // Quand un audit produit des items, on les transforme en diagnostics inline
 function setLLMDiagnostics(items){
   llmDiagnostics = (items||[]).map(it => ({
@@ -2746,7 +2835,7 @@ function setLLMDiagnostics(items){
 
 /* ---------- Init ---------- */
 load();
-applyTheme(state.theme); applyPanel(); applyOutline(); applyScope(); applyInlineDiag();
+applyTheme(state.theme); applyPanel(); applyOutline(); applyScope(); applyInlineDiag(); applyFocus();
 editor.value = state.doc || '';
 prevState = snapshot(); updateHistoryUI();
 setSplit(state.split); setZoom(state.zoom);
