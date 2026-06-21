@@ -168,32 +168,12 @@
   .fmtbar button:hover{background:var(--hover); color:var(--ink)}
   .fmt-div{width:1px; height:18px; background:var(--line); margin:0 5px}
   .editor-wrap{flex:1; position:relative; display:flex; min-height:0; overflow:hidden}
-  .editor-mirror{
-    position:absolute; inset:0; pointer-events:none;
-    padding:20px 64px 28px; font-family:'JetBrains Mono',monospace;
-    font-size:14px; line-height:1.78; color:transparent; tab-size:2;
-    white-space:pre-wrap; word-wrap:break-word; overflow-wrap:break-word;
-    overflow:hidden;
-    -webkit-font-smoothing:antialiased;
-  }
-  .editor-mirror span{color:transparent}
-  /* surlignages d'aide à la rédaction (visibles à travers la couleur transparente du texte) */
-  .editor-mirror .d-hard{background:var(--hl-hard); border-radius:2px}
-  .editor-mirror .d-vhard{background:var(--hl-vhard); border-radius:2px}
-  .editor-mirror .d-adv{text-decoration:underline; text-decoration-color:var(--accent); text-decoration-thickness:1.5px; text-underline-offset:3px}
-  .editor-mirror .d-spell{text-decoration:underline wavy; text-decoration-color:var(--correct); text-decoration-thickness:1px; text-underline-offset:3px}
-  .editor-mirror .d-llm{background:var(--accent-soft); border-radius:2px; box-shadow:inset 0 -1.5px 0 var(--accent)}
-  body.no-inline-diag .editor-mirror{display:none}
   /* Focus mode — deux bandes qui voilent ce qui n'est pas en cours d'écriture */
   .focus-mask{position:absolute; left:0; right:0; pointer-events:none; background:var(--paper); opacity:0; transition:opacity .25s ease, top .18s ease, height .18s ease; z-index:2}
   body.theme-dark .focus-mask{background:var(--paper)}
   .focus-mask.on{opacity:.62}
   .focus-mask.top{top:0}
   .focus-mask.bot{bottom:0}
-  .diag-tip{position:absolute; z-index:20; pointer-events:none; opacity:0; transition:opacity .12s; background:var(--paper-raised); border:1px solid var(--line); border-radius:6px; box-shadow:var(--shadow); padding:6px 10px; font-size:11.5px; max-width:280px; line-height:1.4; color:var(--ink); font-family:'Inter',sans-serif}
-  .diag-tip.visible{opacity:1}
-  .diag-tip .dt-kind{font-family:'JetBrains Mono',monospace; font-size:9.5px; color:var(--ink-mono); letter-spacing:.08em; text-transform:uppercase; margin-bottom:2px}
-  #toggle-inline-diag.on{background:var(--accent-soft); color:var(--accent); border-color:var(--accent); font-weight:600}
   #editor{
     flex:1; width:100%; resize:none; border:none; background:transparent;
     padding:20px 64px 28px; font-family:'JetBrains Mono',monospace;
@@ -363,6 +343,8 @@
   .audit-actions .btn-reject{background:transparent; color:var(--ink-muted); border:1px solid var(--line)}
   .audit-applied{opacity:.55}
   .audit-applied .audit-extract{text-decoration:line-through}
+  .audit-ignored{opacity:.35}
+  .audit-ignored .audit-prop{text-decoration:line-through}
   .tag.cor{background:var(--accent-soft); color:var(--accent)}
   .tag.str{background:rgba(62,125,90,.16); color:var(--accept)}
   .tag.tic{background:rgba(181,58,58,.10); color:var(--correct)}
@@ -391,7 +373,9 @@
   .outline-toggle-float:hover{background:var(--hover); color:var(--ink)}
   .outline-toggle-float svg{width:16px; height:16px}
   body.no-outline .outline-toggle-float{display:flex}
-  .rev-toggle{width:24px; height:24px; display:inline-flex; align-items:center; justify-content:center; border-radius:5px; color:var(--ink-muted); margin-left:auto; flex:none}
+  .rev-audit-pill{margin-left:auto; display:inline-flex; align-items:center; gap:5px; padding:4px 9px; font-size:11px; font-weight:500; color:var(--accent); background:var(--accent-soft); border:1px solid transparent; border-radius:5px; font-family:inherit; cursor:pointer}
+  .rev-audit-pill:hover{background:var(--accent); color:var(--on-accent)}
+  .rev-toggle{width:24px; height:24px; display:inline-flex; align-items:center; justify-content:center; border-radius:5px; color:var(--ink-muted); flex:none}
   .rev-toggle:hover{background:var(--hover); color:var(--ink)}
   .rev-toggle svg{width:14px; height:14px}
   .rev-toggle-float{position:fixed; right:12px; top:56px; z-index:25; width:32px; height:32px; display:none; align-items:center; justify-content:center; background:var(--paper-raised); border:1px solid var(--line); border-radius:6px; box-shadow:var(--shadow); color:var(--ink-muted)}
@@ -596,7 +580,6 @@
           <button id="zoom-in-vis" title="Agrandir (⌘+)">+</button>
         </div>
         <button id="toggle-focus" class="lisib-toggle" style="margin-left:auto" title="Focus écriture : voile tout sauf la phrase ou le paragraphe en cours">Focus : off</button>
-        <button id="toggle-inline-diag" class="lisib-toggle" title="Soulignements dans l'éditeur : phrases longues, adverbes, mots inconnus, items LLM">Annoter</button>
       </div>
       <div class="fmtbar" id="fmtbar">
         <button data-fmt="h1" title="Titre 1">H1</button>
@@ -625,12 +608,10 @@
         <button class="s-close" id="s-close" title="Fermer (Échap)">&#10005;</button>
       </div>
       <div class="editor-wrap" id="editor-wrap">
-        <div class="editor-mirror" id="editor-mirror" aria-hidden="true"></div>
         <textarea id="editor" spellcheck="true" placeholder="Sélectionnez un passage pour appeler Plume"></textarea>
         <div class="focus-mask top" id="focus-top" aria-hidden="true"></div>
         <div class="focus-mask bot" id="focus-bot" aria-hidden="true"></div>
       </div>
-      <div class="diag-tip" id="diag-tip"></div>
       <div class="cmd-bar" id="cmd-bar">
         <div class="cmd-bar-inner">
           <button class="cmd-primary" id="cmd-correct"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg> Corriger <span class="cmd-key">↵</span></button>
@@ -661,6 +642,10 @@
         <h2>Révision</h2>
         <span class="count" id="rev-scope"></span>
         <span class="rev-time" id="rev-time" style="display:none"><span class="dot"></span><span id="rev-time-val"></span></span>
+        <button class="rev-audit-pill" id="rev-audit-btn" title="Audit complet du document (⌘⇧A)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width:11px; height:11px"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+          Audit
+        </button>
         <button class="rev-toggle" id="rev-hide" title="Masquer le panneau">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
         </button>
@@ -882,7 +867,7 @@ function normTones(t){
 let state = {
   provider:'anthropic', model:PROVIDERS.anthropic.default, models:{},
   key:'', profile:DEFAULT_PROFILE, tones:cloneTones(),
-  profiles:[], activeId:'', auto:false, lisib:true, spell:true, inlineDiag:true, focusMode:'off', theme:'light', panelHidden:false, outlineHidden:true, scopeAll:false, doc:'', split:50, zoom:1
+  profiles:[], activeId:'', auto:false, lisib:true, spell:true, focusMode:'off', theme:'light', panelHidden:false, outlineHidden:true, scopeAll:false, doc:'', split:50, zoom:1
 };
 const uid = ()=> 'p'+Math.random().toString(36).slice(2,9)+Date.now().toString(36).slice(-3);
 
@@ -1436,10 +1421,25 @@ function parseResponse(mode, raw){
 const body = $('#rev-body');
 function setStatus(html, err){ body.innerHTML = '<div class="status'+(err?' err':'')+'">'+html+'</div>'; }
 function setScope(t){ $('#rev-scope').textContent = t; }
+// HTML de l'état vide — recyclé après « Ignorer » ou clic sur le bouton Audit
+function emptyStateHTML(){
+  return `<div class="empty">
+        Sélectionnez un passage pour appeler Plume.<br><br>
+        La command bar apparaît sous la sélection. Vous pouvez aussi utiliser <b>⌘K</b> pour ouvrir la palette de commandes.<br><br>
+        <button class="btn primary" id="empty-audit-btn" style="padding:8px 14px; font-size:12.5px">Lancer un audit complet du document <span style="font-family:'JetBrains Mono',monospace; opacity:.75; margin-left:6px">⌘⇧A</span></button>
+        <div style="font-size:11.5px; color:var(--ink-muted); margin-top:8px; line-height:1.5">Une passe globale : synthèse, corrections, style, vocabulaire, structure — en un appel.</div>
+      </div>`;
+}
+function resetRevPanel(){
+  body.innerHTML = emptyStateHTML();
+  setScope('');
+  const b = $('#empty-audit-btn'); if(b) b.onclick = ()=> $('#act-audit').click();
+}
 // remet la zone visée en surbrillance dans l'éditeur, pour garder le repère visuel
 function markTarget(tgt){ try{ editor.focus(); editor.setSelectionRange(tgt.start, tgt.end); }catch(e){} }
+function tgtScope(tgt){ return tgt.isAll ? 'tout le document' : (tgt.isSel ? 'sélection' : 'paragraphe courant'); }
 function srcBanner(tgt){
-  const scope = tgt.isSel ? 'sélection' : 'paragraphe courant';
+  const scope = tgtScope(tgt);
   let t = tgt.text.trim(); if(t.length>260) t = t.slice(0,260)+'…';
   return `<div class="proposal" style="padding-bottom:10px"><div class="pl">Texte d'origine · ${scope}</div>`
     + `<div class="proposed-text" style="background:var(--paper); color:var(--ink-soft); font-style:italic">${esc(t)}</div></div>`;
@@ -1463,7 +1463,7 @@ async function runRevision(mode, consigne='', fixedTgt=null, lenTarget=0){
   setActiveAction(mode);
   const tgt = fixedTgt || getTarget();
   if(!tgt.text.trim()){ setStatus('Rien à réviser : le texte est vide.', true); return; }
-  setScope(tgt.isSel ? 'sélection' : 'paragraphe courant');
+  setScope(tgtScope(tgt));
   markTarget(tgt);
   body.innerHTML = srcBanner(tgt) + '<div class="proposal"><div class="pl"><span class="spin"></span>Génération en cours…</div><div class="proposed-text" id="live"></div></div>';
 
@@ -1640,7 +1640,6 @@ function diffHunks(orig, rev){
 
 function renderAudit(data, tgt, consigne){
   const items = data.items || [];
-  setLLMDiagnostics(items);
   const counts = items.reduce((a,it)=>{ a[it.type] = (a[it.type]||0)+1; a._imp1 = (a._imp1||0) + (it.imp===1?1:0); return a; }, {});
   const TYPES = [
     { k:'COR', label:'Corrections' },
@@ -1671,6 +1670,7 @@ function renderAudit(data, tgt, consigne){
         + `<div class="audit-actions">`
         + (ext && prop && t.k!=='STR' ? `<button class="btn-accept audit-apply">Appliquer</button>` : '')
         + (ext ? `<button class="btn-reject audit-locate">Localiser</button>` : '')
+        + `<button class="btn-reject audit-ignore">Ignorer</button>`
         + `</div></div></div>`;
     });
     h += `</div>`;
@@ -1702,6 +1702,13 @@ function renderAudit(data, tgt, consigne){
       onInput();
       item.classList.add('audit-applied');
       btn.textContent = 'Appliqué'; btn.disabled = true;
+    };
+  });
+  body.querySelectorAll('.audit-ignore').forEach(btn=>{
+    btn.onclick = ()=>{
+      const item = btn.closest('.audit-item');
+      item.classList.add('audit-ignored');
+      btn.textContent = 'Ignoré'; btn.disabled = true;
     };
   });
   wireRefine('audit', tgt, 0);
@@ -1761,9 +1768,9 @@ function renderResult(mode, data, tgt, consigne, lenTarget){
     h += refineFooter(consigne);
     body.innerHTML = h;
     body.querySelectorAll('[data-alt]').forEach(btn=>{
-      btn.onclick = ()=>{ applyRange(tgt.start, tgt.end, data.alternatives[+btn.dataset.alt].text); setStatus('Variante appliquée.'); setScope(''); };
+      btn.onclick = ()=>{ applyRange(tgt.start, tgt.end, data.alternatives[+btn.dataset.alt].text); resetRevPanel(); };
     });
-    const ig0 = $('#ignore'); if(ig0) ig0.onclick = ()=>{ setStatus('Propositions ignorées.'); setScope(''); };
+    const ig0 = $('#ignore'); if(ig0) ig0.onclick = ()=>{ resetRevPanel(); };
     applyFound([]);
     wireRefine(mode, tgt); markTarget(tgt);
     return;
@@ -1875,6 +1882,8 @@ $('#act-audit').onclick = ()=>{
 };
 // Bouton dans l'état vide du panneau (présent dans le HTML initial)
 { const b = $('#empty-audit-btn'); if(b) b.onclick = ()=> $('#act-audit').click(); }
+// Bouton « Audit » persistant dans l'en-tête du panneau Révision
+$('#rev-audit-btn').onclick = ()=> $('#act-audit').click();
 
 // Raccourci ⌘⇧A pour lancer l'audit
 document.addEventListener('keydown', e=>{
@@ -1985,7 +1994,7 @@ function openLengthForm(fixedTgt){
   const tgt = fixedTgt || getTarget();
   if(!tgt.text.trim()){ setStatus('Rien à ajuster : le texte est vide.', true); return; }
   setActiveAction('length');
-  setScope(tgt.isSel ? 'sélection' : 'paragraphe courant');
+  setScope(tgtScope(tgt));
   markTarget(tgt);
   const len = tgt.text.length;
   const suggested = Math.max(20, Math.round(len*0.8/5)*5);
@@ -2616,200 +2625,6 @@ document.addEventListener('keydown', e => {
   }
 });
 
-/* ---------- Diagnostics inline (mirror par-dessus l'éditeur) ---------- */
-const mirror = $('#editor-mirror');
-const diagTip = $('#diag-tip');
-let llmDiagnostics = []; // remplis quand l'audit/correct s'exécute
-
-function buildDiagnostics(text){
-  const ranges = [];
-  if(!state.inlineDiag) return ranges;
-
-  // Repère les régions de code (entre ```...```) à ignorer
-  const codeRegions = [];
-  {
-    const lines = text.split('\n');
-    let pos = 0, fenceStart = -1;
-    for(const ln of lines){
-      if(/^\s*```/.test(ln)){
-        if(fenceStart < 0) fenceStart = pos;
-        else { codeRegions.push([fenceStart, pos + ln.length + 1]); fenceStart = -1; }
-      }
-      pos += ln.length + 1;
-    }
-    if(fenceStart >= 0) codeRegions.push([fenceStart, text.length]);
-  }
-  function inCode(idx){
-    for(const [a,b] of codeRegions) if(idx >= a && idx < b) return true;
-    return false;
-  }
-  // Détecte si un offset est à l'intérieur d'un span `inline code` sur sa ligne
-  function inInlineCode(idx){
-    const lineStart = text.lastIndexOf('\n', idx - 1) + 1;
-    const before = text.slice(lineStart, idx);
-    const nBacks = (before.match(/`/g) || []).length;
-    return nBacks % 2 === 1;
-  }
-  // Ligne markdown « structurelle » : liste, titre, citation, séparateur, tableau
-  function isMdStructural(ln){
-    return /^(\s*[-*+]\s|\s*\d+\.\s|\s*#{1,6}\s|\s*>\s|\s*\|)/.test(ln) ||
-           /^\s*-{3,}\s*$/.test(ln);
-  }
-
-  // Phrases longues / très longues — découpe d'abord par ligne, puis par terminateur
-  const lines = text.split('\n');
-  let pos = 0;
-  for(const ln of lines){
-    const lineStart = pos;
-    pos += ln.length + 1;
-    if(!ln.trim()) continue;
-    if(inCode(lineStart)) continue;
-    if(isMdStructural(ln)) continue;
-    const sre = /[^.!?…]+[.!?…]+|[^.!?…\s][^.!?…]*$/g;
-    let m;
-    while((m = sre.exec(ln))){
-      const sent = m[0]; const w = countWords(sent); if(!w) continue;
-      const absStart = lineStart + m.index;
-      const absEnd = absStart + m[0].replace(/\s+$/,'').length;
-      if(w >= 25) ranges.push({s:absStart, e:absEnd, cls:'d-vhard', kind:'Phrase très longue', note:`${w} mots — coupez en deux.`});
-      else if(w >= 18) ranges.push({s:absStart, e:absEnd, cls:'d-hard', kind:'Phrase longue', note:`${w} mots — envisagez une césure.`});
-    }
-  }
-
-  // Adverbes en -ment (sauf code)
-  RE_ADVG.lastIndex = 0;
-  let m;
-  while((m = RE_ADVG.exec(text))){
-    if(inCode(m.index) || inInlineCode(m.index)) continue;
-    ranges.push({s:m.index, e:m.index+m[0].length, cls:'d-adv', kind:'Adverbe en -ment', note:'Vérifiez s\'il apporte vraiment quelque chose.'});
-  }
-
-  // Orthographe — heuristiques anti-faux positifs pour le contenu technique
-  if(state.spell && spell){
-    // Repère les lignes-listes qui contiennent des séparateurs techniques (· ou — ou :)
-    // pour ne pas y déclencher l'ortho (typiquement des références modèles/marques)
-    const techListLines = new Set();
-    {
-      let p = 0;
-      for(const ln of lines){
-        if(/^\s*[-*+]\s/.test(ln) && /[·—:]/.test(ln)) techListLines.add(p);
-        p += ln.length + 1;
-      }
-    }
-    function inTechListLine(idx){
-      // Trouve le début de ligne contenant idx
-      const lineStart = text.lastIndexOf('\n', idx - 1) + 1;
-      return techListLines.has(lineStart);
-    }
-    RE_WORDG.lastIndex = 0;
-    while((m = RE_WORDG.exec(text))){
-      if(inCode(m.index) || inInlineCode(m.index) || inTechListLine(m.index)) continue;
-      const w = m[0];
-      if(!checkWord(w)){
-        ranges.push({s:m.index, e:m.index+w.length, cls:'d-spell', kind:'Mot inconnu', note:'Pas dans le dictionnaire local.'});
-      }
-    }
-  }
-
-  // Items LLM (audit, etc.)
-  llmDiagnostics.forEach(d=>{
-    if(!d.extract) return;
-    const idx = text.indexOf(d.extract);
-    if(idx < 0) return;
-    ranges.push({s:idx, e:idx + d.extract.length, cls:'d-llm', kind:d.kind || 'Suggestion LLM', note:d.note || ''});
-  });
-
-  ranges.sort((a,b) => a.s - b.s || b.e - a.e);
-  return ranges;
-}
-
-function renderMirror(){
-  if(!state.inlineDiag){ mirror.innerHTML = ''; return; }
-  const text = editor.value;
-  const ranges = buildDiagnostics(text);
-  // Construit le HTML : on découpe en segments, chaque segment dans un span s'il a des classes
-  let html = '';
-  let pos = 0;
-  // Convertit en événements start/end pour empiler les classes
-  const events = [];
-  ranges.forEach((r, i) => { events.push({pos:r.s, type:'open', i}); events.push({pos:r.e, type:'close', i}); });
-  events.sort((a,b) => a.pos - b.pos || (a.type==='close' ? -1 : 1));
-  const stack = [];
-  let cursor = 0;
-  events.forEach(ev => {
-    if(ev.pos > cursor){
-      const slice = text.slice(cursor, ev.pos);
-      if(stack.length){
-        const top = stack[stack.length-1];
-        const r = ranges[top];
-        html += `<span class="${r.cls}" data-kind="${esc(r.kind||'')}" data-note="${esc(r.note||'')}">${esc(slice)}</span>`;
-      } else {
-        html += esc(slice);
-      }
-      cursor = ev.pos;
-    }
-    if(ev.type === 'open') stack.push(ev.i);
-    else stack.splice(stack.indexOf(ev.i), 1);
-  });
-  if(cursor < text.length) html += esc(text.slice(cursor));
-  // Préserve les retours à la ligne finaux (white-space:pre-wrap les rendra)
-  mirror.innerHTML = html;
-  // Synchronise le scroll
-  mirror.scrollTop = editor.scrollTop;
-  mirror.scrollLeft = editor.scrollLeft;
-}
-
-// Synchronisation scroll
-editor.addEventListener('scroll', () => {
-  if(!state.inlineDiag) return;
-  mirror.scrollTop = editor.scrollTop;
-  mirror.scrollLeft = editor.scrollLeft;
-});
-// Re-render au input avec debounce léger
-let diagT = null;
-editor.addEventListener('input', () => {
-  if(!state.inlineDiag) return;
-  clearTimeout(diagT);
-  diagT = setTimeout(renderMirror, 80);
-});
-
-// Tooltip au survol d'un span
-const editorWrap = $('#editor-wrap');
-editorWrap.addEventListener('mousemove', e => {
-  if(!state.inlineDiag){ diagTip.classList.remove('visible'); return; }
-  // On cherche le span sous la souris en utilisant document.elementsFromPoint
-  // mais le textarea capture les événements. Solution : on temporairement met pointer-events:auto sur le mirror,
-  // lit l'élément, puis on remet auto. Plus simple : on utilise elementsFromPoint qui traverse même les éléments
-  // sans pointer-events, et on filtre.
-  const el = document.elementsFromPoint(e.clientX, e.clientY).find(x => x.parentElement === mirror || x === mirror);
-  if(el && el.dataset && el.dataset.kind){
-    diagTip.innerHTML = `<div class="dt-kind">${el.dataset.kind}</div>${esc(el.dataset.note||'')}`;
-    const wr = editorWrap.getBoundingClientRect();
-    let x = e.clientX - wr.left + 12;
-    let y = e.clientY - wr.top + 18;
-    // Évite de sortir à droite
-    const tipW = 280;
-    if(x + tipW > wr.width) x = wr.width - tipW - 8;
-    diagTip.style.left = x + 'px';
-    diagTip.style.top = y + 'px';
-    diagTip.classList.add('visible');
-  } else {
-    diagTip.classList.remove('visible');
-  }
-});
-editorWrap.addEventListener('mouseleave', () => diagTip.classList.remove('visible'));
-
-function applyInlineDiag(){
-  document.body.classList.toggle('no-inline-diag', !state.inlineDiag);
-  $('#toggle-inline-diag').classList.toggle('on', state.inlineDiag);
-  if(state.inlineDiag) renderMirror();
-}
-$('#toggle-inline-diag').onclick = ()=>{
-  state.inlineDiag = !state.inlineDiag;
-  persist();
-  applyInlineDiag();
-};
-
 /* ---------- Focus mode (phrase ou paragraphe) ---------- */
 const focusTop = $('#focus-top'), focusBot = $('#focus-bot');
 const FOCUS_CYCLE = ['off','sentence','paragraph'];
@@ -2890,26 +2705,15 @@ $('#toggle-focus').onclick = ()=>{
   persist(); applyFocus();
 };
 
-// Quand un audit produit des items, on les transforme en diagnostics inline
-function setLLMDiagnostics(items){
-  llmDiagnostics = (items||[]).map(it => ({
-    extract: it.extrait,
-    kind: ({COR:'Correction', STY:'Style', VOC:'Vocabulaire', TIC:'Tic de langage', STR:'Structure'})[it.type] || it.type,
-    note: (it.proposition ? '→ ' + it.proposition + (it.note?' · '+it.note:'') : it.note || '')
-  })).filter(d => d.extract);
-  if(state.inlineDiag) renderMirror();
-}
-
 /* ---------- Init ---------- */
 load();
-applyTheme(state.theme); applyPanel(); applyOutline(); applyScope(); applyInlineDiag(); applyFocus();
+applyTheme(state.theme); applyPanel(); applyOutline(); applyScope(); applyFocus();
 editor.value = state.doc || '';
 prevState = snapshot(); updateHistoryUI();
 setSplit(state.split); setZoom(state.zoom);
 $('#toggle-lisib').classList.toggle('on', state.lisib);
 $('#toggle-spell').classList.toggle('on', state.spell);
 renderPreview(); counts(); refreshFooter(); refreshVoice(); if(!state.outlineHidden) renderOutline();
-if(state.inlineDiag) renderMirror();
 if(state.spell) loadSpell().then(renderPreview).catch(()=>{});
 window.addEventListener('load', renderPreview);
 if(!state.key && !new URLSearchParams(location.search).has('demo')) setTimeout(openSettings, 350);
