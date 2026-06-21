@@ -167,10 +167,33 @@
   }
   .fmtbar button:hover{background:var(--hover); color:var(--ink)}
   .fmt-div{width:1px; height:18px; background:var(--line); margin:0 5px}
+  .editor-wrap{flex:1; position:relative; display:flex; min-height:0; overflow:hidden}
+  .editor-mirror{
+    position:absolute; inset:0; pointer-events:none;
+    padding:20px 64px 28px; font-family:'JetBrains Mono',monospace;
+    font-size:14px; line-height:1.78; color:transparent; tab-size:2;
+    white-space:pre-wrap; word-wrap:break-word; overflow-wrap:break-word;
+    overflow:hidden;
+    -webkit-font-smoothing:antialiased;
+  }
+  .editor-mirror span{color:transparent}
+  /* surlignages d'aide à la rédaction (visibles à travers la couleur transparente du texte) */
+  .editor-mirror .d-hard{background:var(--hl-hard); border-radius:2px}
+  .editor-mirror .d-vhard{background:var(--hl-vhard); border-radius:2px}
+  .editor-mirror .d-adv{text-decoration:underline; text-decoration-color:var(--accent); text-decoration-thickness:1.5px; text-underline-offset:3px}
+  .editor-mirror .d-spell{text-decoration:underline wavy; text-decoration-color:var(--correct); text-decoration-thickness:1px; text-underline-offset:3px}
+  .editor-mirror .d-llm{background:var(--accent-soft); border-radius:2px; box-shadow:inset 0 -1.5px 0 var(--accent)}
+  body.no-inline-diag .editor-mirror{display:none}
+  .diag-tip{position:absolute; z-index:20; pointer-events:none; opacity:0; transition:opacity .12s; background:var(--paper-raised); border:1px solid var(--line); border-radius:6px; box-shadow:var(--shadow); padding:6px 10px; font-size:11.5px; max-width:280px; line-height:1.4; color:var(--ink); font-family:'Inter',sans-serif}
+  .diag-tip.visible{opacity:1}
+  .diag-tip .dt-kind{font-family:'JetBrains Mono',monospace; font-size:9.5px; color:var(--ink-mono); letter-spacing:.08em; text-transform:uppercase; margin-bottom:2px}
+  #toggle-inline-diag.on{background:var(--accent-soft); color:var(--accent); border-color:var(--accent); font-weight:600}
   #editor{
     flex:1; width:100%; resize:none; border:none; background:transparent;
     padding:20px 64px 28px; font-family:'JetBrains Mono',monospace;
     font-size:14px; line-height:1.78; color:var(--ink); tab-size:2;
+    position:relative; z-index:1;
+    -webkit-font-smoothing:antialiased;
   }
   #editor::placeholder{color:var(--placeholder)}
   #preview{
@@ -559,13 +582,14 @@
       </div>
     </aside>
     <div class="pane edit">
-      <div class="pane-label" style="display:flex; align-items:center">
+      <div class="pane-label" style="display:flex; align-items:center; gap:14px">
         <span>source.md</span>
         <div class="zoom-controls">
           <button id="zoom-out-vis" title="Réduire (⌘−)">−</button>
           <span class="zoom-val" id="zoom-pct-vis" title="Réinitialiser le zoom">100%</span>
           <button id="zoom-in-vis" title="Agrandir (⌘+)">+</button>
         </div>
+        <button id="toggle-inline-diag" class="lisib-toggle" style="margin-left:auto" title="Soulignements dans l'éditeur : phrases longues, adverbes, mots inconnus, items LLM">Annoter</button>
       </div>
       <div class="fmtbar" id="fmtbar">
         <button data-fmt="h1" title="Titre 1">H1</button>
@@ -593,7 +617,11 @@
         <button class="s-btn" id="s-rep-all" title="Remplacer toutes les occurrences">Tout</button>
         <button class="s-close" id="s-close" title="Fermer (Échap)">&#10005;</button>
       </div>
-      <textarea id="editor" spellcheck="true" placeholder="Sélectionnez un passage pour appeler Plume"></textarea>
+      <div class="editor-wrap" id="editor-wrap">
+        <div class="editor-mirror" id="editor-mirror" aria-hidden="true"></div>
+        <textarea id="editor" spellcheck="true" placeholder="Sélectionnez un passage pour appeler Plume"></textarea>
+      </div>
+      <div class="diag-tip" id="diag-tip"></div>
       <div class="cmd-bar" id="cmd-bar">
         <div class="cmd-bar-inner">
           <button class="cmd-primary" id="cmd-correct"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg> Corriger <span class="cmd-key">↵</span></button>
@@ -845,7 +873,7 @@ function normTones(t){
 let state = {
   provider:'anthropic', model:PROVIDERS.anthropic.default, models:{},
   key:'', profile:DEFAULT_PROFILE, tones:cloneTones(),
-  profiles:[], activeId:'', auto:false, lisib:true, spell:true, theme:'light', panelHidden:false, outlineHidden:true, scopeAll:false, doc:'', split:50, zoom:1
+  profiles:[], activeId:'', auto:false, lisib:true, spell:true, inlineDiag:true, theme:'light', panelHidden:false, outlineHidden:true, scopeAll:false, doc:'', split:50, zoom:1
 };
 const uid = ()=> 'p'+Math.random().toString(36).slice(2,9)+Date.now().toString(36).slice(-3);
 
@@ -1602,6 +1630,7 @@ function diffHunks(orig, rev){
 
 function renderAudit(data, tgt, consigne){
   const items = data.items || [];
+  setLLMDiagnostics(items);
   const counts = items.reduce((a,it)=>{ a[it.type] = (a[it.type]||0)+1; a._imp1 = (a._imp1||0) + (it.imp===1?1:0); return a; }, {});
   const TYPES = [
     { k:'COR', label:'Corrections' },
@@ -2577,15 +2606,154 @@ document.addEventListener('keydown', e => {
   }
 });
 
+/* ---------- Diagnostics inline (mirror par-dessus l'éditeur) ---------- */
+const mirror = $('#editor-mirror');
+const diagTip = $('#diag-tip');
+let llmDiagnostics = []; // remplis quand l'audit/correct s'exécute
+
+function buildDiagnostics(text){
+  const ranges = [];
+  if(!state.inlineDiag) return ranges;
+  // Phrases longues / très longues
+  const sre = /[^.!?…]+[.!?…]+|\S[^.!?…]*$/g; let m;
+  while((m = sre.exec(text))){
+    const sent = m[0], w = countWords(sent);
+    if(w >= 25) ranges.push({s:m.index, e:m.index+sent.length, cls:'d-vhard', kind:'Phrase très longue', note:`${w} mots — coupez en deux.`});
+    else if(w >= 18) ranges.push({s:m.index, e:m.index+sent.length, cls:'d-hard', kind:'Phrase longue', note:`${w} mots — envisagez une césure.`});
+  }
+  // Adverbes en -ment
+  RE_ADVG.lastIndex = 0;
+  while((m = RE_ADVG.exec(text))){
+    ranges.push({s:m.index, e:m.index+m[0].length, cls:'d-adv', kind:'Adverbe en -ment', note:'Vérifiez s\'il apporte vraiment quelque chose.'});
+  }
+  // Orthographe
+  if(state.spell && spell){
+    RE_WORDG.lastIndex = 0;
+    while((m = RE_WORDG.exec(text))){
+      const w = m[0]; if(!checkWord(w)){
+        ranges.push({s:m.index, e:m.index+w.length, cls:'d-spell', kind:'Mot inconnu', note:'Pas dans le dictionnaire local.'});
+      }
+    }
+  }
+  // Items LLM (audit, etc.)
+  llmDiagnostics.forEach(d=>{
+    if(!d.extract) return;
+    const idx = text.indexOf(d.extract);
+    if(idx < 0) return;
+    ranges.push({s:idx, e:idx + d.extract.length, cls:'d-llm', kind:d.kind || 'Suggestion LLM', note:d.note || ''});
+  });
+  // Trie par position et fusionne les chevauchements (on garde le plus prioritaire)
+  ranges.sort((a,b) => a.s - b.s || b.e - a.e);
+  return ranges;
+}
+
+function renderMirror(){
+  if(!state.inlineDiag){ mirror.innerHTML = ''; return; }
+  const text = editor.value;
+  const ranges = buildDiagnostics(text);
+  // Construit le HTML : on découpe en segments, chaque segment dans un span s'il a des classes
+  let html = '';
+  let pos = 0;
+  // Convertit en événements start/end pour empiler les classes
+  const events = [];
+  ranges.forEach((r, i) => { events.push({pos:r.s, type:'open', i}); events.push({pos:r.e, type:'close', i}); });
+  events.sort((a,b) => a.pos - b.pos || (a.type==='close' ? -1 : 1));
+  const stack = [];
+  let cursor = 0;
+  events.forEach(ev => {
+    if(ev.pos > cursor){
+      const slice = text.slice(cursor, ev.pos);
+      if(stack.length){
+        const top = stack[stack.length-1];
+        const r = ranges[top];
+        html += `<span class="${r.cls}" data-kind="${esc(r.kind||'')}" data-note="${esc(r.note||'')}">${esc(slice)}</span>`;
+      } else {
+        html += esc(slice);
+      }
+      cursor = ev.pos;
+    }
+    if(ev.type === 'open') stack.push(ev.i);
+    else stack.splice(stack.indexOf(ev.i), 1);
+  });
+  if(cursor < text.length) html += esc(text.slice(cursor));
+  // Préserve les retours à la ligne finaux (white-space:pre-wrap les rendra)
+  mirror.innerHTML = html;
+  // Synchronise le scroll
+  mirror.scrollTop = editor.scrollTop;
+  mirror.scrollLeft = editor.scrollLeft;
+}
+
+// Synchronisation scroll
+editor.addEventListener('scroll', () => {
+  if(!state.inlineDiag) return;
+  mirror.scrollTop = editor.scrollTop;
+  mirror.scrollLeft = editor.scrollLeft;
+});
+// Re-render au input avec debounce léger
+let diagT = null;
+editor.addEventListener('input', () => {
+  if(!state.inlineDiag) return;
+  clearTimeout(diagT);
+  diagT = setTimeout(renderMirror, 80);
+});
+
+// Tooltip au survol d'un span
+const editorWrap = $('#editor-wrap');
+editorWrap.addEventListener('mousemove', e => {
+  if(!state.inlineDiag){ diagTip.classList.remove('visible'); return; }
+  // On cherche le span sous la souris en utilisant document.elementsFromPoint
+  // mais le textarea capture les événements. Solution : on temporairement met pointer-events:auto sur le mirror,
+  // lit l'élément, puis on remet auto. Plus simple : on utilise elementsFromPoint qui traverse même les éléments
+  // sans pointer-events, et on filtre.
+  const el = document.elementsFromPoint(e.clientX, e.clientY).find(x => x.parentElement === mirror || x === mirror);
+  if(el && el.dataset && el.dataset.kind){
+    diagTip.innerHTML = `<div class="dt-kind">${el.dataset.kind}</div>${esc(el.dataset.note||'')}`;
+    const wr = editorWrap.getBoundingClientRect();
+    let x = e.clientX - wr.left + 12;
+    let y = e.clientY - wr.top + 18;
+    // Évite de sortir à droite
+    const tipW = 280;
+    if(x + tipW > wr.width) x = wr.width - tipW - 8;
+    diagTip.style.left = x + 'px';
+    diagTip.style.top = y + 'px';
+    diagTip.classList.add('visible');
+  } else {
+    diagTip.classList.remove('visible');
+  }
+});
+editorWrap.addEventListener('mouseleave', () => diagTip.classList.remove('visible'));
+
+function applyInlineDiag(){
+  document.body.classList.toggle('no-inline-diag', !state.inlineDiag);
+  $('#toggle-inline-diag').classList.toggle('on', state.inlineDiag);
+  if(state.inlineDiag) renderMirror();
+}
+$('#toggle-inline-diag').onclick = ()=>{
+  state.inlineDiag = !state.inlineDiag;
+  persist();
+  applyInlineDiag();
+};
+
+// Quand un audit produit des items, on les transforme en diagnostics inline
+function setLLMDiagnostics(items){
+  llmDiagnostics = (items||[]).map(it => ({
+    extract: it.extrait,
+    kind: ({COR:'Correction', STY:'Style', VOC:'Vocabulaire', TIC:'Tic de langage', STR:'Structure'})[it.type] || it.type,
+    note: (it.proposition ? '→ ' + it.proposition + (it.note?' · '+it.note:'') : it.note || '')
+  })).filter(d => d.extract);
+  if(state.inlineDiag) renderMirror();
+}
+
 /* ---------- Init ---------- */
 load();
-applyTheme(state.theme); applyPanel(); applyOutline(); applyScope();
+applyTheme(state.theme); applyPanel(); applyOutline(); applyScope(); applyInlineDiag();
 editor.value = state.doc || '';
 prevState = snapshot(); updateHistoryUI();
 setSplit(state.split); setZoom(state.zoom);
 $('#toggle-lisib').classList.toggle('on', state.lisib);
 $('#toggle-spell').classList.toggle('on', state.spell);
 renderPreview(); counts(); refreshFooter(); refreshVoice(); if(!state.outlineHidden) renderOutline();
+if(state.inlineDiag) renderMirror();
 if(state.spell) loadSpell().then(renderPreview).catch(()=>{});
 window.addEventListener('load', renderPreview);
 if(!state.key && !new URLSearchParams(location.search).has('demo')) setTimeout(openSettings, 350);
