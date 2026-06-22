@@ -2476,12 +2476,25 @@ const CUSTOM = '__custom__';
 // remplit le menu des modèles du fournisseur p et y sélectionne `current` (sinon « personnalisé »)
 function populateModels(p, current){
   const sel = $('#set-model-sel'), models = PROVIDERS[p].models || [];
+  // Pour un agent local, on cache le dropdown : le nom du modèle dépend
+  // entièrement de ce que l'utilisateur a chargé localement, libre saisie.
+  if(p === 'local'){
+    sel.style.display = 'none';
+    $('#set-model').value = current || PROVIDERS[p].default;
+    $('#set-model').placeholder = 'ex. llama3.2, gemma, qwen2.5, mistral…';
+    $('#set-model').style.display = '';
+    return;
+  }
+  sel.style.display = '';
+  $('#set-model').placeholder = 'nom exact du modèle';
   sel.innerHTML = models.map(m=>`<option value="${esc(m)}">${esc(m)}</option>`).join('')
     + `<option value="${CUSTOM}">Autre (saisir le nom)…</option>`;
   if(current && models.includes(current)){ sel.value = current; $('#set-model').style.display='none'; }
   else { sel.value = CUSTOM; $('#set-model').value = current || ''; $('#set-model').style.display=''; }
 }
 function selectedModel(p){
+  // Pour un agent local : on prend directement la valeur saisie (pas de dropdown).
+  if(p === 'local') return $('#set-model').value.trim() || PROVIDERS[p].default;
   const v = $('#set-model-sel').value;
   if(v===CUSTOM) return $('#set-model').value.trim() || PROVIDERS[p].default;
   return v;
