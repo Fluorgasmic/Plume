@@ -731,6 +731,7 @@
             <option value="perplexity">Perplexity</option>
             <option value="deepseek">DeepSeek</option>
             <option value="xai">xAI (Grok)</option>
+            <option value="local">Agent local (Ollama, LM Studio…)</option>
           </select>
         </div>
         <div>
@@ -741,8 +742,14 @@
       <div class="hint" id="model-hint"></div>
     </div>
 
+    <div class="field" id="set-local-row" style="display:none">
+      <label for="set-local-url">Endpoint local</label>
+      <input type="text" id="set-local-url" placeholder="http://localhost:11434/v1/chat/completions">
+      <div class="hint">Ollama : <code>http://localhost:11434/v1/chat/completions</code><br>LM Studio : <code>http://localhost:1234/v1/chat/completions</code></div>
+    </div>
+
     <div class="field">
-      <label for="set-key">Clé API</label>
+      <label for="set-key">Clé API <span id="set-key-opt" style="display:none; font-weight:normal; font-size:11.5px; color:var(--ink-muted)">(facultative pour un agent local)</span></label>
       <input type="password" id="set-key" placeholder="collée ici, jamais dans le code">
     </div>
 
@@ -855,8 +862,10 @@ const PROVIDERS = {
   qwen:{ default:'qwen-plus', models:['qwen-plus','qwen-max','qwen-turbo'], hint:'API DashScope (endpoint international). « turbo » = plus rapide.' },
   perplexity:{ default:'sonar-pro', models:['sonar','sonar-pro','sonar-reasoning'], hint:'Orienté recherche web : moins adapté à la pure correction.' },
   deepseek:{ default:'deepseek-chat', models:['deepseek-chat','deepseek-reasoner'], hint:'DeepSeek.' },
-  xai:{ default:'grok-2-latest', models:['grok-2-latest','grok-beta'], hint:'xAI (Grok).' }
+  xai:{ default:'grok-2-latest', models:['grok-2-latest','grok-beta'], hint:'xAI (Grok).' },
+  local:{ default:'llama3.2', models:['llama3.2','llama3.1','qwen2.5','mistral','mixtral'], hint:'Agent local — Ollama (port 11434), LM Studio (port 1234), llama.cpp, ou n\'importe quel serveur compatible OpenAI. La clé est facultative ; renseigne l\'endpoint ci-dessous.' }
 };
+const LOCAL_DEFAULT_URL = 'http://localhost:11434/v1/chat/completions';
 
 // Fournisseurs compatibles avec l'API « chat completions » d'OpenAI : même corps de requête, seul l'endpoint change.
 const OPENAI_COMPAT = {
@@ -866,7 +875,8 @@ const OPENAI_COMPAT = {
   qwen:'https://dashscope-intl.aliyuncs.com/compatible-mode/v1/chat/completions',
   perplexity:'https://api.perplexity.ai/chat/completions',
   deepseek:'https://api.deepseek.com/chat/completions',
-  xai:'https://api.x.ai/v1/chat/completions'
+  xai:'https://api.x.ai/v1/chat/completions',
+  local:LOCAL_DEFAULT_URL
 };
 
 const DEFAULT_PROFILE =
@@ -894,7 +904,7 @@ function normTones(t){
 }
 
 let state = {
-  provider:'anthropic', model:PROVIDERS.anthropic.default, models:{},
+  provider:'anthropic', model:PROVIDERS.anthropic.default, models:{}, localUrl:LOCAL_DEFAULT_URL,
   key:'', profile:DEFAULT_PROFILE, tones:cloneTones(),
   profiles:[], activeId:'', auto:false, lisib:true, spell:true, smartTypo:true, focusMode:'off', theme:'light', panelHidden:false, outlineHidden:true, scopeAll:false, doc:'', split:50, zoom:1,
   documents:[], activeDocId:''
@@ -1485,8 +1495,9 @@ function applyRange(start, end, replacement){
 /* ---------- Appel LLM ---------- */
 // Si onChunk est fourni, la réponse est streamée (SSE) et onChunk(texteCumulé) est appelé au fil de l'eau.
 async function callLLM(system, user, onChunk, temperature){
-  if(!state.key) throw new Error('Aucune clé API. Ouvre les réglages.');
   const p = state.provider;
+  // La clé API est facultative pour un agent local (Ollama, LM Studio, etc.)
+  if(p !== 'local' && !state.key) throw new Error('Aucune clé API. Ouvre les réglages.');
   const stream = typeof onChunk === 'function';
   const hasT = typeof temperature === 'number';
   let url, headers, body;
@@ -1503,6 +1514,14 @@ async function callLLM(system, user, onChunk, temperature){
     headers={'content-type':'application/json','x-goog-api-key':state.key};
     body={ system_instruction:{parts:[{text:system}]}, contents:[{role:'user',parts:[{text:user}]}], generationConfig:{maxOutputTokens:4000} };
     if(hasT) body.generationConfig.temperature = temperature;
+  } else if(p==='local'){
+    url = (state.localUrl||'').trim() || LOCAL_DEFAULT_URL;
+    headers={'content-type':'application/json'};
+    if(state.key) headers['authorization'] = 'Bearer ' + state.key;
+    // Format OpenAI-compatible — Ollama et LM Studio l'exposent par défaut sur /v1/chat/completions
+    body={ model:state.model, max_tokens:4000, messages:[{role:'system',content:system},{role:'user',content:user}] };
+    if(hasT) body.temperature = temperature;
+    if(stream) body.stream = true;
   } else {
     url = OPENAI_COMPAT[p];
     if(!url) throw new Error('Fournisseur inconnu : '+p);
@@ -2472,13 +2491,21 @@ function applyTheme(t){
   document.body.classList.toggle('theme-dark', dark);
 }
 if(window.matchMedia) matchMedia('(prefers-color-scheme: dark)').addEventListener('change', ()=>{ if(state.theme==='auto') applyTheme('auto'); });
+function applyLocalUI(p){
+  const isLocal = (p === 'local');
+  $('#set-local-row').style.display = isLocal ? '' : 'none';
+  $('#set-key-opt').style.display = isLocal ? '' : 'none';
+  $('#set-key').placeholder = isLocal ? 'facultatif — laisse vide si pas requis' : 'collée ici, jamais dans le code';
+}
 function openSettings(){
   $('#set-provider').value = state.provider;
   populateModels(state.provider, state.models[state.provider] || state.model);
   $('#set-key').value = state.key;
+  $('#set-local-url').value = state.localUrl || LOCAL_DEFAULT_URL;
   $('#set-theme').value = state.theme || 'light';
   $('#set-auto').checked = state.auto;
   $('#model-hint').textContent = PROVIDERS[state.provider].hint;
+  applyLocalUI(state.provider);
   $('#settings').classList.remove('hidden');
 }
 $('#act-settings').onclick = openSettings;
@@ -2487,6 +2514,7 @@ $('#set-provider').onchange = e=>{
   const p = e.target.value;
   populateModels(p, state.models[p] || PROVIDERS[p].default);
   $('#model-hint').textContent = PROVIDERS[p].hint;
+  applyLocalUI(p);
 };
 $('#set-model-sel').onchange = e=>{
   const custom = e.target.value===CUSTOM;
@@ -2499,6 +2527,9 @@ $('#set-save').onclick = ()=>{
   state.model = selectedModel(p);
   state.models = {...state.models, [p]:state.model}; // mémorise le modèle par fournisseur
   state.key = $('#set-key').value.trim();
+  if(p === 'local'){
+    state.localUrl = ($('#set-local-url').value.trim()) || LOCAL_DEFAULT_URL;
+  }
   state.theme = $('#set-theme').value;
   state.auto = $('#set-auto').checked;
   applyTheme(state.theme);
@@ -2506,7 +2537,10 @@ $('#set-save').onclick = ()=>{
   $('#settings').classList.add('hidden');
 };
 function refreshFooter(){
-  $('#stat-model').textContent = state.provider + ' · ' + state.model + (state.key?'':' · clé manquante');
+  // Pour un agent local : pas d'avertissement « clé manquante » (la clé est facultative)
+  const missing = (state.provider !== 'local' && !state.key) ? ' · clé manquante' : '';
+  const label = state.provider === 'local' ? 'local · ' + state.model : state.provider + ' · ' + state.model;
+  $('#stat-model').textContent = label + missing;
 }
 
 /* ---------- Profils de voix : sélecteur + gestionnaire ---------- */
@@ -2849,8 +2883,10 @@ $('#act-history').onclick=showHistory;
     }
     const sel = ed.value.slice(s, e);
     const chars = sel.length;
-    const words = sel.trim().split(/\s+/).filter(Boolean).length;
-    const sentences = sel.split(/[.!?]+/).filter(s => s.trim()).length;
+    // Réutilise les compteurs de l'aperçu pour rester cohérent avec le footer et
+    // les stats de lisibilité (ne compte que les vrais mots, pas la ponctuation isolée).
+    const words = countWords(sel);
+    const sentences = splitSentences(sel).filter(p => p.trim().length).length;
     cmdStat.textContent = `sélection · ${chars} signes · ${words} mots · ${sentences} phrases`;
 
     const cs = getComputedStyle(ed);
@@ -3096,7 +3132,7 @@ $('#toggle-spell').classList.toggle('on', state.spell);
 renderPreview(); counts(); refreshFooter(); refreshVoice(); if(!state.outlineHidden) renderOutline();
 if(state.spell) loadSpell().then(renderPreview).catch(()=>{});
 window.addEventListener('load', renderPreview);
-if(!state.key && !new URLSearchParams(location.search).has('demo')) setTimeout(openSettings, 350);
+if(state.provider !== 'local' && !state.key && !new URLSearchParams(location.search).has('demo')) setTimeout(openSettings, 350);
 
 /* ---------- Mode démo (?demo=1) : pré-rempli, sans modal ---------- */
 (function(){
