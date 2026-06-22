@@ -1693,6 +1693,8 @@ async function runRevision(mode, consigne='', fixedTgt=null, lenTarget=0){
   const tgt = fixedTgt || getTarget();
   if(!tgt){ setStatus(NO_SEL_MSG, true); return; }
   if(!tgt.text.trim()){ setStatus('Rien à réviser : le texte est vide.', true); return; }
+  // Le panneau de Révision doit être visible quand une révision démarre
+  if(state.panelHidden){ state.panelHidden = false; persist(); applyPanel(); }
   setScope(tgtScope(tgt));
   markTarget(tgt);
   body.innerHTML = srcBanner(tgt) + '<div class="proposal"><div class="pl"><span class="spin"></span>Génération en cours…</div><div class="proposed-text" id="live"></div></div>';
@@ -2854,12 +2856,23 @@ $('#act-history').onclick=showHistory;
     const cs = getComputedStyle(ed);
     const lineH = parseFloat(cs.lineHeight) || 24;
     const padLeft = parseFloat(cs.paddingLeft) || 0;
-    // visual position of selection end inside the textarea
-    const { top: caretTop } = caretCoords(ed, e);
-    // place command bar just below the end of selection
-    const top = ed.offsetTop + caretTop + lineH - ed.scrollTop + 8;
-    cmdBar.style.left = (ed.offsetLeft + padLeft) + 'px';
-    cmdBar.style.top = Math.max(ed.offsetTop + 8, top) + 'px';
+    // Position du DERNIER caractère sélectionné (e-1) plutôt que e :
+    // le caractère à la position e (premier non-sélectionné) peut être un \n ou un
+    // espace qui se rend sur la même ligne visuelle, donnant un placement faux.
+    const lastSelected = Math.max(s, e - 1);
+    const { top: caretTop } = caretCoords(ed, lastSelected);
+    // L'éditeur vit dans .editor-wrap, mais la cmd-bar est enfant direct de .pane.edit
+    // (le wrap n'a pas position:relative). Quand la bar est cachée display:none, son
+    // offsetParent est null — on utilise donc son parentNode comme référentiel sûr.
+    const parent = cmdBar.parentNode;
+    const edRect = ed.getBoundingClientRect();
+    const parentRect = parent.getBoundingClientRect();
+    const edTopInParent = edRect.top - parentRect.top;
+    const edLeftInParent = edRect.left - parentRect.left;
+    // Place la command bar juste sous la ligne du dernier caractère sélectionné
+    const top = edTopInParent + caretTop + lineH + 10 - ed.scrollTop;
+    cmdBar.style.left = (edLeftInParent + padLeft) + 'px';
+    cmdBar.style.top = Math.max(edTopInParent + 8, top) + 'px';
     if (!cmdVisible) { cmdBar.classList.add('visible'); cmdVisible = true; }
   }
 
