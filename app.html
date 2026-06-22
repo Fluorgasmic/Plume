@@ -1323,13 +1323,25 @@ editor.addEventListener('beforeinput', function(e){
     return;
   }
 
-  // 4) Espace fine insécable avant : ; ! ? »
-  //    Si le caractère tapé est ces ponctuations et qu'il est précédé d'un espace
-  //    normal (et que ce n'est pas du code ":" sans espace), on remplace l'espace par U+202F.
+  // 4a) Espace fine insécable avant : ; ! ? »
+  //     Si on tape la ponctuation et qu'elle est précédée d'un espace normal,
+  //     on remplace l'espace par U+202F.
   if(ch === ':' || ch === ';' || ch === '!' || ch === '?' || ch === '»'){
     if(before.endsWith(' ')){
       e.preventDefault();
       smartTypoReplace(NNBSP + ch, s-1, s);
+      return;
+    }
+  }
+
+  // 4b) Cas inverse : on tape une espace juste avant une de ces ponctuations
+  //     (ex. l'utilisateur revient dans « mot: » et veut ajouter l'espace).
+  //     On insère directement une espace fine insécable plutôt qu'une espace ordinaire.
+  if(ch === ' '){
+    const after = v.slice(s, s+1);
+    if(after === ':' || after === ';' || after === '!' || after === '?' || after === '»'){
+      e.preventDefault();
+      smartTypoReplace(NNBSP, s, s);
       return;
     }
   }
