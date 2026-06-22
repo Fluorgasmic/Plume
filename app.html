@@ -1247,17 +1247,27 @@ $('#zoom-out-vis').onclick = ()=>{ setZoom(state.zoom - 0.1); persist(); };
 $('#zoom-pct-vis').onclick = ()=>{ setZoom(1); persist(); };
 
 /* ---------- Sélection / portée ---------- */
-// Renvoie null si l'utilisateur est en mode « Sélection » mais que rien n'est sélectionné.
-// L'appelant doit alors afficher un message d'aide explicite.
-function getTarget(){
+// opts.fallbackParagraph : en mode « Sélection » sans sélection, retombe sur le ¶ courant
+//   (utilisé par l'audit). Sans cette option, on retourne null pour forcer l'utilisateur
+//   à sélectionner — utile pour les actions ciblées (corriger, reformuler, vocabulaire).
+function getTarget(opts){
+  opts = opts || {};
   if (state.scopeAll) {
     return { text: editor.value, start: 0, end: editor.value.length, isSel: false, isAll: true };
   }
   const s = editor.selectionStart, e = editor.selectionEnd;
   if(e > s) return { text: editor.value.slice(s,e), start:s, end:e, isSel:true };
+  if (opts.fallbackParagraph){
+    const v = editor.value;
+    let start = v.lastIndexOf('\n\n', Math.max(0, s-1)); start = start<0 ? 0 : start+2;
+    let end = v.indexOf('\n\n', s); end = end<0 ? v.length : end;
+    const para = v.slice(start, end);
+    if (para.trim().length) return { text: para, start, end, isSel:false, isPara:true };
+  }
   return null;
 }
 const NO_SEL_MSG = 'Sélectionnez un passage à modifier — ou basculez sur <b>Tout le document</b> dans l\'en-tête pour réviser le texte entier.';
+const NO_PARA_MSG = 'Placez le curseur dans un paragraphe à auditer — ou basculez sur <b>Tout le document</b> dans l\'en-tête.';
 function applyRange(start, end, replacement){
   programmatic = true;
   editor.value = editor.value.slice(0,start) + replacement + editor.value.slice(end);
@@ -1421,11 +1431,16 @@ function setStatus(html, err){ body.innerHTML = '<div class="status'+(err?' err'
 function setScope(t){ $('#rev-scope').textContent = t; }
 // HTML de l'état vide — recyclé après « Ignorer » ou clic sur le bouton Audit
 function emptyStateHTML(){
+  const allMode = !!state.scopeAll;
+  const ctaLabel = allMode ? 'Auditer tout le document' : 'Auditer le paragraphe courant';
+  const explainer = allMode
+    ? 'Synthèse, corrections, style, vocabulaire, structure — sur l\'ensemble du texte, en un appel.'
+    : 'Synthèse, corrections, style, vocabulaire, structure — sur la sélection ou, à défaut, le paragraphe où se trouve le curseur. Pour auditer tout le texte, basculez le toggle ci-dessus.';
   return `<div class="empty">
         Sélectionnez un passage pour appeler Plume.<br><br>
         La command bar apparaît sous la sélection. Vous pouvez aussi utiliser <b>⌘K</b> pour ouvrir la palette de commandes.<br><br>
-        <button class="btn primary" id="empty-audit-btn" style="padding:8px 14px; font-size:12.5px">Lancer un audit <span style="font-family:'JetBrains Mono',monospace; opacity:.75; margin-left:6px">⌘⇧A</span></button>
-        <div style="font-size:11.5px; color:var(--ink-muted); margin-top:8px; line-height:1.5">Synthèse, corrections, style, vocabulaire, structure — en un appel. La portée suit le toggle ci-dessus (sélection ou tout le document).</div>
+        <button class="btn primary" id="empty-audit-btn" style="padding:8px 14px; font-size:12.5px">${ctaLabel} <span style="font-family:'JetBrains Mono',monospace; opacity:.75; margin-left:6px">⌘⇧A</span></button>
+        <div style="font-size:11.5px; color:var(--ink-muted); margin-top:8px; line-height:1.5">${explainer}</div>
       </div>`;
 }
 function resetRevPanel(){
@@ -1433,9 +1448,18 @@ function resetRevPanel(){
   setScope('');
   const b = $('#empty-audit-btn'); if(b) b.onclick = ()=> $('#act-audit').click();
 }
+// Re-rend l'état vide quand on bascule la portée, pour que CTA + explainer reflètent le bon mode.
+function refreshEmptyState(){
+  if(body.querySelector('.empty')) resetRevPanel();
+}
 // remet la zone visée en surbrillance dans l'éditeur, pour garder le repère visuel
 function markTarget(tgt){ try{ editor.focus(); editor.setSelectionRange(tgt.start, tgt.end); }catch(e){} }
-function tgtScope(tgt){ return tgt.isAll ? 'tout le document' : (tgt.isSel ? 'sélection' : 'paragraphe courant'); }
+function tgtScope(tgt){
+  if(tgt.isAll) return 'tout le document';
+  if(tgt.isSel) return 'sélection';
+  if(tgt.isPara) return 'paragraphe courant';
+  return 'sélection';
+}
 function srcBanner(tgt){
   const scope = tgtScope(tgt);
   let t = tgt.text.trim(); if(t.length>260) t = t.slice(0,260)+'…';
@@ -1874,9 +1898,10 @@ $('#act-style').onclick = ()=>runRevision('style');
 $('#act-vocab').onclick = ()=>runRevision('vocab');
 $('#act-tics').onclick = ()=>runRevision('tics');
 $('#act-audit').onclick = ()=>{
-  // L'audit respecte la portée choisie : sélection ou tout le document
-  const tgt = getTarget();
-  if(!tgt){ setStatus(NO_SEL_MSG, true); return; }
+  // Audit : en mode Sélection, on prend la sélection ou à défaut le ¶ courant.
+  //         en mode Tout le document, on prend tout.
+  const tgt = getTarget({fallbackParagraph: true});
+  if(!tgt){ setStatus(NO_PARA_MSG, true); return; }
   if(!tgt.text.trim()){ setStatus('Rien à auditer : le texte est vide.', true); return; }
   runRevision('audit', '', tgt, 0);
 };
@@ -1910,6 +1935,7 @@ function applyScope(){
   document.querySelectorAll('#scope-seg button').forEach(b => {
     b.classList.toggle('on', (b.dataset.scope === 'all') === !!state.scopeAll);
   });
+  if(typeof refreshEmptyState === 'function') refreshEmptyState();
 }
 document.querySelectorAll('#scope-seg button').forEach(btn => {
   btn.addEventListener('click', () => {
@@ -2709,6 +2735,7 @@ $('#toggle-focus').onclick = ()=>{
 /* ---------- Init ---------- */
 load();
 applyTheme(state.theme); applyPanel(); applyOutline(); applyScope(); applyFocus();
+resetRevPanel(); // empty state initial avec CTA/explainer adaptés au scope
 editor.value = state.doc || '';
 prevState = snapshot(); updateHistoryUI();
 setSplit(state.split); setZoom(state.zoom);
