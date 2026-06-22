@@ -345,6 +345,8 @@
   .audit-applied .audit-extract{text-decoration:line-through}
   .audit-ignored{opacity:.35}
   .audit-ignored .audit-prop{text-decoration:line-through}
+  .audit-foot{padding:14px 22px 18px; border-top:1px solid var(--line); display:flex; justify-content:center}
+  .audit-foot button{font-size:12px; padding:7px 16px}
   .tag.cor{background:var(--accent-soft); color:var(--accent)}
   .tag.str{background:rgba(62,125,90,.16); color:var(--accept)}
   .tag.tic{background:rgba(181,58,58,.10); color:var(--correct)}
@@ -1702,6 +1704,7 @@ function renderAudit(data, tgt, consigne){
     h += `<div class="status">Aucune remarque. Le texte semble en bon état.</div>`;
   }
   h += refineFooter(consigne);
+  h += `<div class="audit-foot"><button class="btn ghost" id="audit-clear" title="Vide le rapport et revient à l'état d'accueil">Vider le rapport</button></div>`;
   body.innerHTML = srcBanner(tgt) + h;
   // Wire actions
   body.querySelectorAll('.audit-locate').forEach(btn=>{
@@ -1734,6 +1737,7 @@ function renderAudit(data, tgt, consigne){
       btn.textContent = 'Ignoré'; btn.disabled = true;
     };
   });
+  { const cb = $('#audit-clear'); if(cb) cb.onclick = ()=> resetRevPanel(); }
   wireRefine('audit', tgt, 0);
 }
 
