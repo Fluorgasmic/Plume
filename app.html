@@ -608,6 +608,7 @@
           <button id="zoom-in-vis" title="Agrandir (⌘+)">+</button>
         </div>
         <button id="toggle-focus" class="lisib-toggle" style="margin-left:auto" title="Focus écriture : voile tout sauf la phrase ou le paragraphe en cours">Focus : off</button>
+        <button id="toggle-smart-typo" class="lisib-toggle" title="Typo française : -- → —, ... → …, « » avec espaces fines, espace fine avant : ; ! ?">Typo</button>
       </div>
       <div class="fmtbar" id="fmtbar">
         <button data-fmt="h1" title="Titre 1">H1</button>
@@ -895,7 +896,7 @@ function normTones(t){
 let state = {
   provider:'anthropic', model:PROVIDERS.anthropic.default, models:{},
   key:'', profile:DEFAULT_PROFILE, tones:cloneTones(),
-  profiles:[], activeId:'', auto:false, lisib:true, spell:true, focusMode:'off', theme:'light', panelHidden:false, outlineHidden:true, scopeAll:false, doc:'', split:50, zoom:1,
+  profiles:[], activeId:'', auto:false, lisib:true, spell:true, smartTypo:true, focusMode:'off', theme:'light', panelHidden:false, outlineHidden:true, scopeAll:false, doc:'', split:50, zoom:1,
   documents:[], activeDocId:''
 };
 const uid = ()=> 'p'+Math.random().toString(36).slice(2,9)+Date.now().toString(36).slice(-3);
@@ -1266,6 +1267,73 @@ function onInput(){
   scheduleAuto();
 }
 editor.addEventListener('input', onInput);
+
+/* ---------- Typo française intelligente ---------- */
+// Caractères Unicode :
+//   U+2014 (—) tiret cadratin   U+2026 (…) ellipsis
+//   U+00AB (« ) U+00BB ( »)     guillemets français
+//   U+00A0 ( ) espace insécable  U+202F ( ) espace fine insécable
+const NBSP = ' ', NNBSP = ' ';
+
+function smartTypoReplace(replacement, from, to){
+  // setRangeText respecte l'historique d'undo natif
+  editor.setRangeText(replacement, from, to, 'end');
+  editor.dispatchEvent(new Event('input', {bubbles:true}));
+}
+
+editor.addEventListener('beforeinput', function(e){
+  if(!state.smartTypo) return;
+  // On ne traite que l'insertion d'un seul caractère
+  if(e.inputType !== 'insertText' || !e.data || e.data.length !== 1) return;
+  const ch = e.data;
+  const s = editor.selectionStart, eEnd = editor.selectionEnd;
+  if(s !== eEnd) return; // pas de remplacement si sélection en cours
+  const v = editor.value;
+  const before = v.slice(0, s);
+
+  // 1) -- + - → — (tiret cadratin) quand on tape un troisième — non, on prend le 2e
+  if(ch === '-' && before.endsWith('-') && !before.endsWith('---')){
+    e.preventDefault();
+    smartTypoReplace('—', s-1, s);
+    return;
+  }
+
+  // 2) ... → … (ellipsis) quand on tape le 3e point
+  if(ch === '.' && before.endsWith('..') && !before.endsWith('...')){
+    e.preventDefault();
+    smartTypoReplace('…', s-2, s);
+    return;
+  }
+
+  // 3) " → guillemets français selon le contexte
+  if(ch === '"'){
+    const prev = before.slice(-1);
+    // Ouverture si on est au début, après espace, début de ligne, ou ouvrant
+    const isOpening = !prev || /[\s\n([{«]/.test(prev);
+    e.preventDefault();
+    if(isOpening) smartTypoReplace('«' + NBSP, s, s);
+    else {
+      // Si l'utilisateur vient de taper un espace puis ", on remplace l'espace par fine + »
+      if(prev === ' ' || prev === NBSP || prev === NNBSP){
+        smartTypoReplace(NBSP + '»', s-1, s);
+      } else {
+        smartTypoReplace(NBSP + '»', s, s);
+      }
+    }
+    return;
+  }
+
+  // 4) Espace fine insécable avant : ; ! ? »
+  //    Si le caractère tapé est ces ponctuations et qu'il est précédé d'un espace
+  //    normal (et que ce n'est pas du code ":" sans espace), on remplace l'espace par U+202F.
+  if(ch === ':' || ch === ';' || ch === '!' || ch === '?' || ch === '»'){
+    if(before.endsWith(' ')){
+      e.preventDefault();
+      smartTypoReplace(NNBSP + ch, s-1, s);
+      return;
+    }
+  }
+});
 
 /* ---------- Barre de formatage ---------- */
 function applyFmt(start, end, text, selStart, selEnd){
@@ -2981,9 +3049,17 @@ $('#toggle-focus').onclick = ()=>{
   persist(); applyFocus();
 };
 
+function applySmartTypo(){
+  $('#toggle-smart-typo').classList.toggle('on', !!state.smartTypo);
+}
+$('#toggle-smart-typo').onclick = ()=>{
+  state.smartTypo = !state.smartTypo;
+  persist(); applySmartTypo();
+};
+
 /* ---------- Init ---------- */
 load();
-applyTheme(state.theme); applyPanel(); applyOutline(); applyScope(); applyFocus();
+applyTheme(state.theme); applyPanel(); applyOutline(); applyScope(); applyFocus(); applySmartTypo();
 resetRevPanel(); // empty state initial avec CTA/explainer adaptés au scope
 // charge le document actif (et migre l'éventuel ancien state.doc seul)
 { const d0 = getActiveDoc(); editor.value = d0 ? (d0.body || '') : (state.doc || ''); }
