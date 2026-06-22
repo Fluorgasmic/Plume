@@ -664,8 +664,8 @@
       <div class="empty">
         Sélectionnez un passage pour appeler Plume.<br><br>
         La command bar apparaît sous la sélection. Vous pouvez aussi utiliser <b>⌘K</b> pour ouvrir la palette de commandes.<br><br>
-        <button class="btn primary" id="empty-audit-btn" style="padding:8px 14px; font-size:12.5px">Lancer un audit complet du document <span style="font-family:'JetBrains Mono',monospace; opacity:.75; margin-left:6px">⌘⇧A</span></button>
-        <div style="font-size:11.5px; color:var(--ink-muted); margin-top:8px; line-height:1.5">Une passe globale : synthèse, corrections, style, vocabulaire, structure — en un appel.</div>
+        <button class="btn primary" id="empty-audit-btn" style="padding:8px 14px; font-size:12.5px">Lancer un audit <span style="font-family:'JetBrains Mono',monospace; opacity:.75; margin-left:6px">⌘⇧A</span></button>
+        <div style="font-size:11.5px; color:var(--ink-muted); margin-top:8px; line-height:1.5">Synthèse, corrections, style, vocabulaire, structure — en un appel. La portée suit le toggle ci-dessus (sélection ou tout le document).</div>
       </div>
     </div>
     <button class="btn ghost" id="act-history" title="Historique des révisions IA" style="padding:5px 9px; font-size:11px; margin:8px 22px; align-self:flex-start">Historique</button>
@@ -1246,20 +1246,18 @@ $('#zoom-in-vis').onclick = ()=>{ setZoom(state.zoom + 0.1); persist(); };
 $('#zoom-out-vis').onclick = ()=>{ setZoom(state.zoom - 0.1); persist(); };
 $('#zoom-pct-vis').onclick = ()=>{ setZoom(1); persist(); };
 
-/* ---------- Sélection / paragraphe ---------- */
+/* ---------- Sélection / portée ---------- */
+// Renvoie null si l'utilisateur est en mode « Sélection » mais que rien n'est sélectionné.
+// L'appelant doit alors afficher un message d'aide explicite.
 function getTarget(){
-  // Mode "tout le document" : on ignore la sélection
   if (state.scopeAll) {
     return { text: editor.value, start: 0, end: editor.value.length, isSel: false, isAll: true };
   }
   const s = editor.selectionStart, e = editor.selectionEnd;
   if(e > s) return { text: editor.value.slice(s,e), start:s, end:e, isSel:true };
-  // paragraphe courant: bornes au double saut de ligne
-  const v = editor.value;
-  let start = v.lastIndexOf('\n\n', s-1); start = start<0 ? 0 : start+2;
-  let end = v.indexOf('\n\n', s); end = end<0 ? v.length : end;
-  return { text: v.slice(start,end).trim().length ? v.slice(start,end) : v, start, end, isSel:false };
+  return null;
 }
+const NO_SEL_MSG = 'Sélectionnez un passage à modifier — ou basculez sur <b>Tout le document</b> dans l\'en-tête pour réviser le texte entier.';
 function applyRange(start, end, replacement){
   programmatic = true;
   editor.value = editor.value.slice(0,start) + replacement + editor.value.slice(end);
@@ -1426,8 +1424,8 @@ function emptyStateHTML(){
   return `<div class="empty">
         Sélectionnez un passage pour appeler Plume.<br><br>
         La command bar apparaît sous la sélection. Vous pouvez aussi utiliser <b>⌘K</b> pour ouvrir la palette de commandes.<br><br>
-        <button class="btn primary" id="empty-audit-btn" style="padding:8px 14px; font-size:12.5px">Lancer un audit complet du document <span style="font-family:'JetBrains Mono',monospace; opacity:.75; margin-left:6px">⌘⇧A</span></button>
-        <div style="font-size:11.5px; color:var(--ink-muted); margin-top:8px; line-height:1.5">Une passe globale : synthèse, corrections, style, vocabulaire, structure — en un appel.</div>
+        <button class="btn primary" id="empty-audit-btn" style="padding:8px 14px; font-size:12.5px">Lancer un audit <span style="font-family:'JetBrains Mono',monospace; opacity:.75; margin-left:6px">⌘⇧A</span></button>
+        <div style="font-size:11.5px; color:var(--ink-muted); margin-top:8px; line-height:1.5">Synthèse, corrections, style, vocabulaire, structure — en un appel. La portée suit le toggle ci-dessus (sélection ou tout le document).</div>
       </div>`;
 }
 function resetRevPanel(){
@@ -1462,6 +1460,7 @@ function buildContext(tgt){
 async function runRevision(mode, consigne='', fixedTgt=null, lenTarget=0){
   setActiveAction(mode);
   const tgt = fixedTgt || getTarget();
+  if(!tgt){ setStatus(NO_SEL_MSG, true); return; }
   if(!tgt.text.trim()){ setStatus('Rien à réviser : le texte est vide.', true); return; }
   setScope(tgtScope(tgt));
   markTarget(tgt);
@@ -1875,8 +1874,9 @@ $('#act-style').onclick = ()=>runRevision('style');
 $('#act-vocab').onclick = ()=>runRevision('vocab');
 $('#act-tics').onclick = ()=>runRevision('tics');
 $('#act-audit').onclick = ()=>{
-  // L'audit porte toujours sur le document entier
-  const tgt = { text: editor.value, start: 0, end: editor.value.length, isSel:false, isAll:true };
+  // L'audit respecte la portée choisie : sélection ou tout le document
+  const tgt = getTarget();
+  if(!tgt){ setStatus(NO_SEL_MSG, true); return; }
   if(!tgt.text.trim()){ setStatus('Rien à auditer : le texte est vide.', true); return; }
   runRevision('audit', '', tgt, 0);
 };
@@ -1992,6 +1992,7 @@ $('#toggle-spell').onclick = async ()=>{
 // « Longueur » : on choisit d'abord une cible (présets ou libre), puis on génère
 function openLengthForm(fixedTgt){
   const tgt = fixedTgt || getTarget();
+  if(!tgt){ setStatus(NO_SEL_MSG, true); return; }
   if(!tgt.text.trim()){ setStatus('Rien à ajuster : le texte est vide.', true); return; }
   setActiveAction('length');
   setScope(tgtScope(tgt));
