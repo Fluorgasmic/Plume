@@ -356,11 +356,30 @@
   /* ---- Outline (sommaire à gauche) ---- */
   .outline{flex:0 0 232px; width:232px; display:flex; flex-direction:column; background:var(--paper-raised); border-right:1px solid var(--line); min-height:0; overflow:hidden}
   body.no-outline .outline{display:none}
-  .outline-head{display:flex; align-items:center; gap:8px; padding:14px 16px 8px}
-  .outline-head h3{font-family:'Inter',sans-serif; font-weight:600; font-size:13px; margin:0; color:var(--ink)}
-  .outline-head .ohead-hide{margin-left:auto; width:24px; height:24px; display:inline-flex; align-items:center; justify-content:center; border-radius:5px; color:var(--ink-muted)}
-  .outline-head .ohead-hide:hover{background:var(--hover); color:var(--ink)}
-  .outline-head .ohead-hide svg{width:14px; height:14px}
+  .outline-head{display:flex; align-items:center; gap:6px; padding:14px 16px 8px}
+  .outline-head.outline-sub{padding-top:14px; border-top:1px solid var(--line); margin-top:6px}
+  .outline-head h3{font-family:'Inter',sans-serif; font-weight:600; font-size:13px; margin:0; color:var(--ink); flex:1}
+  .outline-head .ohead-action,.outline-head .ohead-hide{width:22px; height:22px; display:inline-flex; align-items:center; justify-content:center; border-radius:4px; color:var(--ink-muted); flex:none}
+  .outline-head .ohead-action:hover,.outline-head .ohead-hide:hover{background:var(--hover); color:var(--ink)}
+  .outline-head .ohead-action svg,.outline-head .ohead-hide svg{width:13px; height:13px}
+  /* Liste de documents */
+  .doc-list{padding:0 8px 6px; display:flex; flex-direction:column; gap:1px}
+  .doc-item{display:flex; align-items:center; gap:6px; padding:6px 8px; border-radius:5px; cursor:pointer; font-family:'Inter',sans-serif; font-size:12.5px; color:var(--ink-secondary); position:relative}
+  .doc-item:hover{background:var(--hover); color:var(--ink)}
+  .doc-item.on{background:var(--accent-soft); color:var(--accent); font-weight:500}
+  .doc-item .doc-name{flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .doc-item .doc-name-input{flex:1; min-width:0; padding:1px 4px; border:1px solid var(--accent); border-radius:3px; font-family:inherit; font-size:inherit; background:var(--surface); color:var(--ink); outline:none}
+  .doc-item .doc-menu-btn{flex:none; width:18px; height:18px; display:none; align-items:center; justify-content:center; border-radius:3px; color:var(--ink-mono); opacity:0; transition:opacity .12s}
+  .doc-item:hover .doc-menu-btn{display:inline-flex; opacity:1}
+  .doc-item .doc-menu-btn:hover{background:var(--surface); color:var(--ink)}
+  .doc-item .doc-menu-btn svg{width:12px; height:12px}
+  .doc-menu{position:absolute; right:8px; top:30px; z-index:60; min-width:160px; background:var(--paper-raised); border:1px solid var(--line-strong); border-radius:7px; box-shadow:var(--shadow); padding:4px; display:flex; flex-direction:column; gap:1px}
+  .doc-menu button{display:flex; align-items:center; padding:6px 10px; border-radius:4px; font-size:12px; font-family:inherit; color:var(--ink); text-align:left; background:transparent; border:none; cursor:pointer}
+  .doc-menu button:hover{background:var(--hover)}
+  .doc-menu button.danger{color:var(--correct)}
+  .brand-file{cursor:pointer; transition:color .12s, background .12s; padding:2px 6px; border-radius:4px}
+  .brand-file:hover{background:var(--hover); color:var(--ink)}
+  .brand-file-input{padding:2px 6px; border:1px solid var(--accent); border-radius:4px; font-family:inherit; font-size:13px; background:var(--surface); color:var(--ink); outline:none; min-width:180px}
   .outline-body{flex:1; overflow-y:auto; padding:4px 8px 16px}
   .outline-empty{font-size:11.5px; color:var(--ink-muted); padding:8px 8px 14px; line-height:1.5; font-style:italic}
   .outline-item{display:flex; align-items:baseline; gap:8px; padding:5px 8px; border-radius:4px; cursor:pointer; font-family:'Inter',sans-serif; font-size:12.5px; color:var(--ink-secondary); line-height:1.35}
@@ -493,7 +512,7 @@
     <b>Plume</b>
   </div>
   <span class="brand-sep">/</span>
-  <span class="brand-file" id="brand-file">brouillon.md</span>
+  <span class="brand-file" id="brand-file" title="Cliquer pour renommer ce document" tabindex="0" role="button">brouillon.md</span>
   <span class="brand-modified" id="brand-modified"></span>
 
   <div class="spacer"></div>
@@ -564,10 +583,17 @@
   <div class="panes">
     <aside class="outline" id="outline">
       <div class="outline-head">
-        <h3>Sommaire</h3>
-        <button class="ohead-hide" id="outline-hide" title="Masquer le sommaire">
+        <h3>Documents</h3>
+        <button class="ohead-action" id="doc-new" title="Nouveau document">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        </button>
+        <button class="ohead-hide" id="outline-hide" title="Masquer le panneau">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
         </button>
+      </div>
+      <div class="doc-list" id="doc-list"></div>
+      <div class="outline-head outline-sub">
+        <h3>Sommaire</h3>
       </div>
       <div class="outline-body" id="outline-body">
         <div class="outline-empty">Ajoutez des titres avec <b>#</b>, <b>##</b>, <b>###</b>… pour voir l'arborescence ici.</div>
@@ -869,7 +895,8 @@ function normTones(t){
 let state = {
   provider:'anthropic', model:PROVIDERS.anthropic.default, models:{},
   key:'', profile:DEFAULT_PROFILE, tones:cloneTones(),
-  profiles:[], activeId:'', auto:false, lisib:true, spell:true, focusMode:'off', theme:'light', panelHidden:false, outlineHidden:true, scopeAll:false, doc:'', split:50, zoom:1
+  profiles:[], activeId:'', auto:false, lisib:true, spell:true, focusMode:'off', theme:'light', panelHidden:false, outlineHidden:true, scopeAll:false, doc:'', split:50, zoom:1,
+  documents:[], activeDocId:''
 };
 const uid = ()=> 'p'+Math.random().toString(36).slice(2,9)+Date.now().toString(36).slice(-3);
 
@@ -892,10 +919,106 @@ function load(){
   if(!Array.isArray(state.history)) state.history = [];
   // une fois : active Lisibilité + Orthographe par défaut (y compris pour les installs existantes)
   if(state.uiDefaults !== 1){ state.lisib = true; state.spell = true; state.uiDefaults = 1; }
+  // migration : un seul `state.doc` devient une bibliothèque avec un document
+  if(!Array.isArray(state.documents)) state.documents = [];
+  if(!state.documents.length){
+    const now = Date.now();
+    state.documents = [{ id:uid(), name:'brouillon.md', body: state.doc||'', createdAt:now, updatedAt:now }];
+    state.activeDocId = state.documents[0].id;
+  }
+  if(!state.activeDocId || !state.documents.some(d => d.id===state.activeDocId)){
+    state.activeDocId = state.documents[0].id;
+  }
 }
 function getActive(){ return state.profiles.find(p=>p.id===state.activeId) || state.profiles[0]; }
 function activeRegistre(){ const p=getActive(); return (p.profile||'') + (p.brand && p.brand.trim() ? '\n\nConsignes de marque :\n'+p.brand.trim() : ''); }
 function persist(){ localStorage.setItem(LS, JSON.stringify(state)); }
+
+/* ---------- Bibliothèque de documents ---------- */
+function getActiveDoc(){ return state.documents.find(d => d.id===state.activeDocId) || state.documents[0]; }
+function saveActiveDocBody(){
+  const d = getActiveDoc(); if(!d) return;
+  d.body = editor.value;
+  d.updatedAt = Date.now();
+  persist();
+}
+function switchDoc(id){
+  if(id === state.activeDocId) return;
+  // sauve le doc courant
+  const cur = getActiveDoc(); if(cur){ cur.body = editor.value; cur.updatedAt = Date.now(); }
+  state.activeDocId = id;
+  const next = getActiveDoc();
+  if(next){
+    programmatic = true;
+    editor.value = next.body || '';
+    onInput();
+    editor.selectionStart = editor.selectionEnd = 0;
+    editor.scrollTop = 0;
+  }
+  persist(); refreshDocUI();
+}
+function newDoc(){
+  const d = getActiveDoc(); if(d){ d.body = editor.value; d.updatedAt = Date.now(); }
+  // nom unique « Sans titre.md », « Sans titre 2.md », etc.
+  const base = 'Sans titre';
+  let n = 0, name;
+  do { n++; name = (n===1 ? base : base+' '+n) + '.md'; }
+  while(state.documents.some(x => x.name === name));
+  const now = Date.now();
+  const nd = { id:uid(), name, body:'', createdAt:now, updatedAt:now };
+  state.documents.push(nd);
+  state.activeDocId = nd.id;
+  programmatic = true;
+  editor.value = '';
+  onInput();
+  persist(); refreshDocUI();
+  editor.focus();
+}
+function renameDoc(id, newName){
+  newName = (newName||'').trim();
+  if(!newName) return false;
+  // garantit l'extension .md sauf si l'utilisateur a déjà mis une autre
+  if(!/\.[a-z]{1,5}$/i.test(newName)) newName += '.md';
+  const d = state.documents.find(x => x.id===id);
+  if(!d) return false;
+  d.name = newName; d.updatedAt = Date.now();
+  persist(); refreshDocUI();
+  return true;
+}
+function deleteDoc(id){
+  const i = state.documents.findIndex(x => x.id===id);
+  if(i < 0) return;
+  state.documents.splice(i, 1);
+  if(!state.documents.length){
+    // toujours au moins un doc
+    const now = Date.now();
+    state.documents.push({ id:uid(), name:'brouillon.md', body:'', createdAt:now, updatedAt:now });
+  }
+  if(state.activeDocId === id){
+    state.activeDocId = state.documents[0].id;
+    programmatic = true;
+    editor.value = state.documents[0].body || '';
+    onInput();
+  }
+  persist(); refreshDocUI();
+}
+function duplicateDoc(id){
+  const d = state.documents.find(x => x.id===id); if(!d) return;
+  const now = Date.now();
+  let name = d.name.replace(/(\.[a-z]{1,5})$/i, ' (copie)$1');
+  // évite les doublons exacts
+  let n = 1, candidate = name;
+  while(state.documents.some(x => x.name === candidate)){ n++; candidate = name.replace(/( \(copie\))/i, ' (copie '+n+')'); }
+  state.documents.push({ id:uid(), name:candidate, body:d.body, createdAt:now, updatedAt:now });
+  persist(); refreshDocUI();
+}
+function refreshDocUI(){
+  // re-rend la liste et met à jour le brand-file
+  if(typeof renderDocList === 'function') renderDocList();
+  const d = getActiveDoc();
+  const bf = $('#brand-file');
+  if(bf && d) bf.textContent = d.name;
+}
 
 /* ---------- Éditeur & aperçu ---------- */
 const editor = $('#editor'), preview = $('#preview');
@@ -1133,7 +1256,9 @@ function onInput(){
     clearTimeout(typingTimer);
     typingTimer = setTimeout(()=>{ typingTimer=null; }, 600);
   }
-  state.doc = editor.value; renderPreview(); counts();
+  state.doc = editor.value;
+  const ad = getActiveDoc(); if(ad){ ad.body = editor.value; ad.updatedAt = Date.now(); }
+  renderPreview(); counts();
   $('#stat-save').innerHTML = '<span class="dot" style="background:var(--style)"></span>enregistrement…';
   clearTimeout(saveT);
   saveT = setTimeout(()=>{ persist(); $('#stat-save').innerHTML='<span class="dot"></span>sync local'; }, 500);
@@ -2004,8 +2129,113 @@ function renderOutline(){
   });
 }
 $('#outline-hide').onclick = ()=>{ state.outlineHidden = true; persist(); applyOutline(); };
-$('#outline-show').onclick = ()=>{ state.outlineHidden = false; persist(); applyOutline(); renderOutline(); };
+$('#outline-show').onclick = ()=>{ state.outlineHidden = false; persist(); applyOutline(); renderOutline(); renderDocList(); };
 editor.addEventListener('input', () => { if (!state.outlineHidden) renderOutline(); });
+
+/* ---------- Liste de documents (panneau gauche) ---------- */
+function fmtDocDate(ts){
+  const d = new Date(ts), now = new Date();
+  const sameDay = d.toDateString() === now.toDateString();
+  if(sameDay) return d.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
+  const yest = new Date(now); yest.setDate(now.getDate()-1);
+  if(d.toDateString() === yest.toDateString()) return 'hier';
+  const diffDays = Math.floor((now - d) / 86400000);
+  if(diffDays < 7) return d.toLocaleDateString('fr-FR', {weekday:'short'});
+  return d.toLocaleDateString('fr-FR', {day:'2-digit', month:'2-digit'});
+}
+function renderDocList(){
+  const root = $('#doc-list'); if(!root) return;
+  // tri : actif en premier, puis par updatedAt décroissant
+  const docs = state.documents.slice().sort((a,b) => b.updatedAt - a.updatedAt);
+  root.innerHTML = docs.map(d => {
+    const isActive = d.id === state.activeDocId;
+    return `<div class="doc-item ${isActive?'on':''}" data-id="${d.id}" title="${esc(d.name)} · ${fmtDocDate(d.updatedAt)}">`
+      + `<span class="doc-name">${esc(d.name)}</span>`
+      + `<button class="doc-menu-btn" data-id="${d.id}" title="Actions" aria-label="Actions sur ${esc(d.name)}">`
+      + `<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>`
+      + `</button></div>`;
+  }).join('');
+  root.querySelectorAll('.doc-item').forEach(el => {
+    el.addEventListener('click', e => {
+      if(e.target.closest('.doc-menu-btn') || e.target.closest('.doc-menu') || e.target.closest('.doc-name-input')) return;
+      switchDoc(el.dataset.id);
+    });
+  });
+  root.querySelectorAll('.doc-menu-btn').forEach(btn => {
+    btn.addEventListener('click', e => { e.stopPropagation(); openDocMenu(btn.dataset.id, btn); });
+  });
+}
+let _docMenuEl = null;
+function closeDocMenu(){ if(_docMenuEl){ _docMenuEl.remove(); _docMenuEl = null; document.removeEventListener('click', closeDocMenu); } }
+function openDocMenu(id, anchor){
+  closeDocMenu();
+  const d = state.documents.find(x => x.id===id); if(!d) return;
+  const menu = document.createElement('div');
+  menu.className = 'doc-menu';
+  menu.innerHTML = `
+    <button data-act="rename">Renommer</button>
+    <button data-act="duplicate">Dupliquer</button>
+    <button data-act="delete" class="danger">Supprimer</button>
+  `;
+  const item = anchor.closest('.doc-item');
+  item.appendChild(menu);
+  _docMenuEl = menu;
+  setTimeout(() => document.addEventListener('click', closeDocMenu), 0);
+  menu.addEventListener('click', e => {
+    const act = e.target.dataset.act; if(!act) return;
+    e.stopPropagation();
+    if(act === 'rename'){ closeDocMenu(); inlineRenameDoc(id); }
+    else if(act === 'duplicate'){ closeDocMenu(); duplicateDoc(id); }
+    else if(act === 'delete'){
+      closeDocMenu();
+      if(confirm('Supprimer « ' + d.name + ' » ?\n\nCette action est définitive.')) deleteDoc(id);
+    }
+  });
+}
+function inlineRenameDoc(id){
+  const root = $('#doc-list');
+  const item = root.querySelector('.doc-item[data-id="'+id+'"]');
+  if(!item) return;
+  const nameEl = item.querySelector('.doc-name');
+  const d = state.documents.find(x => x.id===id);
+  const input = document.createElement('input');
+  input.type = 'text'; input.className = 'doc-name-input'; input.value = d.name;
+  nameEl.replaceWith(input);
+  input.focus(); input.select();
+  function commit(){ if(renameDoc(id, input.value)){} else renderDocList(); }
+  function cancel(){ renderDocList(); }
+  input.addEventListener('keydown', e => {
+    if(e.key === 'Enter'){ e.preventDefault(); commit(); }
+    else if(e.key === 'Escape'){ e.preventDefault(); cancel(); }
+  });
+  input.addEventListener('blur', commit);
+}
+$('#doc-new').onclick = ()=> newDoc();
+
+// Renommage inline dans la barre du haut
+{
+  const bf = $('#brand-file');
+  function startEdit(){
+    if(bf.querySelector('input')) return;
+    const d = getActiveDoc(); if(!d) return;
+    const input = document.createElement('input');
+    input.type = 'text'; input.className = 'brand-file-input'; input.value = d.name;
+    bf.textContent = ''; bf.appendChild(input);
+    input.focus(); input.select();
+    function commit(){ renameDoc(d.id, input.value); refreshDocUI(); }
+    function cancel(){ refreshDocUI(); }
+    input.addEventListener('keydown', e => {
+      // Stoppe la propagation pour ne pas relancer startEdit via le keydown du bouton brand-file
+      e.stopPropagation();
+      if(e.key === 'Enter'){ e.preventDefault(); commit(); }
+      else if(e.key === 'Escape'){ e.preventDefault(); cancel(); }
+    });
+    input.addEventListener('click', e => e.stopPropagation());
+    input.addEventListener('blur', commit);
+  }
+  bf.addEventListener('click', startEdit);
+  bf.addEventListener('keydown', e => { if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); startEdit(); } });
+}
 $('#toggle-spell').onclick = async ()=>{
   const btn = $('#toggle-spell');
   if(!state.spell && !spell){
@@ -2061,9 +2291,24 @@ const fileInput = $('#file-input');
 $('#act-open').onclick = ()=> fileInput.click();
 fileInput.onchange = ()=>{
   const f = fileInput.files && fileInput.files[0]; if(!f) return;
-  if(editor.value.trim() && !confirm('Remplacer le contenu actuel par « '+f.name+' » ? (Annulable avec Ctrl+Z)')){ fileInput.value=''; return; }
   const reader = new FileReader();
-  reader.onload = ()=>{ programmatic = true; editor.value = reader.result || ''; editor.selectionStart = editor.selectionEnd = 0; onInput(); editor.focus(); };
+  reader.onload = ()=>{
+    // Sauve le doc courant, crée un nouveau document depuis le fichier
+    const cur = getActiveDoc(); if(cur){ cur.body = editor.value; cur.updatedAt = Date.now(); }
+    const now = Date.now();
+    let name = f.name || 'sans-titre.md';
+    // dédoublonne si nom déjà pris
+    let n = 0, candidate = name;
+    while(state.documents.some(x => x.name === candidate)){ n++; candidate = name.replace(/(\.[a-z]{1,5})?$/i, ' ('+n+')$1'); }
+    const nd = { id:uid(), name:candidate, body: reader.result || '', createdAt:now, updatedAt:now };
+    state.documents.push(nd);
+    state.activeDocId = nd.id;
+    programmatic = true;
+    editor.value = nd.body;
+    editor.selectionStart = editor.selectionEnd = 0;
+    onInput(); editor.focus();
+    persist(); refreshDocUI();
+  };
   reader.readAsText(f);
   fileInput.value = ''; // permet de rouvrir le même fichier ensuite
 };
@@ -2740,7 +2985,9 @@ $('#toggle-focus').onclick = ()=>{
 load();
 applyTheme(state.theme); applyPanel(); applyOutline(); applyScope(); applyFocus();
 resetRevPanel(); // empty state initial avec CTA/explainer adaptés au scope
-editor.value = state.doc || '';
+// charge le document actif (et migre l'éventuel ancien state.doc seul)
+{ const d0 = getActiveDoc(); editor.value = d0 ? (d0.body || '') : (state.doc || ''); }
+refreshDocUI();
 prevState = snapshot(); updateHistoryUI();
 setSplit(state.split); setZoom(state.zoom);
 $('#toggle-lisib').classList.toggle('on', state.lisib);
