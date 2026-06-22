@@ -168,19 +168,6 @@
   .fmtbar button:hover{background:var(--hover); color:var(--ink)}
   .fmt-div{width:1px; height:18px; background:var(--line); margin:0 5px}
   .editor-wrap{flex:1; position:relative; display:flex; min-height:0; overflow:hidden}
-  /* Mirror pour l'autocomplete fantôme (mêmes métriques que le textarea) */
-  .ghost-mirror{
-    position:absolute; inset:0; pointer-events:none; z-index:0;
-    padding:20px 64px 28px; font-family:'JetBrains Mono',monospace;
-    font-size:14px; line-height:1.78; color:transparent; tab-size:2;
-    white-space:pre-wrap; word-wrap:break-word; overflow-wrap:break-word;
-    overflow:hidden; user-select:none;
-    -webkit-font-smoothing:antialiased;
-  }
-  .ghost-mirror .ghost{color:var(--ink-muted); opacity:.6; font-style:italic}
-  .ghost-mirror .ghost-hint{display:inline-block; margin-left:6px; padding:0 5px; background:var(--accent-soft); color:var(--accent); border-radius:3px; font-family:'JetBrains Mono',monospace; font-size:9.5px; font-style:normal; opacity:.85; vertical-align:1px}
-  .ghost-status{position:absolute; right:10px; bottom:10px; z-index:3; pointer-events:none; opacity:0; transition:opacity .15s; font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--ink-muted); background:var(--paper-raised); border:1px solid var(--line); border-radius:4px; padding:3px 8px}
-  .ghost-status.visible{opacity:1}
   /* Focus mode — deux bandes qui voilent ce qui n'est pas en cours d'écriture */
   .focus-mask{position:absolute; left:0; right:0; pointer-events:none; background:var(--paper); opacity:0; transition:opacity .25s ease, top .18s ease, height .18s ease; z-index:2}
   body.theme-dark .focus-mask{background:var(--paper)}
@@ -620,8 +607,7 @@
           <span class="zoom-val" id="zoom-pct-vis" title="Réinitialiser le zoom">100%</span>
           <button id="zoom-in-vis" title="Agrandir (⌘+)">+</button>
         </div>
-        <button id="toggle-ghost" class="lisib-toggle" style="margin-left:auto" title="Plume vous propose la suite en gris pendant que vous écrivez (Tab pour accepter, Esc pour rejeter). Consomme votre clé API.">Plume écrit</button>
-        <button id="toggle-focus" class="lisib-toggle" title="Focus écriture : voile tout sauf la phrase ou le paragraphe en cours">Focus : off</button>
+        <button id="toggle-focus" class="lisib-toggle" style="margin-left:auto" title="Focus écriture : voile tout sauf la phrase ou le paragraphe en cours">Focus : off</button>
         <button id="toggle-smart-typo" class="lisib-toggle" title="Typo française : -- → —, ... → …, « » avec espaces fines, espace fine avant : ; ! ?">Typo</button>
       </div>
       <div class="fmtbar" id="fmtbar">
@@ -651,11 +637,9 @@
         <button class="s-close" id="s-close" title="Fermer (Échap)">&#10005;</button>
       </div>
       <div class="editor-wrap" id="editor-wrap">
-        <div class="ghost-mirror" id="ghost-mirror" aria-hidden="true"></div>
         <textarea id="editor" spellcheck="true" placeholder="Sélectionnez un passage pour appeler Plume"></textarea>
         <div class="focus-mask top" id="focus-top" aria-hidden="true"></div>
         <div class="focus-mask bot" id="focus-bot" aria-hidden="true"></div>
-        <div class="ghost-status" id="ghost-status">Plume écoute…</div>
       </div>
       <div class="cmd-bar" id="cmd-bar">
         <div class="cmd-bar-inner">
@@ -912,7 +896,7 @@ function normTones(t){
 let state = {
   provider:'anthropic', model:PROVIDERS.anthropic.default, models:{},
   key:'', profile:DEFAULT_PROFILE, tones:cloneTones(),
-  profiles:[], activeId:'', auto:false, lisib:true, spell:true, smartTypo:true, ghostMode:false, focusMode:'off', theme:'light', panelHidden:false, outlineHidden:true, scopeAll:false, doc:'', split:50, zoom:1,
+  profiles:[], activeId:'', auto:false, lisib:true, spell:true, smartTypo:true, focusMode:'off', theme:'light', panelHidden:false, outlineHidden:true, scopeAll:false, doc:'', split:50, zoom:1,
   documents:[], activeDocId:''
 };
 const uid = ()=> 'p'+Math.random().toString(36).slice(2,9)+Date.now().toString(36).slice(-3);
@@ -3085,161 +3069,9 @@ $('#toggle-smart-typo').onclick = ()=>{
   persist(); applySmartTypo();
 };
 
-/* ---------- « Plume écrit » : autocomplete inline ---------- */
-const ghostMirror = $('#ghost-mirror');
-const ghostStatus = $('#ghost-status');
-const GHOST_DELAY = 800;       // ms d'inactivité avant proposition
-const GHOST_MAX_CHARS = 220;   // tronque les propositions très longues
-const GHOST_CTX_BEFORE = 700;  // contexte avant le curseur
-const GHOST_CTX_AFTER = 250;   // contexte après le curseur
-
-let ghostTimer = null;
-let ghostAbort = null;
-let ghostText = '';     // texte de la proposition courante (ou '' si aucune)
-let ghostAt = -1;       // position d'ancrage dans editor.value
-let ghostRequesting = false;
-
-function ghostClear(){
-  ghostText = ''; ghostAt = -1;
-  if(ghostAbort){ try{ ghostAbort.abort(); }catch(e){} ghostAbort = null; }
-  ghostMirror.innerHTML = '';
-  ghostStatus.classList.remove('visible');
-  ghostRequesting = false;
-}
-
-function ghostRender(){
-  if(!ghostText || ghostAt < 0){ ghostMirror.innerHTML = ''; return; }
-  const v = editor.value;
-  // Sécurité : si le texte sous le curseur a changé, on annule
-  if(editor.selectionStart !== ghostAt){ ghostClear(); return; }
-  const pre = v.slice(0, ghostAt);
-  ghostMirror.innerHTML = esc(pre)
-    + '<span class="ghost">' + esc(ghostText) + '<span class="ghost-hint">Tab</span></span>';
-  ghostMirror.scrollTop = editor.scrollTop;
-}
-
-editor.addEventListener('scroll', ()=> { if(ghostText) ghostMirror.scrollTop = editor.scrollTop; });
-
-function ghostEligible(){
-  if(!state.ghostMode) return false;
-  if(!state.key) return false;
-  if(document.activeElement !== editor) return false;
-  if(editor.selectionStart !== editor.selectionEnd) return false;
-  if(editor.value.length < 12) return false; // pas d'amorce
-  const pos = editor.selectionStart;
-  const prev = editor.value[pos - 1];
-  // Déclenche après une espace ou une ponctuation terminale, pas en plein mot
-  if(prev === undefined) return false;
-  if(!/[\s.!?,;…»\n]/.test(prev)) return false;
-  // Pas dans un bloc de code ``` ```
-  const before = editor.value.slice(0, pos);
-  const fences = (before.match(/```/g)||[]).length;
-  if(fences % 2 === 1) return false;
-  return true;
-}
-
-async function ghostRequest(){
-  if(!ghostEligible()) return;
-  const pos = editor.selectionStart;
-  const v = editor.value;
-  const before = v.slice(Math.max(0, pos - GHOST_CTX_BEFORE), pos);
-  const after = v.slice(pos, Math.min(v.length, pos + GHOST_CTX_AFTER));
-
-  const sys = activeRegistre()
-    + '\n\nTu aides l\'utilisateur à écrire. Quand on te donne un texte tronqué au curseur, tu proposes UNIQUEMENT la suite immédiate, dans la même voix, comme un autocomplete. Pas de préambule, pas de guillemets, pas de listes : seulement la continuation directe, 1 à 2 phrases maximum, qui s\'enchaîne grammaticalement avec ce qui précède.';
-
-  const user = `Voici le texte avant le curseur (le dernier caractère est ce que je viens de taper) :
-"""
-${before}<CURSEUR>${after ? '\n\nEt voici le texte qui vient juste après le curseur (à ne pas répéter, juste pour cohérence) :\n"""' + after + '"""' : ''}
-"""
-
-Propose la suite la plus naturelle juste après <CURSEUR>, dans la voix du registre. Ne répète pas ce qui précède. Ne mets pas de guillemets autour. Réponds seulement avec la continuation.`;
-
-  ghostRequesting = true;
-  ghostStatus.classList.add('visible');
-  ghostAbort = new AbortController();
-  try {
-    const raw = await callLLM(sys, user, null, 0.65);
-    // Le curseur a bougé pendant l'attente : on jette
-    if(editor.selectionStart !== pos || editor.selectionStart !== editor.selectionEnd){
-      ghostClear(); return;
-    }
-    let clean = (raw||'').trim();
-    // Décape les éventuels guillemets, balises, en-têtes
-    clean = clean.replace(/^[«»"'`]+|[«»"'`]+$/g, '').trim();
-    // Garde uniquement le premier paragraphe / la première ligne
-    clean = clean.split(/\n\s*\n/)[0].split('\n')[0];
-    if(clean.length > GHOST_MAX_CHARS) clean = clean.slice(0, GHOST_MAX_CHARS);
-    if(!clean){ ghostClear(); return; }
-    // Si la proposition commence par un caractère qui ferait doublon avec le précédent
-    // (ex: utilisateur a tapé un espace, LLM commence par un espace), on l'absorbe.
-    const prevChar = v[pos-1];
-    if(prevChar === ' ' && clean[0] === ' ') clean = clean.replace(/^\s+/, '');
-    ghostText = clean;
-    ghostAt = pos;
-    ghostRender();
-  } catch(err){
-    // Échec silencieux : on ne dérange pas la frappe
-  } finally {
-    ghostStatus.classList.remove('visible');
-    ghostRequesting = false;
-    ghostAbort = null;
-  }
-}
-
-function ghostSchedule(){
-  if(ghostTimer){ clearTimeout(ghostTimer); ghostTimer = null; }
-  // On annule toute proposition en cours et nettoyons l'affichage
-  ghostClear();
-  if(!state.ghostMode) return;
-  ghostTimer = setTimeout(ghostRequest, GHOST_DELAY);
-}
-
-// Déclencheurs
-editor.addEventListener('input', () => { if(state.ghostMode) ghostSchedule(); });
-editor.addEventListener('mouseup', () => { if(ghostText) ghostClear(); });
-editor.addEventListener('blur', ghostClear);
-
-// Tab pour accepter, Esc pour rejeter, n'importe quelle touche qui modifie le curseur efface
-editor.addEventListener('keydown', function(e){
-  if(ghostText){
-    if(e.key === 'Tab' && !e.shiftKey){
-      e.preventDefault();
-      const pos = ghostAt;
-      const text = ghostText;
-      ghostClear();
-      editor.setRangeText(text, pos, pos, 'end');
-      editor.dispatchEvent(new Event('input', {bubbles:true}));
-      return;
-    }
-    if(e.key === 'Escape'){
-      e.preventDefault();
-      ghostClear();
-      return;
-    }
-    if(e.key === 'ArrowLeft' || e.key === 'ArrowRight' || e.key === 'ArrowUp' || e.key === 'ArrowDown' ||
-       e.key === 'Home' || e.key === 'End' || e.key === 'PageUp' || e.key === 'PageDown'){
-      ghostClear();
-    }
-  }
-});
-
-function applyGhost(){
-  $('#toggle-ghost').classList.toggle('on', !!state.ghostMode);
-  if(!state.ghostMode) ghostClear();
-}
-$('#toggle-ghost').onclick = ()=>{
-  if(!state.ghostMode && !state.key){
-    alert('Pour activer « Plume écrit », configure d\'abord une clé API dans les réglages.');
-    return;
-  }
-  state.ghostMode = !state.ghostMode;
-  persist(); applyGhost();
-};
-
 /* ---------- Init ---------- */
 load();
-applyTheme(state.theme); applyPanel(); applyOutline(); applyScope(); applyFocus(); applySmartTypo(); applyGhost();
+applyTheme(state.theme); applyPanel(); applyOutline(); applyScope(); applyFocus(); applySmartTypo();
 resetRevPanel(); // empty state initial avec CTA/explainer adaptés au scope
 // charge le document actif (et migre l'éventuel ancien state.doc seul)
 { const d0 = getActiveDoc(); editor.value = d0 ? (d0.body || '') : (state.doc || ''); }
