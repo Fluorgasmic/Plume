@@ -919,7 +919,12 @@ function load(){
   try{ const s = JSON.parse(localStorage.getItem(LS)); if(s) state = {...state, ...s}; }catch(e){}
   if(!state.models || typeof state.models!=='object') state.models = {};
   // migration : si un provider supprimé est en localStorage, on repart sur anthropic
-  if(!PROVIDERS[state.provider]) state.provider = 'anthropic';
+  if(!PROVIDERS[state.provider]){ state.provider = 'anthropic'; state.model = PROVIDERS.anthropic.default; }
+  // migration : si le modèle ne correspond pas au provider courant ET n'est pas un modèle custom connu, on remet le défaut
+  if(state.models[state.provider] && PROVIDERS[state.provider].models.includes(state.models[state.provider]))
+    state.model = state.models[state.provider];
+  else if(!PROVIDERS[state.provider].models.includes(state.model) && !state.models[state.provider])
+    state.model = PROVIDERS[state.provider].default;
   // migration : un profil unique (registre + tons) devient « Profil par défaut »
   if(!Array.isArray(state.profiles) || !state.profiles.length){
     state.profiles = [{ id:uid(), name:'Profil par défaut', profile: state.profile||DEFAULT_PROFILE, tones: normTones(state.tones), fav:true }];
