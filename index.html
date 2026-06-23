@@ -4,819 +4,683 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Plume — éditeur Markdown avec relecture intelligente</title>
+<meta name="description" content="Markdown natif, raccourcis clavier, propositions au mot près. Plume corrige, reformule et suggère du vocabulaire sans écraser votre style. Dans le navigateur, avec la clé du modèle de votre choix.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,500;1,6..72,400&display=swap" rel="stylesheet">
 <style>
-  *{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:'Inter',system-ui,sans-serif;background:#FAFAF8;color:#11110F;-webkit-font-smoothing:antialiased}
-  a{color:inherit;text-decoration:none}
-  button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
-  ::selection{background:#dde2f0;color:#11110F}
-  img{display:block;max-width:100%}
-
-  @keyframes blink{0%,49%{opacity:.85}50%,100%{opacity:0}}
-  @keyframes plumeFadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
-  @keyframes plumeFadeUpSmall{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
-  [data-reveal]{opacity:0}
-  [data-stagger]>*{opacity:0}
-  [data-reveal].revealed{animation:plumeFadeUp .7s cubic-bezier(.2,.7,.2,1) forwards}
-  [data-stagger]>.revealed{animation:plumeFadeUpSmall .6s cubic-bezier(.2,.7,.2,1) forwards}
-
-  .wrap{max-width:1200px;margin:0 auto;padding:0 36px}
-
-  /* ═══ NAV ═══ */
-  .nav{position:sticky;top:0;z-index:30;background:rgba(250,250,248,.92);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border-bottom:1px solid #E8E6E0}
-  .nav-inner{max-width:1200px;margin:0 auto;padding:0 36px;display:flex;align-items:center;height:60px;gap:12px}
-  .logo{display:flex;align-items:center;gap:9px}
-  .logo-icon{width:22px;height:22px;display:flex;align-items:center;justify-content:center}
-  .logo-icon svg{width:22px;height:22px;border-radius:6px}
-  .logo-name{font-weight:600;font-size:15px;letter-spacing:-.005em}
-  .logo-ver{font-family:'JetBrains Mono',monospace;font-size:10.5px;color:#A8A59C;padding:2px 6px;background:#fff;border:1px solid #E8E6E0;border-radius:4px}
-  .nav-links{display:flex;gap:28px;font-size:13px;color:#3d3b35;margin-left:auto}
-  .nav-links a:hover{color:#11110F}
-  .nav-links .ext{display:inline-flex;align-items:center;gap:5px;color:#74716a}
-  .nav-cta{margin-left:24px;display:flex;align-items:center;gap:10px}
-  .nav-cta .link{font-size:13px;color:#3d3b35}
-  .btn-primary{font-size:13px;font-weight:500;padding:7px 14px;background:#3A5BB5;color:#fff;border-radius:6px;display:inline-flex;align-items:center;gap:8px;transition:background .15s}
-  .btn-primary:hover{background:#2f4d9e}
-  .btn-outline{font-size:14px;padding:11px 22px;background:#fff;color:#11110F;border:1px solid #E8E6E0;border-radius:6px;display:inline-flex;align-items:center;gap:8px;transition:border-color .15s}
-  .btn-outline:hover{border-color:#3A5BB5}
-
-  /* ═══ HERO ═══ */
-  .hero{padding:88px 36px 56px}
-  .hero-inner{max-width:1200px;margin:0 auto}
-  .pill{display:inline-flex;align-items:center;gap:8px;padding:5px 12px;background:#fff;border:1px solid #E8E6E0;border-radius:999px;font-size:11.5px;color:#3A5BB5;font-family:'JetBrains Mono',monospace;margin-bottom:28px}
-  .pill .dot{width:6px;height:6px;border-radius:50%;background:#3A5BB5}
-  .hero h1{font-weight:700;font-size:68px;line-height:1.02;letter-spacing:-.026em;margin:0 0 24px;max-width:1000px;color:#11110F}
-  .hero h1 .accent{color:#3A5BB5}
-
-  /* typing strip */
-  .typing-strip{display:inline-flex;align-items:center;gap:14px;background:#fff;border:1px solid #E8E6E0;border-radius:7px;padding:11px 16px;max-width:780px;width:100%;box-shadow:0 1px 2px rgba(0,0,0,.04);margin:0 0 28px}
-  .typing-badge{font-family:'JetBrains Mono',monospace;font-size:10px;padding:3px 7px;border-radius:3px;font-weight:600;flex:none;transition:background .3s,color .3s}
-  .typing-text{flex:1;min-width:0;font-family:'JetBrains Mono',monospace;font-size:13.5px;line-height:1.5;color:#11110F;min-height:21px;white-space:nowrap;overflow:hidden}
-  .typing-cursor{display:inline-block;width:7px;margin-left:1px;background:#3A5BB5;height:1em;vertical-align:-2px;animation:blink 1s steps(1) infinite;border-radius:1px}
-  .typing-del{text-decoration:line-through;color:#B53A3A;background:rgba(181,58,58,.10);padding:0 2px;border-radius:2px;transition:background .25s,color .25s}
-  .typing-ins{margin-left:6px;color:#3E7D5A;background:rgba(62,125,90,.14);padding:0 4px;border-radius:2px}
-  .typing-indicator{flex:none;font-family:'JetBrains Mono',monospace;font-size:10.5px;color:#A8A59C;display:inline-flex;align-items:center;gap:6px}
-  .typing-indicator .dot{width:5px;height:5px;border-radius:50%;background:#3E7D5A}
-
-  .hero-desc{font-size:17.5px;line-height:1.55;color:#3d3b35;max-width:640px;margin:0 0 36px}
-  .hero-cta{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
-  .hero-cta .btn-primary{font-size:14px;font-weight:500;padding:11px 22px;border-radius:6px}
-  .hero-cta .btn-primary span{font-family:'JetBrains Mono',monospace}
-  .hero-meta{margin-left:auto;display:flex;align-items:center;gap:18px;font-family:'JetBrains Mono',monospace;font-size:11.5px;color:#74716a}
-  .hero-meta .tag{display:inline-flex;align-items:center;gap:6px}
-  .hero-meta .tag .dot{width:6px;height:6px;border-radius:50%;background:#3E7D5A}
-
-  /* ═══ DEMO TERMINAL ═══ */
-  .demo{padding:16px 36px 88px}
-  .demo-inner{max-width:1200px;margin:0 auto}
-  .shot-frame{background:#11110F;border-radius:10px;padding:0;box-shadow:0 32px 64px -20px rgba(17,17,15,.34);overflow:hidden;border:1px solid #2a2925}
-  .shot-topbar{display:flex;align-items:center;gap:8px;padding:11px 14px;background:#1E1D1A;border-bottom:1px solid #2a2925}
-  .shot-dot{width:11px;height:11px;border-radius:50%;background:#3a3833}
-  .shot-dot:nth-child(1){background:#ff5f57}
-  .shot-dot:nth-child(2){background:#febc2e}
-  .shot-dot:nth-child(3){background:#28c840}
-  .shot-url{margin-left:14px;font-family:'JetBrains Mono',monospace;font-size:11px;color:#74716a;padding:3px 12px;background:#11110F;border-radius:5px;border:1px solid #2a2925;flex:1;max-width:280px}
-  .tour-controls{display:inline-flex;gap:6px;align-items:center;margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:11px;color:#74716a}
-  .tour-controls button{display:inline-flex;align-items:center;justify-content:center;width:26px;height:24px;background:#11110F;border:1px solid #2a2925;color:#A8A59C;border-radius:5px;cursor:pointer;padding:0}
-  .tour-controls button:hover{color:#E8E6E0;border-color:#3a3833}
-  .tour-controls button svg{width:11px;height:11px}
-  .tour-controls .tour-progress{font-variant-numeric:tabular-nums;color:#A8A59C;padding:0 6px}
-  .shot-stage{background:#11110F;line-height:0;position:relative;overflow:hidden}
-  .shot-stage img{display:block;width:100%;height:auto;transition:opacity .35s ease}
-  .shot-stage img.fading{opacity:.25}
-  .tour-mask{position:absolute;border-radius:6px;box-shadow:0 0 0 9999px rgba(11,11,9,.62), 0 0 0 2px rgba(143,176,232,.85) inset, 0 0 36px rgba(143,176,232,.35);transition:left .55s cubic-bezier(.22,.61,.36,1), top .55s cubic-bezier(.22,.61,.36,1), width .55s cubic-bezier(.22,.61,.36,1), height .55s cubic-bezier(.22,.61,.36,1), opacity .35s ease;pointer-events:none}
-  .tour-mask.off{opacity:0;box-shadow:0 0 0 9999px rgba(11,11,9,0), 0 0 0 0 rgba(143,176,232,0) inset, 0 0 0 rgba(143,176,232,0)}
-  .tour-caption{position:absolute;left:50%;bottom:24px;transform:translateX(-50%);max-width:560px;width:calc(100% - 48px);background:rgba(255,255,255,.96);backdrop-filter:blur(8px);border:1px solid #E8E6E0;border-radius:8px;padding:14px 18px;box-shadow:0 12px 32px -8px rgba(0,0,0,.32);transition:opacity .25s ease, transform .35s ease;pointer-events:none}
-  .tour-caption.below{bottom:auto;top:24px}
-  .tour-caption.swap{opacity:0;transform:translateX(-50%) translateY(8px)}
-  .tour-caption .tc-eyebrow{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#3A5BB5;margin-bottom:4px;font-weight:600}
-  .tour-caption h3{font-family:'Inter',sans-serif;font-weight:600;font-size:15px;margin:0 0 4px;color:#11110F;line-height:1.25}
-  .tour-caption p{font-family:'Inter',sans-serif;font-size:13px;line-height:1.5;margin:0;color:#3d3b35}
-  .tour-progress-bar{position:absolute;left:0;right:0;bottom:0;height:3px;background:rgba(255,255,255,.08);pointer-events:none}
-  .tour-progress-bar .fill{height:100%;width:0;background:#3A5BB5;transition:width .15s linear}
-  .demo-caption{text-align:center;margin-top:14px;font-family:'JetBrains Mono',monospace;font-size:11px;color:#74716a;letter-spacing:.04em}
-
-  /* ═══ FEATURES ═══ */
-  .features{padding:80px 36px;background:#fff;border-top:1px solid #E8E6E0;border-bottom:1px solid #E8E6E0}
-  .features-inner{max-width:1200px;margin:0 auto}
-  .section-eyebrow{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#3A5BB5;margin-bottom:14px}
-  .features h2{font-weight:700;font-size:40px;line-height:1.08;margin:0 0 14px;letter-spacing:-.02em;color:#11110F}
-  .features h2 .votre{font-style:italic;font-family:'Newsreader',serif;font-weight:500}
-  .features .sub{font-size:15.5px;line-height:1.6;color:#5a5852;margin:0}
-  .features-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:48px}
-  .fcard{background:#FAFAF8;border:1px solid #E8E6E0;border-radius:7px;padding:22px 24px}
-  .fcard-head{display:flex;align-items:center;gap:10px;margin-bottom:14px}
-  .fcard-badge{font-family:'JetBrains Mono',monospace;font-size:10.5px;padding:3px 8px;border-radius:4px;font-weight:600}
-  .fcard-badge.cor{background:#dde2f0;color:#3A5BB5}
-  .fcard-badge.sty{background:rgba(166,113,31,.14);color:#A6711F}
-  .fcard-badge.voc{background:#dde2f0;color:#3A5BB5}
-  .fcard-badge.tic{background:rgba(181,58,58,.10);color:#B53A3A}
-  .fcard-badge.len{background:#E8E6E0;color:#5a5852}
-  .fcard-badge.vox{background:rgba(62,125,90,.14);color:#3E7D5A}
-  .fcard-shortcut{font-family:'JetBrains Mono',monospace;font-size:10.5px;color:#A8A59C;margin-left:auto}
-  .fcard h3{font-weight:600;font-size:18px;margin:0 0 8px;color:#11110F}
-  .fcard p{font-size:13px;line-height:1.6;color:#5a5852;margin:0}
-
-  /* ═══ MODÈLES ═══ */
-  .models{padding:64px 36px;background:#FAFAF8}
-  .models-inner{max-width:1200px;margin:0 auto}
-  .models h2{font-weight:700;font-size:32px;line-height:1.1;margin:0 0 10px;letter-spacing:-.018em}
-  .models .sub{font-size:14.5px;color:#5a5852;margin:0;line-height:1.6}
-  .models-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:28px}
-  .mtile{background:#fff;border:1px solid #E8E6E0;border-radius:6px;padding:14px 18px;display:flex;align-items:center;gap:14px}
-  .mtile-badge{font-family:'JetBrains Mono',monospace;font-size:10.5px;padding:3px 7px;border-radius:3px;font-weight:600}
-  .mtile-badge.indigo{background:#dde2f0;color:#3A5BB5}
-  .mtile-badge.green{background:rgba(62,125,90,.14);color:#3E7D5A}
-  .mtile-info{flex:1;min-width:0}
-  .mtile-name{font-weight:600;font-size:13.5px}
-  .mtile-models{font-family:'JetBrains Mono',monospace;font-size:10.5px;color:#74716a}
-
-  /* ═══ CONFIDENTIALITÉ ═══ */
-  .privacy{padding:88px 36px;background:#fff;border-top:1px solid #E8E6E0;border-bottom:1px solid #E8E6E0}
-  .privacy-inner{max-width:1200px;margin:0 auto;display:grid;grid-template-columns:1.1fr 1fr;gap:64px;align-items:center}
-  .privacy h2{font-weight:700;font-size:38px;line-height:1.08;margin:0 0 18px;letter-spacing:-.018em}
-  .privacy p{font-size:15px;line-height:1.65;color:#3d3b35;max-width:540px;margin:0 0 16px}
-  .privacy-tags{display:flex;gap:8px;flex-wrap:wrap;font-family:'JetBrains Mono',monospace;font-size:11.5px;margin-top:24px}
-  .privacy-tags span{padding:5px 11px;background:#FAFAF8;border:1px solid #E8E6E0;border-radius:4px;color:#3d3b35}
-  .privacy-terminal{background:#11110F;border-radius:9px;padding:22px 26px;font-family:'JetBrains Mono',monospace;font-size:12.5px;line-height:1.9;color:#cfcdc6}
-  .privacy-terminal .comment{color:#5a5852}
-  .privacy-terminal .white{color:#fff}
-  .privacy-terminal .blue{color:#8FB0E8}
-  .privacy-terminal .green{color:#82C2A0}
-  .privacy-terminal .muted{color:#74716a}
-
-  /* ═══ ANATOMIE ═══ */
-  .anatomy{padding:88px 36px;background:#FAFAF8}
-  .anatomy-inner{max-width:1200px;margin:0 auto}
-  .anatomy h2{font-weight:700;font-size:36px;line-height:1.08;margin:0 0 14px;letter-spacing:-.018em}
-  .anatomy .sub{font-size:15px;line-height:1.6;color:#5a5852;margin:0 0 40px}
-  .anatomy-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
-  .acard{overflow:hidden}
-  .acard-frame{background:#fff;border:1px solid #E8E6E0;border-radius:7px;overflow:hidden;box-shadow:0 16px 32px -16px rgba(0,0,0,.12)}
-  .acard-bar{height:32px;border-bottom:1px solid #E8E6E0;display:flex;align-items:center;padding:0 12px;gap:8px}
-  .acard-bar .num{font-family:'JetBrains Mono',monospace;font-size:10px;color:#A8A59C}
-  .acard-bar .name{font-family:'JetBrains Mono',monospace;font-size:10px;color:#74716a}
-  .acard-bar .info{margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:10px;color:#3A5BB5}
-  .acard-body{padding:18px 22px;min-height:200px}
-  .acard-body pre{font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.7;color:#11110F;margin:0;white-space:pre-wrap}
-  .acard-body .hl{background:#dde2f0;box-shadow:inset 0 -1px 0 #3A5BB5}
-  .acard-legend{display:flex;align-items:baseline;gap:8px;margin-top:14px}
-  .acard-legend .num{font-family:'JetBrains Mono',monospace;font-size:11px;color:#3A5BB5;font-weight:600}
-  .acard-legend p{font-size:13px;line-height:1.55;color:#3d3b35;margin:0}
-
-  /* mini command bar in anatomy */
-  .mini-cmdbar{background:#fff;border:1px solid #E8E6E0;border-radius:6px;padding:3px;display:inline-flex;gap:1px;box-shadow:0 8px 18px -4px rgba(0,0,0,.18);margin-top:12px}
-  .mini-cmdbar span{padding:4px 9px;font-size:11px;border-radius:3px}
-  .mini-cmdbar .active{color:#fff;background:#3A5BB5}
-  .mini-cmdbar .default{color:#11110F}
-  .mini-cmdbar .muted{color:#74716a}
-
-  /* mini tabs in anatomy */
-  .mini-tabs{display:flex;gap:14px;margin-bottom:12px;border-bottom:1px solid #E8E6E0;padding-bottom:8px}
-  .mini-tabs span{font-size:11.5px;color:#74716a}
-  .mini-tabs span.active{color:#11110F;border-bottom:2px solid #3A5BB5;padding-bottom:4px;font-weight:500}
-
-  /* mini cumul in anatomy */
-  .mini-cumul{font-size:12.5px;line-height:1.65;background:#FAFAF8;padding:12px 14px;border:1px solid #E8E6E0;border-radius:5px;color:#11110F;margin-bottom:12px}
-  .mini-cumul .ins{background:rgba(62,125,90,.16)}
-  .mini-btns{display:flex;gap:6px}
-  .mini-btns .apply{font-size:11px;padding:5px 10px;background:#3A5BB5;color:#fff;border:none;border-radius:4px}
-  .mini-btns .ignore{font-size:11px;padding:5px 10px;background:#fff;color:#3d3b35;border:1px solid #E8E6E0;border-radius:4px}
-
-  /* ═══ FAQ ═══ */
-  .faq{padding:80px 36px;background:#fff;border-top:1px solid #E8E6E0;border-bottom:1px solid #E8E6E0}
-  .faq-inner{max-width:880px;margin:0 auto}
-  .faq h2{font-weight:700;font-size:34px;line-height:1.08;margin:0 0 36px;letter-spacing:-.018em}
-  .faq details{border-top:1px solid #E8E6E0;padding:18px 4px}
-  .faq details:last-of-type{border-bottom:1px solid #E8E6E0}
-  .faq summary{cursor:pointer;display:flex;align-items:center;gap:14px;font-weight:600;font-size:16px;color:#11110F;list-style:none}
-  .faq summary::-webkit-details-marker{display:none}
-  .faq summary .num{font-family:'JetBrains Mono',monospace;font-size:11px;color:#3A5BB5;flex:none;width:28px}
-  .faq summary .q{flex:1}
-  .faq summary .a{font-family:'JetBrains Mono',monospace;font-size:11.5px;color:#3A5BB5;font-weight:400}
-  .faq details p{font-size:14px;line-height:1.65;color:#3d3b35;margin:14px 0 0 42px;max-width:700px}
-
-  /* ═══ DON ═══ */
-  .donate{padding:88px 36px;background:#FAFAF8}
-  .donate-inner{max-width:1000px;margin:0 auto}
-  .donate-card{background:#fff;border:1px solid #E8E6E0;border-radius:9px;padding:36px 40px;display:grid;grid-template-columns:1.4fr 1fr;gap:36px;align-items:center}
-  .donate-card h2{font-weight:700;font-size:30px;line-height:1.08;margin:0 0 12px;letter-spacing:-.014em}
-  .donate-card p{font-size:14px;line-height:1.65;color:#3d3b35;margin:0;max-width:480px}
-  .donate-right{text-align:right}
-  .donate-btn{font-size:14.5px;font-weight:500;padding:12px 22px;background:#3A5BB5;color:#fff;border-radius:7px;display:inline-flex;align-items:center;gap:10px}
-  .donate-btn:hover{background:#2f4d9e}
-  .donate-sub{font-family:'JetBrains Mono',monospace;font-size:10.5px;color:#74716a;margin-top:10px}
-
-  /* ═══ FOOTER ═══ */
-  .site-footer{padding:32px 36px 48px;border-top:1px solid #E8E6E0;background:#FAFAF8}
-  .footer-inner{max-width:1200px;margin:0 auto;display:flex;align-items:center;flex-wrap:wrap;gap:18px}
-  .footer-copy{font-family:'JetBrains Mono',monospace;font-size:11px;color:#74716a}
-  .footer-links{margin-left:auto;display:flex;gap:22px;font-size:13px;color:#3d3b35}
-  .footer-links a:hover{color:#11110F}
-  .footer-links .accent{color:#3A5BB5}
-
-  /* ═══ RESPONSIVE ═══ */
-  @media(max-width:1279px){
-    .hero h1{font-size:56px}
-    .terminal-grid{grid-template-columns:1fr 360px}
-  }
-  @media(max-width:959px){
-    .hero h1{font-size:clamp(36px,6vw,68px)}
-    .terminal-grid{grid-template-columns:1fr}
-    .terminal-cmdbar{display:none}
-    .terminal-sel-info{display:none}
-    .features-grid{grid-template-columns:1fr 1fr}
-    .models-grid{grid-template-columns:1fr 1fr}
-    .privacy-inner{grid-template-columns:1fr;gap:36px}
-    .anatomy-grid{grid-template-columns:1fr}
-    .donate-card{grid-template-columns:1fr;text-align:center}
-    .donate-right{text-align:center}
-    .hero-meta{margin-left:0;margin-top:14px;flex-basis:100%}
-    .nav-links{display:none}
-  }
-  @media(max-width:639px){
-    .hero{padding:48px 20px 36px}
-    .hero h1{font-size:36px}
-    .features{padding:48px 20px}
-    .features-grid{grid-template-columns:1fr}
-    .models{padding:48px 20px}
-    .models-grid{grid-template-columns:1fr}
-    .privacy{padding:48px 20px}
-    .anatomy{padding:48px 20px}
-    .faq{padding:48px 20px}
-    .donate{padding:48px 20px}
-    .donate-card{padding:24px}
-    .nav-inner{padding:0 20px}
-    .demo{padding:16px 20px 48px}
-    .wrap{padding:0 20px}
-    .typing-strip{flex-wrap:wrap}
-    .typing-indicator{display:none}
-  }
-
-  @media(prefers-reduced-motion:reduce){*{animation:none !important;transition:none !important}[data-reveal]{opacity:1}[data-stagger]>*{opacity:1}}
+  body{margin:0; background:#FAFAF8; color:#11110F; font-family:'Inter',system-ui,sans-serif;}
+  *{box-sizing:border-box}
+  a{color:inherit}
+  ::selection{background:#dde2f0; color:#11110F}
+  [data-reveal]{opacity:0;}
+  [data-stagger]>*{opacity:0;}
+  details summary::-webkit-details-marker{display:none}
+  details summary{outline:none}
+  details[open] summary .sum-chev{transform:rotate(180deg);}
+  .sum-chev{transition:transform .2s ease;}
+  .plume-logo{width:22px; height:22px; flex:none; display:flex; align-items:center; justify-content:center}
+  .plume-logo svg{width:100%; height:100%; display:block}
+  .plume-logo--sm{width:20px; height:20px}
+  .hero-card{transition:transform .25s ease, box-shadow .25s ease}
+  .hero-card:hover{transform:translateY(-3px); box-shadow:0 36px 72px -28px rgba(17,17,15,.30)}
 </style>
 </head>
 <body>
 
-<!-- ═══════════════ NAV ═══════════════ -->
-<header class="nav">
-  <div class="nav-inner">
-    <a href="./" class="logo">
-      <span class="logo-icon"><svg viewBox="0 0 141.73 141.73" xmlns="http://www.w3.org/2000/svg"><rect width="141.73" height="141.73" rx="34.43" fill="#11110F"/><path fill="#fff" d="M81.02,81.88c-8.15.95-14-1.48-14-1.48.06-1.07-.17-2.07.71-3.69.41-.76,1.2-1.24,2.15-1.53,2.1-.64,4.9-.21,5.84,1.41.02.03.03.06.05.09.66-2.14-1.53-3.82-4.22-3.8,2.47,0,4.81-.03,6.85-.9,4.49-1.91,8.06-7.18,7.89-8.72-2.3.66-5.35.72-7.85.15,3.69-.37,8.14-1.07,10.4-2.93,4.43-3.64,7.3-6.62,7.56-10.19-1.45,2.75-5.25,3.57-9.76,4.26,7.79-2.83,10.99-5.99,10.84-11.08-.11-3.96-1.36-7.1-.9-9.18-34.36,7.27-37.05,18.21-33.03,36.6,2.46-10.98,14.21-20.4,17.84-22.83-9.59,9.94-16.97,20.25-16.97,31.73v20.32c0,12.61,1.36,13.65,14.32,14.69v5.04H31.87v-5.04c11.31-1.04,12.66-2.08,12.66-14.69v-56.81c0-12.61-1.36-13.5-11.76-14.69v-5.19h41.46c11.91,0,20.5,1.63,26.38,5.79,7.09,4.75,11.16,12.16,11.16,21.81,0,19.88-14.91,29.02-30.75,30.85Z"/></svg></span>
-      <span class="logo-name">Plume</span>
-      <span class="logo-ver">v1.4</span>
+<!-- Symbole SVG réutilisable pour l'icône Plume (variante claire sur fond clair) -->
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true">
+  <symbol id="plume-icon" viewBox="0 0 141.73 141.73">
+    <rect fill="#fff" stroke="#000" stroke-miterlimit="10" x="28.94" y="19.21" width="91.66" height="105.24"/>
+    <path fill="#15130f" d="M107.3,0H34.43C15.49,0,0,15.49,0,34.43v72.87c0,18.94,15.49,34.43,34.43,34.43h72.87c18.94,0,34.43-15.49,34.43-34.43V34.43c0-18.94-15.49-34.43-34.43-34.43ZM81.02,81.88c-8.15.95-14-1.48-14-1.48.06-1.07-.17-2.07.71-3.69.41-.76,1.2-1.24,2.15-1.53,2.1-.64,4.9-.21,5.84,1.41.02.03.03.06.05.09.66-2.14-1.53-3.82-4.22-3.8,2.47,0,4.81-.03,6.85-.9,4.49-1.91,8.06-7.18,7.89-8.72-2.3.66-5.35.72-7.85.15,3.69-.37,8.14-1.07,10.4-2.93,4.43-3.64,7.3-6.62,7.56-10.19-1.45,2.75-5.25,3.57-9.76,4.26,7.79-2.83,10.99-5.99,10.84-11.08-.11-3.96-1.36-7.1-.9-9.18-34.36,7.27-37.05,18.21-33.03,36.6,2.46-10.98,14.21-20.4,17.84-22.83-9.59,9.94-16.97,20.25-16.97,31.73v20.32c0,12.61,1.36,13.65,14.32,14.69v5.04H31.87v-5.04c11.31-1.04,12.66-2.08,12.66-14.69v-56.81c0-12.61-1.36-13.5-11.76-14.69v-5.19h41.46c11.91,0,20.5,1.63,26.38,5.79,7.09,4.75,11.16,12.16,11.16,21.81,0,19.88-14.91,29.02-30.75,30.85h0Z"/>
+  </symbol>
+</svg>
+
+<!-- ═════════════════════ NAV ═════════════════════ -->
+<header style="position:sticky; top:0; z-index:30; background:rgba(250,250,248,.92); backdrop-filter:blur(8px); border-bottom:1px solid #E8E6E0;">
+  <div style="max-width:1200px; margin:0 auto; padding:0 36px; display:flex; align-items:center; height:60px; gap:12px;">
+    <a href="./" style="display:flex; align-items:center; gap:9px; text-decoration:none;">
+      <span class="plume-logo"><svg><use href="#plume-icon"/></svg></span>
+      <span style="font-weight:600; font-size:15px; letter-spacing:-.005em;">Plume</span>
+      <span style="font-family:'JetBrains Mono',monospace; font-size:10.5px; color:#A8A59C; padding:2px 6px; background:#fff; border:1px solid #E8E6E0; border-radius:4px;">v1.4</span>
     </a>
-    <nav class="nav-links">
-      <a href="#fonctionnalites">Fonctionnalités</a>
-      <a href="#modeles">Modèles</a>
-      <a href="#confidentialite">Confidentialité</a>
-      <a href="#soutenir">Soutenir</a>
-      <a href="https://github.com/Fluorgasmic/Plume" class="ext" target="_blank" rel="noopener">GitHub <span style="font-family:'JetBrains Mono',monospace;font-size:10px">↗</span></a>
+    <div style="flex:1"></div>
+    <nav style="display:flex; gap:20px; font-size:13px; color:#3d3b35;">
+      <a href="#fonctionnalites" style="text-decoration:none; white-space:nowrap;">Fonctionnalités</a>
+      <a href="#modeles" style="text-decoration:none; white-space:nowrap;">Modèles</a>
+      <a href="#confidentialite" style="text-decoration:none; white-space:nowrap;">Confidentialité</a>
+      <a href="#soutenir" style="text-decoration:none; white-space:nowrap;">Soutenir</a>
+      <a href="https://github.com/Fluorgasmic/Plume" style="text-decoration:none; display:inline-flex; align-items:center; gap:5px; color:#74716a; white-space:nowrap;">GitHub <span style="font-family:'JetBrains Mono',monospace; font-size:10px;">↗</span></a>
     </nav>
-    <div class="nav-cta">
-      <a href="app.html" class="btn-primary">Ouvrir l'éditeur</a>
+    <div style="margin-left:20px; display:flex; align-items:center; gap:10px;">
+      <a href="app.html" style="font-size:13px; font-weight:500; padding:7px 14px; background:#3A5BB5; color:#fff; border-radius:6px; text-decoration:none; white-space:nowrap;">Ouvrir l'éditeur</a>
     </div>
   </div>
 </header>
 
-<!-- ═══════════════ HERO ═══════════════ -->
-<section class="hero">
-  <div class="hero-inner">
-    <div data-reveal data-delay="0" class="pill"><span class="dot"></span> v1.4 · profils de voix multi-marques</div>
-    <h1 data-reveal data-delay="120">Un éditeur Markdown avec <span class="accent">relecture intelligente.</span></h1>
+<!-- ═════════════════════ HERO ═════════════════════ -->
+<section style="padding:96px 36px 40px;">
+  <div style="max-width:1200px; margin:0 auto; display:grid; grid-template-columns:1.05fr .95fr; gap:64px; align-items:center;">
 
-    <div data-reveal data-delay="320" class="typing-strip" id="typing-strip">
-      <span class="typing-badge" id="typing-badge">PCT</span>
-      <span class="typing-text" id="typing-text"></span>
-      <span class="typing-indicator"><span class="dot"></span> Plume relit · live</span>
-    </div>
-
-    <p data-reveal data-delay="440" class="hero-desc">Markdown natif, raccourcis clavier, propositions au mot près. Plume corrige et reformule sans écraser votre style. Vos textes restent dans votre navigateur, contre la clé du modèle que vous choisissez.</p>
-
-    <div data-reveal data-delay="560" class="hero-cta">
-      <a href="app.html" class="btn-primary">Ouvrir l'éditeur <span>→</span></a>
-      <a href="#anatomie" class="btn-outline">Démo en 60 s</a>
-      <div class="hero-meta">
-        <span class="tag"><span class="dot"></span> aucune inscription</span>
-        <span class="tag"><span class="dot"></span> clé en local</span>
-        <span class="tag"><span class="dot"></span> open source</span>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- ═══════════════ APERÇU ÉCRAN ═══════════════ -->
-<section class="demo">
-  <div class="demo-inner">
-    <div data-reveal class="shot-frame">
-      <div class="shot-topbar">
-        <span class="shot-dot"></span>
-        <span class="shot-dot"></span>
-        <span class="shot-dot"></span>
-        <span class="shot-url">plume.app/app.html</span>
-        <span class="tour-controls">
-          <button id="tour-prev" title="Étape précédente" type="button" aria-label="Précédent">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-          </button>
-          <button id="tour-toggle" title="Pause / lecture" type="button" aria-label="Pause">
-            <svg id="tour-toggle-icon" viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>
-          </button>
-          <button id="tour-next" title="Étape suivante" type="button" aria-label="Suivant">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
-          </button>
-          <span class="tour-progress"><span id="tour-step">1</span> / <span id="tour-total">10</span></span>
-        </span>
-      </div>
-      <div class="shot-stage" id="tour-stage">
-        <img id="shot-img" src="screenshots/01-editor-light.png" alt="Plume — éditeur" loading="lazy">
-        <div class="tour-mask off" id="tour-mask"></div>
-        <div class="tour-caption" id="tour-caption">
-          <div class="tc-eyebrow" id="tc-eyebrow">étape 1 / 10</div>
-          <h3 id="tc-title">Plume — un éditeur Markdown avec révision IA</h3>
-          <p id="tc-sub">Sommaire à gauche, éditeur source au centre, aperçu et panneau de révision à droite.</p>
-        </div>
-        <div class="tour-progress-bar"><div class="fill" id="tour-fill"></div></div>
-      </div>
-    </div>
-    <div class="demo-caption">↑ visite guidée auto · cliquez sur l'image pour mettre en pause</div>
-  </div>
-</section>
-
-<!-- ═══════════════ FEATURES ═══════════════ -->
-<section class="features" id="fonctionnalites">
-  <div class="features-inner">
-    <div data-reveal style="margin-bottom:48px;max-width:760px">
-      <div class="section-eyebrow">Fonctionnalités</div>
-      <h2>6 fonctionnalités pour vous concentrer sur <span class="votre">votre</span> écriture.</h2>
-      <p class="sub">Chaque action a son code, son raccourci, son badge. Pas de magie, pas de surprises : vous savez toujours ce que Plume propose, et pourquoi.</p>
-    </div>
-    <div data-reveal data-stagger="80" class="features-grid">
-      <div class="fcard">
-        <div class="fcard-head"><span class="fcard-badge cor">COR</span><span class="fcard-shortcut">⌘1</span></div>
-        <h3>Corriger</h3>
-        <p>Orthographe, grammaire, conjugaison, ponctuation. Vous validez chaque correction au mot près, avec sa justification.</p>
-      </div>
-      <div class="fcard">
-        <div class="fcard-head"><span class="fcard-badge sty">STY</span><span class="fcard-shortcut">⌘2</span></div>
-        <h3>Reformuler</h3>
-        <p>Trois variantes au ton choisi : concis, incarné, formel. Réglables par profil de voix.</p>
-      </div>
-      <div class="fcard">
-        <div class="fcard-head"><span class="fcard-badge voc">VOC</span><span class="fcard-shortcut">⌘3</span></div>
-        <h3>Vocabulaire</h3>
-        <p>Substitutions accordées en genre et en nombre. Vous posez une puce, vous la retirez d'un clic.</p>
-      </div>
-      <div class="fcard">
-        <div class="fcard-head"><span class="fcard-badge tic">TIC</span><span class="fcard-shortcut">⌘4</span></div>
-        <h3>Repérer les tics</h3>
-        <p>Anglicismes, jargon, clichés, formules creuses. Plume les remonte un par un, vous décidez.</p>
-      </div>
-      <div class="fcard">
-        <div class="fcard-head"><span class="fcard-badge len">LEN</span><span class="fcard-shortcut">⌘5</span></div>
-        <h3>Ajuster la longueur</h3>
-        <p>Titre 60c, méta 155c, post 280c, ou votre cible. Plume condense ou étoffe sans tronquer.</p>
-      </div>
-      <div class="fcard">
-        <div class="fcard-head"><span class="fcard-badge vox">VOX</span><span class="fcard-shortcut">⌘6</span></div>
-        <h3>Profils de voix</h3>
-        <p>Un profil par marque ou par projet. Importez une charte PDF, Plume en tire les consignes.</p>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- ═══════════════ MODÈLES ═══════════════ -->
-<section class="models" id="modeles">
-  <div class="models-inner">
-    <div data-reveal style="margin-bottom:28px">
-      <div class="section-eyebrow">Modèles au choix</div>
-      <h2>Connectez votre LLM, réglez le ton, c'est parti.</h2>
-      <p class="sub">Une clé API suffit pour démarrer. Des petits modèles aux multi-modèles, en cloud ou en local.</p>
-    </div>
-    <div data-reveal data-stagger="50" class="models-grid">
-      <div class="mtile"><span class="mtile-badge indigo">ANT</span><div class="mtile-info"><div class="mtile-name">Anthropic</div><div class="mtile-models">claude · sonnet · haiku</div></div></div>
-      <div class="mtile"><span class="mtile-badge indigo">OAI</span><div class="mtile-info"><div class="mtile-name">OpenAI</div><div class="mtile-models">gpt-4o · 4.1 · mini</div></div></div>
-      <div class="mtile"><span class="mtile-badge indigo">MST</span><div class="mtile-info"><div class="mtile-name">Mistral</div><div class="mtile-models">large · small</div></div></div>
-      <div class="mtile"><span class="mtile-badge indigo">GMI</span><div class="mtile-info"><div class="mtile-name">Google</div><div class="mtile-models">gemini 2.5 · flash · pro</div></div></div>
-      <div class="mtile"><span class="mtile-badge indigo">ORT</span><div class="mtile-info"><div class="mtile-name">OpenRouter</div><div class="mtile-models">qwen · llama · deepseek…</div></div></div>
-      <div class="mtile"><span class="mtile-badge green">LOC</span><div class="mtile-info"><div class="mtile-name">Ollama · LM Studio</div><div class="mtile-models">en local · localhost:11434</div></div></div>
-      <div class="mtile"><span class="mtile-badge indigo">PPX</span><div class="mtile-info"><div class="mtile-name">Perplexity</div><div class="mtile-models">sonar · pro · reasoning</div></div></div>
-      <div class="mtile"><span class="mtile-badge indigo">DSK</span><div class="mtile-info"><div class="mtile-name">DeepSeek</div><div class="mtile-models">chat · reasoner</div></div></div>
-      <div class="mtile"><span class="mtile-badge indigo">QWN</span><div class="mtile-info"><div class="mtile-name">Qwen</div><div class="mtile-models">dashscope · plus · max</div></div></div>
-    </div>
-  </div>
-</section>
-
-<!-- ═══════════════ CONFIDENTIALITÉ ═══════════════ -->
-<section class="privacy" id="confidentialite">
-  <div class="privacy-inner" data-reveal data-stagger="120">
+    <!-- ── colonne gauche : texte ── -->
     <div>
-      <div class="section-eyebrow">Confidentialité</div>
-      <h2>Votre clé. Votre texte. Votre navigateur.</h2>
-      <p>Plume n'a pas de serveur. Vos brouillons, vos profils de voix et votre clé API restent dans ce navigateur. Quand vous lancez une révision, le texte voyage uniquement entre vous et le modèle que vous avez configuré.</p>
-      <p>Pas de compte, pas de tracking, pas de fichier client. Si vous fermez l'onglet, rien ne reste ailleurs que sur votre disque.</p>
-      <div class="privacy-tags">
-        <span>pas de cloud Plume</span>
-        <span>pas d'inscription</span>
-        <span>pas d'analytics</span>
-        <span>code source ouvert</span>
+      <div data-reveal data-delay="0" style="display:inline-flex; align-items:center; gap:8px; padding:5px 12px; background:#fff; border:1px solid #E8E6E0; border-radius:999px; font-size:11.5px; color:#3A5BB5; font-family:'JetBrains Mono',monospace; margin-bottom:28px;">
+        <span style="width:6px; height:6px; border-radius:50%; background:#3A5BB5;"></span>
+        v1.4 · profils de voix multi-marques
       </div>
-    </div>
-    <div class="privacy-terminal">
-      <div class="comment">// flux des données</div>
-      <div><span class="white">votre navigateur</span>  <span class="blue">─→</span>  modèle</div>
-      <div style="margin-left:20px" class="muted">↳ <span class="blue">passage sélectionné</span></div>
-      <div style="margin-left:20px" class="muted">↳ profil de voix actif</div>
-      <div style="margin-top:6px"><span class="white">votre navigateur</span>  <span class="green">←─</span>  proposition</div>
-      <div style="margin-top:18px" class="comment">// ce qui reste chez vous</div>
-      <div><span class="green">localStorage</span>:</div>
-      <div style="margin-left:18px">· brouillons</div>
-      <div style="margin-left:18px">· profils de voix</div>
-      <div style="margin-left:18px">· clé API</div>
-      <div style="margin-left:18px">· préférences (thème, zoom, vue)</div>
-    </div>
-  </div>
-</section>
 
-<!-- ═══════════════ ANATOMIE ═══════════════ -->
-<section class="anatomy" id="anatomie">
-  <div class="anatomy-inner">
-    <div data-reveal style="margin-bottom:40px;max-width:680px">
-      <div class="section-eyebrow">Anatomie d'une révision</div>
-      <h2>Trois moments. Une mécanique.</h2>
-      <p class="sub">Sélection, intention, aperçu. Vous voyez ce que Plume propose avant d'appliquer, et vous décidez phrase par phrase.</p>
-    </div>
-    <div data-reveal data-stagger="120" class="anatomy-grid">
-      <div class="acard">
-        <div class="acard-frame">
-          <div class="acard-bar"><span class="num">i.</span><span class="name">sélection</span><span class="info">178c</span></div>
-          <div class="acard-body" style="background:#FAFAF8;padding-bottom:28px;position:relative">
-            <pre>Les fenêtres ordinairement
-si sombres de l'antique
-demeure <span class="hl">étaient ardemment
-éclairées</span>.</pre>
-            <div class="mini-cmdbar" style="margin-top:16px">
-              <span class="active">Corriger</span>
-              <span class="default">Reformuler</span>
-              <span class="muted">⌘K</span>
-            </div>
-          </div>
-        </div>
-        <div class="acard-legend"><span class="num">01</span><p>Sélectionner un passage. La command bar apparaît au-dessus, raccourcis visibles.</p></div>
-      </div>
-      <div class="acard">
-        <div class="acard-frame">
-          <div class="acard-bar"><span class="num">ii.</span><span class="name">révision</span><span class="info">2 corr · 3 sty</span></div>
-          <div class="acard-body" style="padding:14px 18px">
-            <div class="mini-tabs">
-              <span class="active">Corrections · 2</span>
-              <span>Style · 3</span>
-              <span>Vocab</span>
-            </div>
-            <div style="display:flex;gap:10px;align-items:flex-start">
-              <span class="diff-badge pct" style="font-size:9.5px;padding:2px 6px">PCT</span>
-              <div style="font-size:12px;line-height:1.55">éclairées<del style="color:#B53A3A;background:rgba(181,58,58,.10);text-decoration:line-through">;</del><ins style="color:#3E7D5A;background:rgba(62,125,90,.14);text-decoration:none">.</ins> Les places…</div>
-            </div>
-            <p style="font-size:11px;color:#74716a;margin:8px 0 0 30px">Phrase trop longue, le point marque la respiration.</p>
-          </div>
-        </div>
-        <div class="acard-legend"><span class="num">02</span><p>Le panneau ouvre la révision, rangée par intention. Chaque carte porte un code et sa justification.</p></div>
-      </div>
-      <div class="acard">
-        <div class="acard-frame">
-          <div class="acard-bar"><span class="num">iii.</span><span class="name">aperçu cumulé</span><span class="info">+2</span></div>
-          <div class="acard-body">
-            <div class="mini-cumul">Les fenêtres de l'antique demeure royale étaient ardemment éclairées<span class="ins">.</span> Les places et les rues attenantes, habituellement si <span class="ins">solitaires</span>, regorgeaient de peuple.</div>
-            <div class="mini-btns">
-              <button class="apply">Appliquer (2)</button>
-              <button class="ignore">Ignorer</button>
-            </div>
-          </div>
-        </div>
-        <div class="acard-legend"><span class="num">03</span><p>L'aperçu cumulé montre toujours où vous allez. Un clic applique tout, ou rien.</p></div>
-      </div>
-    </div>
-  </div>
-</section>
+      <h1 data-reveal data-delay="100" style="font-weight:700; font-size:clamp(36px, 5.4vw, 60px); line-height:1.04; letter-spacing:-.026em; margin:0 0 26px; color:#11110F; text-wrap:balance;">Un éditeur Markdown avec correcteur et relecture intelligente.</h1>
 
-<!-- ═══════════════ FAQ ═══════════════ -->
-<section class="faq" id="faq">
-  <div class="faq-inner" data-reveal>
-    <div class="section-eyebrow">FAQ</div>
-    <h2>Ce qu'on demande souvent.</h2>
+      <p data-reveal data-delay="220" style="font-size:17px; line-height:1.55; color:#3d3b35; margin:0 0 36px; max-width:560px;">Markdown natif, raccourcis clavier, propositions au mot près. Plume corrige, reformule et suggère du vocabulaire sans écraser votre style ni celui de votre profil de voix. Le tout dans le navigateur, avec la clé API du modèle de votre choix.</p>
 
-    <details open>
-      <summary><span class="num">01</span><span class="q">Mes textes sont-ils envoyés à un serveur Plume ?</span><span class="a">non</span></summary>
-      <p>Plume n'a pas de serveur. Quand vous appelez une action, le passage sélectionné part directement de votre navigateur vers le modèle dont vous avez configuré la clé (Anthropic, OpenAI, Mistral, Ollama en local…). Rien ne transite par nous.</p>
-    </details>
-    <details>
-      <summary><span class="num">02</span><span class="q">Combien ça coûte ?</span><span class="a">rien</span></summary>
-      <p>Plume est gratuit et open source. Vous payez uniquement l'usage de l'API du modèle que vous configurez (quelques centimes par révision pour la plupart des modèles).</p>
-    </details>
-    <details>
-      <summary><span class="num">03</span><span class="q">Faut-il une carte bancaire pour commencer ?</span><span class="a">non</span></summary>
-      <p>Vous pouvez écrire sans clé API. Elle sera demandée à la première révision. Si vous utilisez Ollama en local, aucune clé n'est nécessaire.</p>
-    </details>
-    <details>
-      <summary><span class="num">04</span><span class="q">Plume écrit-il à votre place ?</span><span class="a">jamais sans accord</span></summary>
-      <p>Plume propose, vous décidez. Chaque correction, reformulation ou substitution est présentée avec sa justification. Rien ne change dans votre texte tant que vous n'avez pas cliqué sur Appliquer.</p>
-    </details>
-    <details>
-      <summary><span class="num">05</span><span class="q">Je travaille pour plusieurs marques. Comment séparer leurs voix ?</span><span class="a">profils de voix</span></summary>
-      <p>Créez un profil de voix par marque ou par projet. Chaque profil porte son ton, ses consignes, ses mots interdits. Passez de l'un à l'autre en un clic, la révision s'adapte.</p>
-    </details>
-  </div>
-</section>
-
-<!-- ═══════════════ DON ═══════════════ -->
-<section class="donate" id="soutenir">
-  <div class="donate-inner">
-    <div data-reveal class="donate-card">
-      <div>
-        <div class="section-eyebrow">Soutenir le projet</div>
-        <h2>Si Plume vous a rendu service.</h2>
-        <p>Plume est libre, sans publicité, sans abonnement à pousser. Il vit sur le temps qu'on lui consacre et sur les coûts modestes de son hébergement. Si l'outil vous accompagne dans votre travail, un café ou un déjeuner suffisent.</p>
-      </div>
-      <div class="donate-right">
-        <!-- TODO : remplacer par https://paypal.me/<identifiant> une fois le compte PayPal.me créé -->
-        <a href="https://www.paypal.com/donate" class="donate-btn" target="_blank" rel="noopener">
-          <span style="font-weight:700;letter-spacing:.02em">Pay<span style="font-style:italic;font-weight:600">Pal</span></span>
-          <span style="opacity:.5">·</span>
-          Soutenir Plume
-          <span style="font-family:'JetBrains Mono',monospace">→</span>
+      <div data-reveal data-delay="340" style="display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:18px;">
+        <a href="app.html" style="font-size:14px; font-weight:500; padding:12px 22px; background:#3A5BB5; color:#fff; border-radius:6px; text-decoration:none; display:inline-flex; align-items:center; gap:8px;">Ouvrir l'éditeur <span style="font-family:'JetBrains Mono',monospace;">→</span></a>
+        <a href="tour.html" style="font-size:14px; font-weight:500; padding:12px 22px; background:#fff; color:#11110F; border:1px solid #E8E6E0; border-radius:6px; text-decoration:none; display:inline-flex; align-items:center; gap:8px;">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+          Voir une révision
         </a>
-        <div class="donate-sub">paiement unique, montant libre, pas de récurrence</div>
+      </div>
+
+      <div data-reveal data-delay="440" style="font-family:'JetBrains Mono',monospace; font-size:11.5px; color:#74716a;">Gratuit, open source, aucun compte.</div>
+    </div>
+
+    <!-- ── colonne droite : carte « moment d'une révision » ── -->
+    <a href="tour.html" data-reveal data-delay="280" style="text-decoration:none; color:inherit; display:block; position:relative;">
+      <div class="hero-card" style="background:#fff; border:1px solid #E8E6E0; border-radius:10px; padding:0; overflow:hidden; box-shadow:0 32px 64px -28px rgba(17,17,15,.22);">
+
+        <div style="height:34px; display:flex; align-items:center; gap:8px; padding:0 14px; border-bottom:1px solid #E8E6E0; background:#FAFAF8;">
+          <span style="width:8px; height:8px; border-radius:50%; background:#E0DDD5;"></span>
+          <span style="width:8px; height:8px; border-radius:50%; background:#E0DDD5;"></span>
+          <span style="width:8px; height:8px; border-radius:50%; background:#E0DDD5;"></span>
+          <span style="margin-left:8px; font-family:'JetBrains Mono',monospace; font-size:10.5px; color:#A8A59C;">reine-margot-ch1.md</span>
+          <span style="margin-left:auto; font-family:'JetBrains Mono',monospace; font-size:10px; color:#3A5BB5; display:inline-flex; align-items:center; gap:5px;">
+            <span style="width:5px; height:5px; border-radius:50%; background:#3A5BB5;"></span>
+            roman, ton littéraire
+          </span>
+        </div>
+
+        <div style="padding:18px 22px 14px;">
+          <div style="font-family:'JetBrains Mono',monospace; font-size:9.5px; letter-spacing:.16em; text-transform:uppercase; color:#A8A59C; margin-bottom:10px;">sélection · 178c</div>
+          <div style="font-family:'JetBrains Mono',monospace; font-size:12.5px; line-height:1.7; color:#3d3b35;">Les fenêtres ordinairement si sombres de l'antique demeure royale étaient ardemment éclairées<del style="color:#B53A3A; background:rgba(181,58,58,.10); text-decoration:line-through; padding:0 2px; border-radius:2px;">;</del> <del style="color:#B53A3A; background:rgba(181,58,58,.10); text-decoration:line-through; padding:0 2px; border-radius:2px;">les</del> places et les rues attenantes, habituellement si <del style="color:#B53A3A; background:rgba(181,58,58,.10); text-decoration:line-through; padding:0 2px; border-radius:2px;">solitaire</del>, regorgeaient de peuple.</div>
+        </div>
+
+        <div style="display:flex; align-items:center; gap:10px; padding:0 22px;">
+          <div style="flex:1; height:1px; background:#E8E6E0;"></div>
+          <div style="font-family:'JetBrains Mono',monospace; font-size:9.5px; letter-spacing:.16em; text-transform:uppercase; color:#A8A59C;">Plume propose</div>
+          <div style="flex:1; height:1px; background:#E8E6E0;"></div>
+        </div>
+
+        <div style="padding:14px 22px 20px; position:relative;">
+          <div data-anim="type" data-anim-delay="600" data-anim-duration="1900" style="font-family:'JetBrains Mono',monospace; font-size:12.5px; line-height:1.7; color:#11110F; clip-path:inset(0 100% 0 0); position:relative;">Les fenêtres ordinairement si sombres de l'antique demeure royale étaient ardemment éclairées<ins style="color:#3E7D5A; background:rgba(62,125,90,.16); text-decoration:none; padding:0 2px; border-radius:2px;">.</ins> <ins style="color:#3E7D5A; background:rgba(62,125,90,.16); text-decoration:none; padding:0 2px; border-radius:2px;">L</ins>es places et les rues attenantes, habituellement si <ins style="color:#3E7D5A; background:rgba(62,125,90,.16); text-decoration:none; padding:0 2px; border-radius:2px;">solitaires</ins>, regorgeaient de peuple.</div>
+          <span data-caret style="position:absolute; top:14px; left:22px; width:1.5px; height:18px; background:#3A5BB5; opacity:0; pointer-events:none;"></span>
+        </div>
+
+        <div data-anim="fade" data-anim-delay="2500" style="padding:0 22px 16px; display:flex; gap:6px; flex-wrap:wrap; opacity:0;">
+          <span style="font-family:'JetBrains Mono',monospace; font-size:10px; padding:3px 8px; background:#dde2f0; color:#3A5BB5; border-radius:3px; font-weight:600;">PCT</span>
+          <span style="font-size:11px; color:#3d3b35; padding:3px 0 0;">Phrase trop longue, le point marque la respiration.</span>
+        </div>
+        <div data-anim="fade" data-anim-delay="2750" style="padding:0 22px 18px; display:flex; gap:6px; flex-wrap:wrap; opacity:0;">
+          <span style="font-family:'JetBrains Mono',monospace; font-size:10px; padding:3px 8px; background:rgba(166,113,31,.14); color:#A6711F; border-radius:3px; font-weight:600;">GRA</span>
+          <span style="font-size:11px; color:#3d3b35; padding:3px 0 0;">Accord au pluriel avec « places et rues ».</span>
+        </div>
+
+        <div style="border-top:1px solid #E8E6E0; padding:12px 22px; display:flex; align-items:center; gap:10px; background:#FAFAF8;">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="width:24px; height:24px; border-radius:50%; background:#3A5BB5; color:#fff; display:flex; align-items:center; justify-content:center;">
+              <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+            </span>
+            <span style="font-size:12.5px; font-weight:500; color:#11110F;">Visite guidée de l'éditeur</span>
+          </div>
+          <span style="margin-left:auto; font-family:'JetBrains Mono',monospace; font-size:10.5px; color:#3A5BB5;">7 moments →</span>
+        </div>
+      </div>
+    </a>
+  </div>
+</section>
+
+<!-- ═════════════════════ BANDEAU ATELIER ═════════════════════ -->
+<section style="padding:24px 36px 96px;">
+  <div style="max-width:1200px; margin:0 auto;">
+    <div data-reveal style="display:flex; align-items:center; gap:22px; padding:18px 22px; background:#fff; border:1px solid #E8E6E0; border-radius:8px; flex-wrap:wrap;">
+      <div style="display:flex; align-items:center; gap:10px;">
+        <span style="width:6px; height:6px; border-radius:50%; background:#3E7D5A;"></span>
+        <span style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#3d3b35;">aucune inscription</span>
+      </div>
+      <div style="width:1px; height:14px; background:#E8E6E0;"></div>
+      <div style="display:flex; align-items:center; gap:10px;">
+        <span style="width:6px; height:6px; border-radius:50%; background:#3E7D5A;"></span>
+        <span style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#3d3b35;">clé API stockée en local</span>
+      </div>
+      <div style="width:1px; height:14px; background:#E8E6E0;"></div>
+      <div style="display:flex; align-items:center; gap:10px;">
+        <span style="width:6px; height:6px; border-radius:50%; background:#3E7D5A;"></span>
+        <span style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#3d3b35;">open source · MIT</span>
+      </div>
+      <div style="flex:1; min-width:20px;"></div>
+      <a href="tour.html" style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#3A5BB5; text-decoration:none;">→ visite guidée pas à pas</a>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════════════════ FEATURES ═════════════════════ -->
+<section id="fonctionnalites" style="padding:88px 36px; background:#fff; border-top:1px solid #E8E6E0; border-bottom:1px solid #E8E6E0;">
+  <div style="max-width:1200px; margin:0 auto;">
+    <div data-reveal style="margin-bottom:48px; max-width:780px;">
+      <div style="font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:#3A5BB5; margin-bottom:14px;">Fonctionnalités</div>
+      <h2 style="font-weight:700; font-size:40px; line-height:1.08; margin:0 0 14px; letter-spacing:-.02em; color:#11110F; text-wrap:balance;">Des fonctionnalités pour vous concentrer sur <span style="font-style:italic; font-family:'Newsreader',serif; font-weight:500;">votre</span> écriture.</h2>
+      <p style="font-size:15.5px; line-height:1.6; color:#5a5852; margin:0;">Exportez vos documents révisés en markdown, texte, word ou html.</p>
+    </div>
+
+    <div data-reveal data-stagger="80" style="display:grid; grid-template-columns:repeat(3, 1fr); gap:14px;">
+
+      <div style="background:#FAFAF8; border:1px solid #E8E6E0; border-radius:7px; padding:22px 24px;">
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:14px;">
+          <span style="font-family:'JetBrains Mono',monospace; font-size:10.5px; padding:3px 8px; background:#dde2f0; color:#3A5BB5; border-radius:4px; font-weight:600;">COR</span>
+          <span style="font-family:'JetBrains Mono',monospace; font-size:10.5px; color:#A8A59C; margin-left:auto;">⌘1</span>
+        </div>
+        <h3 style="font-weight:600; font-size:18px; margin:0 0 8px; color:#11110F;">Corriger et reformuler</h3>
+        <p style="font-size:13px; line-height:1.6; color:#5a5852; margin:0;">Orthographe, grammaire, conjugaison, ponctuation. Vous validez chaque correction au mot près, justification à l'appui.</p>
+      </div>
+
+      <div style="background:#FAFAF8; border:1px solid #E8E6E0; border-radius:7px; padding:22px 24px;">
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:14px;">
+          <span style="font-family:'JetBrains Mono',monospace; font-size:10.5px; padding:3px 8px; background:rgba(166,113,31,.14); color:#A6711F; border-radius:4px; font-weight:600;">STY</span>
+          <span style="font-family:'JetBrains Mono',monospace; font-size:10.5px; color:#A8A59C; margin-left:auto;">⌘2</span>
+        </div>
+        <h3 style="font-weight:600; font-size:18px; margin:0 0 8px; color:#11110F;">Reformuler</h3>
+        <p style="font-size:13px; line-height:1.6; color:#5a5852; margin:0;">Trois variantes au ton choisi : concis, incarné, formel. Réglables par profil de voix.</p>
+      </div>
+
+      <div style="background:#FAFAF8; border:1px solid #E8E6E0; border-radius:7px; padding:22px 24px;">
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:14px;">
+          <span style="font-family:'JetBrains Mono',monospace; font-size:10.5px; padding:3px 8px; background:#dde2f0; color:#3A5BB5; border-radius:4px; font-weight:600;">VOC</span>
+          <span style="font-family:'JetBrains Mono',monospace; font-size:10.5px; color:#A8A59C; margin-left:auto;">⌘3</span>
+        </div>
+        <h3 style="font-weight:600; font-size:18px; margin:0 0 8px; color:#11110F;">Vocabulaire</h3>
+        <p style="font-size:13px; line-height:1.6; color:#5a5852; margin:0;">Substitutions accordées en genre et en nombre. Vous posez une puce, vous la retirez d'un clic.</p>
+      </div>
+
+      <div style="background:#FAFAF8; border:1px solid #E8E6E0; border-radius:7px; padding:22px 24px;">
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:14px;">
+          <span style="font-family:'JetBrains Mono',monospace; font-size:10.5px; padding:3px 8px; background:rgba(181,58,58,.10); color:#B53A3A; border-radius:4px; font-weight:600;">TIC</span>
+          <span style="font-family:'JetBrains Mono',monospace; font-size:10.5px; color:#A8A59C; margin-left:auto;">⌘4</span>
+        </div>
+        <h3 style="font-weight:600; font-size:18px; margin:0 0 8px; color:#11110F;">Repérer les tics</h3>
+        <p style="font-size:13px; line-height:1.6; color:#5a5852; margin:0;">Anglicismes, jargon, clichés, formules creuses. Plume les remonte un par un, vous décidez.</p>
+      </div>
+
+      <div style="background:#FAFAF8; border:1px solid #E8E6E0; border-radius:7px; padding:22px 24px;">
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:14px;">
+          <span style="font-family:'JetBrains Mono',monospace; font-size:10.5px; padding:3px 8px; background:#E8E6E0; color:#5a5852; border-radius:4px; font-weight:600;">LEN</span>
+          <span style="font-family:'JetBrains Mono',monospace; font-size:10.5px; color:#A8A59C; margin-left:auto;">⌘5</span>
+        </div>
+        <h3 style="font-weight:600; font-size:18px; margin:0 0 8px; color:#11110F;">Ajuster la longueur</h3>
+        <p style="font-size:13px; line-height:1.6; color:#5a5852; margin:0;">Titre 60c, méta 155c, post 280c, ou votre cible. Plume condense ou étoffe sans tronquer.</p>
+      </div>
+
+      <div style="background:#FAFAF8; border:1px solid #E8E6E0; border-radius:7px; padding:22px 24px;">
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:14px;">
+          <span style="font-family:'JetBrains Mono',monospace; font-size:10.5px; padding:3px 8px; background:rgba(62,125,90,.14); color:#3E7D5A; border-radius:4px; font-weight:600;">VOX</span>
+          <span style="font-family:'JetBrains Mono',monospace; font-size:10.5px; color:#A8A59C; margin-left:auto;">⌘6</span>
+        </div>
+        <h3 style="font-weight:600; font-size:18px; margin:0 0 8px; color:#11110F;">Profils de voix</h3>
+        <p style="font-size:13px; line-height:1.6; color:#5a5852; margin:0;">Un profil par marque ou par projet. Importez une charte (PDF, Word…), Plume en extrait les consignes.</p>
+      </div>
+
+    </div>
+
+    <div data-reveal style="margin-top:28px; display:flex; align-items:center; gap:10px;">
+      <a href="tour.html" style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#3A5BB5; text-decoration:none; display:inline-flex; align-items:center; gap:8px; padding:8px 14px; border:1px solid #dde2f0; border-radius:6px; background:#fff;">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+        Voir chaque fonctionnalité en action
+        <span>→</span>
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════════════════ MODÈLES ═════════════════════ -->
+<section id="modeles" style="padding:80px 36px; background:#FAFAF8;">
+  <div style="max-width:1200px; margin:0 auto;">
+    <div data-reveal style="display:flex; align-items:flex-end; justify-content:space-between; flex-wrap:wrap; gap:24px; margin-bottom:32px;">
+      <div style="max-width:760px;">
+        <div style="font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:#3A5BB5; margin-bottom:10px;">Modèles au choix</div>
+        <h2 style="font-weight:700; font-size:32px; line-height:1.1; margin:0 0 10px; letter-spacing:-.018em; text-wrap:balance;">Connectez votre LLM, réglez le ton, c'est parti.</h2>
+        <p style="font-size:14.5px; color:#5a5852; margin:0; line-height:1.6;">Une clé API suffit pour démarrer. Du petit modèle au multi-modèles, dans le cloud ou en local.</p>
+      </div>
+    </div>
+
+    <div data-reveal data-stagger="40" style="display:grid; grid-template-columns:repeat(3, 1fr); gap:8px;">
+      <div style="background:#fff; border:1px solid #E8E6E0; border-radius:6px; padding:14px 18px; display:flex; align-items:center; gap:14px;">
+        <span style="font-family:'JetBrains Mono',monospace; font-size:10.5px; padding:3px 7px; background:#dde2f0; color:#3A5BB5; border-radius:3px; font-weight:600;">ANT</span>
+        <div style="flex:1; min-width:0;">
+          <div style="font-weight:600; font-size:13.5px;">Anthropic</div>
+          <div style="font-family:'JetBrains Mono',monospace; font-size:10.5px; color:#74716a;">claude · sonnet · haiku</div>
+        </div>
+      </div>
+      <div style="background:#fff; border:1px solid #E8E6E0; border-radius:6px; padding:14px 18px; display:flex; align-items:center; gap:14px;">
+        <span style="font-family:'JetBrains Mono',monospace; font-size:10.5px; padding:3px 7px; background:#dde2f0; color:#3A5BB5; border-radius:3px; font-weight:600;">OAI</span>
+        <div style="flex:1; min-width:0;">
+          <div style="font-weight:600; font-size:13.5px;">OpenAI</div>
+          <div style="font-family:'JetBrains Mono',monospace; font-size:10.5px; color:#74716a;">gpt-4o · 4.1 · mini</div>
+        </div>
+      </div>
+      <div style="background:#fff; border:1px solid #E8E6E0; border-radius:6px; padding:14px 18px; display:flex; align-items:center; gap:14px;">
+        <span style="font-family:'JetBrains Mono',monospace; font-size:10.5px; padding:3px 7px; background:#dde2f0; color:#3A5BB5; border-radius:3px; font-weight:600;">MST</span>
+        <div style="flex:1; min-width:0;">
+          <div style="font-weight:600; font-size:13.5px;">Mistral</div>
+          <div style="font-family:'JetBrains Mono',monospace; font-size:10.5px; color:#74716a;">large · small</div>
+        </div>
+      </div>
+      <div style="background:#fff; border:1px solid #E8E6E0; border-radius:6px; padding:14px 18px; display:flex; align-items:center; gap:14px;">
+        <span style="font-family:'JetBrains Mono',monospace; font-size:10.5px; padding:3px 7px; background:#dde2f0; color:#3A5BB5; border-radius:3px; font-weight:600;">GMI</span>
+        <div style="flex:1; min-width:0;">
+          <div style="font-weight:600; font-size:13.5px;">Google</div>
+          <div style="font-family:'JetBrains Mono',monospace; font-size:10.5px; color:#74716a;">gemini 2.5 · flash · pro</div>
+        </div>
+      </div>
+      <div style="background:#fff; border:1px solid #E8E6E0; border-radius:6px; padding:14px 18px; display:flex; align-items:center; gap:14px;">
+        <span style="font-family:'JetBrains Mono',monospace; font-size:10.5px; padding:3px 7px; background:#dde2f0; color:#3A5BB5; border-radius:3px; font-weight:600;">ORT</span>
+        <div style="flex:1; min-width:0;">
+          <div style="font-weight:600; font-size:13.5px;">OpenRouter</div>
+          <div style="font-family:'JetBrains Mono',monospace; font-size:10.5px; color:#74716a; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">qwen · llama · deepseek…</div>
+        </div>
+      </div>
+      <div style="background:#fff; border:1px solid #E8E6E0; border-radius:6px; padding:14px 18px; display:flex; align-items:center; gap:14px;">
+        <span style="font-family:'JetBrains Mono',monospace; font-size:10.5px; padding:3px 7px; background:rgba(62,125,90,.14); color:#3E7D5A; border-radius:3px; font-weight:600;">LOC</span>
+        <div style="flex:1; min-width:0;">
+          <div style="font-weight:600; font-size:13.5px;">Ollama · LM Studio</div>
+          <div style="font-family:'JetBrains Mono',monospace; font-size:10.5px; color:#74716a;">en local · localhost:11434</div>
+        </div>
+      </div>
+      <div style="background:#fff; border:1px solid #E8E6E0; border-radius:6px; padding:14px 18px; display:flex; align-items:center; gap:14px;">
+        <span style="font-family:'JetBrains Mono',monospace; font-size:10.5px; padding:3px 7px; background:#dde2f0; color:#3A5BB5; border-radius:3px; font-weight:600;">PPX</span>
+        <div style="flex:1; min-width:0;">
+          <div style="font-weight:600; font-size:13.5px;">Perplexity</div>
+          <div style="font-family:'JetBrains Mono',monospace; font-size:10.5px; color:#74716a;">sonar · pro · reasoning</div>
+        </div>
+      </div>
+      <div style="background:#fff; border:1px solid #E8E6E0; border-radius:6px; padding:14px 18px; display:flex; align-items:center; gap:14px;">
+        <span style="font-family:'JetBrains Mono',monospace; font-size:10.5px; padding:3px 7px; background:#dde2f0; color:#3A5BB5; border-radius:3px; font-weight:600;">DSK</span>
+        <div style="flex:1; min-width:0;">
+          <div style="font-weight:600; font-size:13.5px;">DeepSeek</div>
+          <div style="font-family:'JetBrains Mono',monospace; font-size:10.5px; color:#74716a;">chat · reasoner</div>
+        </div>
+      </div>
+      <div style="background:#fff; border:1px solid #E8E6E0; border-radius:6px; padding:14px 18px; display:flex; align-items:center; gap:14px;">
+        <span style="font-family:'JetBrains Mono',monospace; font-size:10.5px; padding:3px 7px; background:#dde2f0; color:#3A5BB5; border-radius:3px; font-weight:600;">QWN</span>
+        <div style="flex:1; min-width:0;">
+          <div style="font-weight:600; font-size:13.5px;">Qwen</div>
+          <div style="font-family:'JetBrains Mono',monospace; font-size:10.5px; color:#74716a;">dashscope · plus · max</div>
+        </div>
       </div>
     </div>
   </div>
 </section>
 
-<!-- ═══════════════ FOOTER ═══════════════ -->
-<footer class="site-footer">
-  <div class="footer-inner">
-    <a href="./" class="logo">
-      <span class="logo-icon"><svg viewBox="0 0 141.73 141.73" xmlns="http://www.w3.org/2000/svg"><rect width="141.73" height="141.73" rx="34.43" fill="#11110F"/><path fill="#fff" d="M81.02,81.88c-8.15.95-14-1.48-14-1.48.06-1.07-.17-2.07.71-3.69.41-.76,1.2-1.24,2.15-1.53,2.1-.64,4.9-.21,5.84,1.41.02.03.03.06.05.09.66-2.14-1.53-3.82-4.22-3.8,2.47,0,4.81-.03,6.85-.9,4.49-1.91,8.06-7.18,7.89-8.72-2.3.66-5.35.72-7.85.15,3.69-.37,8.14-1.07,10.4-2.93,4.43-3.64,7.3-6.62,7.56-10.19-1.45,2.75-5.25,3.57-9.76,4.26,7.79-2.83,10.99-5.99,10.84-11.08-.11-3.96-1.36-7.1-.9-9.18-34.36,7.27-37.05,18.21-33.03,36.6,2.46-10.98,14.21-20.4,17.84-22.83-9.59,9.94-16.97,20.25-16.97,31.73v20.32c0,12.61,1.36,13.65,14.32,14.69v5.04H31.87v-5.04c11.31-1.04,12.66-2.08,12.66-14.69v-56.81c0-12.61-1.36-13.5-11.76-14.69v-5.19h41.46c11.91,0,20.5,1.63,26.38,5.79,7.09,4.75,11.16,12.16,11.16,21.81,0,19.88-14.91,29.02-30.75,30.85Z"/></svg></span>
-      <span class="logo-name">Plume</span>
-      <span class="logo-ver">v1.4</span>
-    </a>
-    <span class="footer-copy">© 2026, libre et sans pub</span>
-    <div class="footer-links">
-      <a href="https://github.com/Fluorgasmic/Plume" target="_blank" rel="noopener">Code source</a>
-      <a href="#confidentialite">Confidentialité</a>
-      <a href="https://github.com/Fluorgasmic/Plume/commits/main" target="_blank" rel="noopener">Changelog</a>
-      <a href="mailto:lorent.fritsche@gmail.com">Contact</a>
-      <a href="#soutenir" class="accent">Soutenir</a>
+<!-- ═════════════════════ CONFIDENTIALITÉ ═════════════════════ -->
+<section id="confidentialite" style="padding:96px 36px; background:#fff; border-top:1px solid #E8E6E0; border-bottom:1px solid #E8E6E0;">
+  <div data-reveal data-stagger="120" style="display:grid; grid-template-columns:1.1fr 1fr; gap:64px; align-items:start; max-width:1200px; margin:0 auto;">
+    <div>
+      <div style="font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:#3A5BB5; margin-bottom:14px;">Confidentialité</div>
+      <h2 style="font-weight:700; font-size:34px; line-height:1.12; margin:0 0 20px; letter-spacing:-.018em; text-wrap:balance;">Plume est volontairement minimaliste. L'appli tourne dans votre navigateur et rien d'autre.</h2>
+      <p style="font-size:15px; line-height:1.65; color:#3d3b35; max-width:560px; margin:0 0 20px;">Vos brouillons, vos profils de voix et votre clé API restent dans les données locales de votre navigateur. Quand vous lancez une révision, le texte va de votre interface au modèle que vous avez configuré, et vous revient. Aucun serveur tiers n'intervient.</p>
+      <p style="font-size:15px; line-height:1.65; color:#3d3b35; max-width:560px; margin:0 0 26px;">Vous pouvez exporter vos documents en Markdown à tout moment. Fermez l'onglet : il ne reste rien ailleurs que dans votre navigateur.</p>
+      <div style="display:flex; gap:8px; flex-wrap:wrap; font-family:'JetBrains Mono',monospace; font-size:11.5px;">
+        <span style="padding:5px 11px; background:#FAFAF8; border:1px solid #E8E6E0; border-radius:4px; color:#3d3b35;">pas de cloud Plume</span>
+        <span style="padding:5px 11px; background:#FAFAF8; border:1px solid #E8E6E0; border-radius:4px; color:#3d3b35;">pas d'inscription</span>
+        <span style="padding:5px 11px; background:#FAFAF8; border:1px solid #E8E6E0; border-radius:4px; color:#3d3b35;">pas d'analytics</span>
+        <span style="padding:5px 11px; background:#FAFAF8; border:1px solid #E8E6E0; border-radius:4px; color:#3d3b35;">code source ouvert</span>
+      </div>
+    </div>
+
+    <div style="display:flex; flex-direction:column; gap:14px;">
+      <div style="background:#11110F; border-radius:9px; padding:22px 26px; font-family:'JetBrains Mono',monospace; font-size:12.5px; line-height:1.9; color:#cfcdc6;">
+        <div style="color:#5a5852; margin-bottom:6px;">// flux des données</div>
+        <div><span style="color:#fff;">votre navigateur</span>  <span style="color:#8FB0E8;">─→</span>  modèle</div>
+        <div style="margin-left:20px; color:#74716a;">↳ <span style="color:#8FB0E8;">passage sélectionné</span></div>
+        <div style="margin-left:20px; color:#74716a;">↳ profil de voix actif</div>
+        <div style="margin-top:6px;"><span style="color:#fff;">votre navigateur</span>  <span style="color:#82C2A0;">←─</span>  proposition</div>
+      </div>
+      <div style="background:#11110F; border-radius:9px; padding:22px 26px; font-family:'JetBrains Mono',monospace; font-size:12.5px; line-height:1.9; color:#cfcdc6;">
+        <div style="color:#5a5852; margin-bottom:6px;">// ce qui reste chez vous</div>
+        <div><span style="color:#82C2A0;">localStorage</span>:</div>
+        <div style="margin-left:18px;">· brouillons</div>
+        <div style="margin-left:18px;">· profils de voix</div>
+        <div style="margin-left:18px;">· clé API</div>
+        <div style="margin-left:18px;">· préférences (thème, zoom, vue)</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════════════════ ANATOMIE ═════════════════════ -->
+<section style="padding:96px 36px; background:#FAFAF8;">
+  <div style="max-width:1200px; margin:0 auto;">
+    <div data-reveal style="margin-bottom:40px; max-width:780px;">
+      <div style="font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:#3A5BB5; margin-bottom:14px;">Anatomie d'une révision</div>
+      <h2 style="font-weight:700; font-size:34px; line-height:1.1; margin:0 0 14px; letter-spacing:-.018em; text-wrap:balance;">Vous visualisez les propositions avant d'appliquer.</h2>
+      <p style="font-size:15px; line-height:1.6; color:#5a5852; margin:0;">Sélection, intention, aperçu. Vous décidez phrase par phrase.</p>
+    </div>
+
+    <div data-reveal data-stagger="120" style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px;">
+
+      <div>
+        <div style="background:#fff; border:1px solid #E8E6E0; border-radius:7px; overflow:hidden; box-shadow:0 16px 32px -16px rgba(0,0,0,.12);">
+          <div style="height:32px; border-bottom:1px solid #E8E6E0; display:flex; align-items:center; padding:0 12px; gap:8px;">
+            <span style="font-family:'JetBrains Mono',monospace; font-size:10px; color:#A8A59C;">i.</span>
+            <span style="font-family:'JetBrains Mono',monospace; font-size:10px; color:#74716a;">sélection</span>
+            <span style="margin-left:auto; font-family:'JetBrains Mono',monospace; font-size:10px; color:#3A5BB5;">178c</span>
+          </div>
+          <div style="padding:22px 22px 28px; min-height:200px; position:relative; background:#FAFAF8;">
+            <pre style="font-family:'JetBrains Mono',monospace; font-size:12px; line-height:1.7; color:#11110F; margin:0; white-space:pre-wrap;">Les fenêtres ordinairement
+si sombres de l'antique
+demeure <span style="background:#dde2f0; box-shadow:inset 0 -1px 0 #3A5BB5;">étaient ardemment
+éclairées</span>.</pre>
+            <div style="position:absolute; left:32px; bottom:18px; background:#fff; border:1px solid #E8E6E0; border-radius:6px; padding:3px; display:flex; gap:1px; box-shadow:0 8px 18px -4px rgba(0,0,0,.18);">
+              <span style="padding:4px 9px; font-size:11px; color:#fff; background:#3A5BB5; border-radius:3px;">Corriger</span>
+              <span style="padding:4px 9px; font-size:11px; color:#11110F;">Reformuler</span>
+              <span style="padding:4px 9px; font-size:11px; color:#74716a;">⌘K</span>
+            </div>
+          </div>
+        </div>
+        <div style="display:flex; align-items:baseline; gap:8px; margin-top:14px;">
+          <span style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#3A5BB5; font-weight:600;">01</span>
+          <p style="font-size:13px; line-height:1.55; color:#3d3b35; margin:0;">Sélectionnez un passage. La command bar apparaît au-dessus, raccourcis visibles.</p>
+        </div>
+      </div>
+
+      <div>
+        <div style="background:#fff; border:1px solid #E8E6E0; border-radius:7px; overflow:hidden; box-shadow:0 16px 32px -16px rgba(0,0,0,.12);">
+          <div style="height:32px; border-bottom:1px solid #E8E6E0; display:flex; align-items:center; padding:0 12px; gap:8px;">
+            <span style="font-family:'JetBrains Mono',monospace; font-size:10px; color:#A8A59C;">ii.</span>
+            <span style="font-family:'JetBrains Mono',monospace; font-size:10px; color:#74716a;">révision</span>
+            <span style="margin-left:auto; font-family:'JetBrains Mono',monospace; font-size:10px; color:#3A5BB5;">2 corr · 3 sty</span>
+          </div>
+          <div style="padding:14px 18px; min-height:200px;">
+            <div style="display:flex; gap:14px; margin-bottom:12px; border-bottom:1px solid #E8E6E0; padding-bottom:8px;">
+              <span style="font-size:11.5px; color:#11110F; border-bottom:2px solid #3A5BB5; padding-bottom:4px; font-weight:500;">Corrections · 2</span>
+              <span style="font-size:11.5px; color:#74716a;">Style · 3</span>
+              <span style="font-size:11.5px; color:#74716a;">Vocab</span>
+            </div>
+            <div style="display:flex; gap:10px; align-items:flex-start;">
+              <span style="font-family:'JetBrains Mono',monospace; font-size:9.5px; padding:2px 6px; background:#dde2f0; color:#3A5BB5; border-radius:3px; font-weight:600;">PCT</span>
+              <div style="font-size:12px; line-height:1.55;">éclairées<del style="color:#B53A3A; background:rgba(181,58,58,.10); text-decoration:line-through;">;</del><ins style="color:#3E7D5A; background:rgba(62,125,90,.14); text-decoration:none;">.</ins> Les places…</div>
+            </div>
+            <p style="font-size:11px; color:#74716a; margin:8px 0 0 30px;">Phrase trop longue, le point marque la respiration.</p>
+          </div>
+        </div>
+        <div style="display:flex; align-items:baseline; gap:8px; margin-top:14px;">
+          <span style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#3A5BB5; font-weight:600;">02</span>
+          <p style="font-size:13px; line-height:1.55; color:#3d3b35; margin:0;">Le panneau ouvre la révision, rangée par intention. Chaque carte porte un code et sa justification.</p>
+        </div>
+      </div>
+
+      <div>
+        <div style="background:#fff; border:1px solid #E8E6E0; border-radius:7px; overflow:hidden; box-shadow:0 16px 32px -16px rgba(0,0,0,.12);">
+          <div style="height:32px; border-bottom:1px solid #E8E6E0; display:flex; align-items:center; padding:0 12px; gap:8px;">
+            <span style="font-family:'JetBrains Mono',monospace; font-size:10px; color:#A8A59C;">iii.</span>
+            <span style="font-family:'JetBrains Mono',monospace; font-size:10px; color:#74716a;">aperçu cumulé</span>
+            <span style="margin-left:auto; font-family:'JetBrains Mono',monospace; font-size:10px; color:#3A5BB5;">+2</span>
+          </div>
+          <div style="padding:18px; min-height:200px;">
+            <div style="font-size:12.5px; line-height:1.65; background:#FAFAF8; padding:12px 14px; border:1px solid #E8E6E0; border-radius:5px; color:#11110F; margin-bottom:12px;">Les fenêtres de l'antique demeure royale étaient ardemment éclairées<span style="background:rgba(62,125,90,.16);">.</span> Les places et les rues attenantes, habituellement si <span style="background:rgba(62,125,90,.16);">solitaires</span>, regorgeaient de peuple.</div>
+            <div style="display:flex; gap:6px;">
+              <button style="font-size:11px; padding:5px 10px; background:#3A5BB5; color:#fff; border:none; border-radius:4px; cursor:pointer; font-family:inherit;">Appliquer (2)</button>
+              <button style="font-size:11px; padding:5px 10px; background:#fff; color:#3d3b35; border:1px solid #E8E6E0; border-radius:4px; cursor:pointer; font-family:inherit;">Ignorer</button>
+            </div>
+          </div>
+        </div>
+        <div style="display:flex; align-items:baseline; gap:8px; margin-top:14px;">
+          <span style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#3A5BB5; font-weight:600;">03</span>
+          <p style="font-size:13px; line-height:1.55; color:#3d3b35; margin:0;">L'aperçu cumulé montre où vous allez. Un clic applique tout, ou rien.</p>
+        </div>
+      </div>
+
+    </div>
+
+    <div data-reveal style="margin-top:36px;">
+      <a href="tour.html" style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#3A5BB5; text-decoration:none; display:inline-flex; align-items:center; gap:8px; padding:9px 16px; border:1px solid #dde2f0; border-radius:6px; background:#fff;">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+        Visite guidée détaillée
+        <span>→</span>
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════════════════ FAQ ═════════════════════ -->
+<section style="padding:96px 36px; background:#fff; border-top:1px solid #E8E6E0; border-bottom:1px solid #E8E6E0;">
+  <div data-reveal style="max-width:880px; margin:0 auto;">
+    <div style="margin-bottom:36px;">
+      <div style="font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:#3A5BB5; margin-bottom:14px;">FAQ</div>
+      <h2 style="font-weight:700; font-size:34px; line-height:1.08; margin:0; letter-spacing:-.018em;">Questions fréquentes.</h2>
+    </div>
+
+    <div style="display:flex; flex-direction:column;">
+      <details style="border-top:1px solid #E8E6E0; padding:18px 4px;" open>
+        <summary style="cursor:pointer; display:flex; align-items:center; gap:14px; font-weight:600; font-size:16px; color:#11110F; list-style:none;">
+          <span style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#3A5BB5; flex:none; width:28px;">01</span>
+          <span style="flex:1;">Mes textes sont-ils envoyés à un serveur Plume ?</span>
+          <span style="font-family:'JetBrains Mono',monospace; font-size:11.5px; color:#3A5BB5;">non</span>
+          <span class="sum-chev" style="display:inline-block; font-family:'JetBrains Mono',monospace; font-size:11px; color:#A8A59C; margin-left:6px;">▾</span>
+        </summary>
+        <p style="font-size:14px; line-height:1.65; color:#3d3b35; margin:14px 0 0 42px; max-width:700px;">Plume est hébergé sur GitHub et ne collecte aucune donnée. Quand vous lancez une action, le passage sélectionné part de votre navigateur vers le modèle dont vous avez configuré la clé (Anthropic, OpenAI, Mistral, Ollama en local…). Rien ne transite par nous.</p>
+      </details>
+
+      <details style="border-top:1px solid #E8E6E0; padding:18px 4px;">
+        <summary style="cursor:pointer; display:flex; align-items:center; gap:14px; font-weight:600; font-size:16px; color:#11110F; list-style:none;">
+          <span style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#3A5BB5; flex:none; width:28px;">02</span>
+          <span style="flex:1;">Combien ça coûte ?</span>
+          <span style="font-family:'JetBrains Mono',monospace; font-size:11.5px; color:#3A5BB5;">rien</span>
+          <span class="sum-chev" style="display:inline-block; font-family:'JetBrains Mono',monospace; font-size:11px; color:#A8A59C; margin-left:6px;">▾</span>
+        </summary>
+        <p style="font-size:14px; line-height:1.65; color:#3d3b35; margin:14px 0 0 42px; max-width:700px;">Plume est gratuit et open source. Vous payez seulement l'usage de l'API du modèle que vous configurez, soit quelques centimes par révision pour la plupart des modèles.</p>
+      </details>
+
+      <details style="border-top:1px solid #E8E6E0; padding:18px 4px;">
+        <summary style="cursor:pointer; display:flex; align-items:center; gap:14px; font-weight:600; font-size:16px; color:#11110F; list-style:none;">
+          <span style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#3A5BB5; flex:none; width:28px;">03</span>
+          <span style="flex:1;">Faut-il une carte bancaire pour commencer ?</span>
+          <span style="font-family:'JetBrains Mono',monospace; font-size:11.5px; color:#3A5BB5;">non</span>
+          <span class="sum-chev" style="display:inline-block; font-family:'JetBrains Mono',monospace; font-size:11px; color:#A8A59C; margin-left:6px;">▾</span>
+        </summary>
+        <p style="font-size:14px; line-height:1.65; color:#3d3b35; margin:14px 0 0 42px; max-width:700px;">Vous pouvez écrire sans clé API, seules les fonctions de révision seront inactives. Avec Ollama en local, aucune clé n'est nécessaire.</p>
+      </details>
+
+      <details style="border-top:1px solid #E8E6E0; padding:18px 4px;">
+        <summary style="cursor:pointer; display:flex; align-items:center; gap:14px; font-weight:600; font-size:16px; color:#11110F; list-style:none;">
+          <span style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#3A5BB5; flex:none; width:28px;">04</span>
+          <span style="flex:1;">Plume écrit-il à votre place ?</span>
+          <span style="font-family:'JetBrains Mono',monospace; font-size:11.5px; color:#3A5BB5;">jamais sans accord</span>
+          <span class="sum-chev" style="display:inline-block; font-family:'JetBrains Mono',monospace; font-size:11px; color:#A8A59C; margin-left:6px;">▾</span>
+        </summary>
+        <p style="font-size:14px; line-height:1.65; color:#3d3b35; margin:14px 0 0 42px; max-width:700px;">Plume propose, vous décidez. Chaque correction, reformulation ou substitution arrive avec sa justification. Votre texte ne change qu'au clic sur Appliquer.</p>
+      </details>
+
+      <details style="border-top:1px solid #E8E6E0; border-bottom:1px solid #E8E6E0; padding:18px 4px;">
+        <summary style="cursor:pointer; display:flex; align-items:center; gap:14px; font-weight:600; font-size:16px; color:#11110F; list-style:none;">
+          <span style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#3A5BB5; flex:none; width:28px;">05</span>
+          <span style="flex:1;">Je travaille pour plusieurs marques. Comment séparer leurs voix ?</span>
+          <span style="font-family:'JetBrains Mono',monospace; font-size:11.5px; color:#3A5BB5;">profils de voix</span>
+          <span class="sum-chev" style="display:inline-block; font-family:'JetBrains Mono',monospace; font-size:11px; color:#A8A59C; margin-left:6px;">▾</span>
+        </summary>
+        <p style="font-size:14px; line-height:1.65; color:#3d3b35; margin:14px 0 0 42px; max-width:700px;">Créez un profil par marque ou par projet. Chaque profil porte son ton, ses consignes, ses mots interdits. Passez de l'un à l'autre en un clic, la révision suit.</p>
+      </details>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════════════════ DON ═════════════════════ -->
+<section id="soutenir" style="padding:96px 36px; background:#FAFAF8;">
+  <div style="max-width:1000px; margin:0 auto;">
+    <div data-reveal style="background:#fff; border:1px solid #E8E6E0; border-radius:9px; padding:36px 40px; display:grid; grid-template-columns:1.4fr 1fr; gap:36px; align-items:center;">
+      <div>
+        <div style="font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:#3A5BB5; margin-bottom:12px;">Soutenir le projet</div>
+        <h2 style="font-weight:700; font-size:30px; line-height:1.1; margin:0 0 12px; letter-spacing:-.014em;">Si Plume vous est utile.</h2>
+        <p style="font-size:14px; line-height:1.65; color:#3d3b35; margin:0; max-width:480px;">Plume est libre et sans pub. Il tient sur le temps qu'on lui donne et sur un hébergement modeste. S'il vous accompagne au travail, un café suffit.</p>
+      </div>
+      <div style="text-align:right;">
+        <a href="https://www.paypal.com/donate/?business=lorent.fritsche@gmail.com&currency_code=EUR&item_name=Soutenir+Plume" target="_blank" rel="noopener" style="font-size:14.5px; font-weight:500; padding:12px 22px; background:#3A5BB5; color:#fff; border-radius:7px; display:inline-flex; align-items:center; gap:10px; text-decoration:none;">
+          <span style="font-weight:700; letter-spacing:.02em;">Pay<span style="font-style:italic; font-weight:600;">Pal</span></span>
+          <span style="opacity:.5;">·</span>
+          Soutenir Plume
+          <span style="font-family:'JetBrains Mono',monospace;">→</span>
+        </a>
+        <div style="font-family:'JetBrains Mono',monospace; font-size:10.5px; color:#74716a; margin-top:10px;">paiement unique, montant libre, sans récurrence</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════════════════ FOOTER ═════════════════════ -->
+<footer style="padding:36px 36px 56px; border-top:1px solid #E8E6E0; background:#FAFAF8;">
+  <div style="max-width:1200px; margin:0 auto; display:flex; align-items:center; flex-wrap:wrap; gap:18px;">
+    <div style="display:flex; align-items:center; gap:9px;">
+      <span class="plume-logo plume-logo--sm"><svg><use href="#plume-icon"/></svg></span>
+      <span style="font-weight:600; font-size:14px;">Plume</span>
+      <span style="font-family:'JetBrains Mono',monospace; font-size:10.5px; color:#A8A59C; padding:2px 6px; background:#fff; border:1px solid #E8E6E0; border-radius:4px;">v1.4</span>
+      <span style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#74716a; margin-left:8px;">· libre et sans pub · © 2026</span>
+    </div>
+    <div style="flex:1"></div>
+    <div style="display:flex; gap:22px; font-size:13px; color:#3d3b35; flex-wrap:wrap;">
+      <a href="https://github.com/Fluorgasmic/Plume" style="text-decoration:none;">Code source</a>
+      <a href="#confidentialite" style="text-decoration:none;">Confidentialité</a>
+      <a href="https://github.com/Fluorgasmic/Plume/commits/main" style="text-decoration:none;">Changelog</a>
+      <a href="mailto:lorent.fritsche@gmail.com" style="text-decoration:none;">Contact</a>
+      <a href="#soutenir" style="text-decoration:none; color:#3A5BB5;">Soutenir</a>
     </div>
   </div>
 </footer>
 
 <script>
-/* ═══ Typing animation ═══ */
-(function(){
-  var examples = [
-    { pre:'les torches brûlaient dans la galerie', word:';', post:' les seigneurs dansaient.', fix:'.', badge:'PCT', badgeBg:'#dde2f0', badgeColor:'#3A5BB5' },
-    { pre:'les rues attenantes étaient ', word:'solitaire', post:' et désertes.', fix:'solitaires', badge:'GRA', badgeBg:'rgba(166,113,31,.14)', badgeColor:'#A6711F' },
-    { pre:'Marguerite s’avança ', word:'lentement', post:' vers le roi.', fix:'d’un pas mesuré', badge:'STY', badgeBg:'rgba(166,113,31,.14)', badgeColor:'#A6711F' }
-  ];
-  var idx = 0, timer = null;
-  var badgeEl = document.getElementById('typing-badge');
-  var textEl  = document.getElementById('typing-text');
-  if(!badgeEl || !textEl) return;
+// ════ Reveal animations (port from DC inline script as plain JS) ════
+document.addEventListener('DOMContentLoaded', function(){
+  var ease = function(t){ return 1 - Math.pow(1 - t, 4); };
 
-  function esc(s){ var d=document.createElement('span'); d.textContent=s; return d.innerHTML; }
+  var animateIn = function(el, duration, startY){
+    var t0 = performance.now();
+    var step = function(){
+      if (!document.body.contains(el)) return;
+      var t = Math.min(1, (performance.now() - t0) / duration);
+      var k = ease(t);
+      el.style.setProperty('opacity', String(k), 'important');
+      el.style.setProperty('transform', 'translateY(' + (startY * (1 - k)).toFixed(2) + 'px)', 'important');
+      if (t < 1) requestAnimationFrame(step);
+    };
+    step();
+  };
 
-  function animate(){
-    var cur = examples[idx];
-    var total = cur.pre.length + cur.word.length + cur.post.length;
-    var i = 0;
-    badgeEl.textContent = cur.badge;
-    badgeEl.style.background = cur.badgeBg;
-    badgeEl.style.color = cur.badgeColor;
+  var runAnim = function(el){
+    if (el._animated) return;
+    el._animated = true;
+    var kind = el.dataset.anim;
+    var animDelay = parseInt(el.dataset.animDelay || '0', 10);
+    var dur = parseInt(el.dataset.animDuration || (kind === 'type' ? '1800' : '500'), 10);
 
-    function typeNext(){
-      if(i > total){ timer = setTimeout(strike, 720); return; }
-      var preText = cur.pre.slice(0, Math.min(i, cur.pre.length));
-      var wordText = cur.word.slice(0, Math.max(0, Math.min(i - cur.pre.length, cur.word.length)));
-      var postText = cur.post.slice(0, Math.max(0, i - cur.pre.length - cur.word.length));
-      textEl.innerHTML = esc(preText) + '<span>' + esc(wordText) + '</span>' + esc(postText) + '<span class="typing-cursor"></span>';
-      i++;
-      timer = setTimeout(typeNext, 26 + Math.random() * 22);
-    }
-
-    function strike(){
-      var preText = cur.pre;
-      var postText = cur.post;
-      textEl.innerHTML = esc(preText) + '<span class="typing-del">' + esc(cur.word) + '</span>' + esc(postText) + '<span class="typing-cursor"></span>';
-      timer = setTimeout(corrStart, 380);
-    }
-
-    function corrStart(){
-      var j = 0;
-      function corrNext(){
-        if(j > cur.fix.length){ timer = setTimeout(nextCycle, 2000); return; }
-        var corrText = cur.fix.slice(0, j);
-        textEl.innerHTML = esc(cur.pre) + '<span class="typing-del">' + esc(cur.word) + '</span>' + esc(cur.post)
-          + (j > 0 ? '<span class="typing-ins">' + esc(corrText) + '</span>' : '')
-          + '<span class="typing-cursor"></span>';
-        j++;
-        timer = setTimeout(corrNext, 42 + Math.random() * 32);
-      }
-      corrNext();
-    }
-
-    function nextCycle(){
-      idx = (idx + 1) % examples.length;
-      timer = setTimeout(animate, 250);
-    }
-
-    typeNext();
-  }
-
-  animate();
-})();
-
-/* ═══ Scroll reveals ═══ */
-(function(){
-  function reveal(el, delay){
-    setTimeout(function(){
-      try {
-        el.classList.add('revealed');
-        var stag = parseInt(el.dataset.stagger || '0', 10);
-        if(stag > 0){
-          Array.from(el.children).forEach(function(child, i){
-            setTimeout(function(){ try { child.classList.add('revealed'); } catch(e){} }, (i+1) * stag);
-          });
+    if (kind === 'type'){
+      var caret = el.parentElement && el.parentElement.querySelector('[data-caret]');
+      var blinkInt = null;
+      setTimeout(function(){
+        var w = el.getBoundingClientRect().width;
+        if (caret){
+          caret.style.setProperty('opacity', '1', 'important');
+          var on = true;
+          blinkInt = setInterval(function(){
+            on = !on;
+            try { caret.style.setProperty('opacity', on ? '1' : '0', 'important'); } catch(e){}
+          }, 480);
         }
-      } catch(e){}
+        var t0 = performance.now();
+        var step = function(){
+          var t = Math.min(1, (performance.now() - t0) / dur);
+          var k = 1 - Math.pow(1 - t, 3);
+          var inset = ((1 - k) * 100).toFixed(2);
+          el.style.setProperty('clip-path', 'inset(0 ' + inset + '% 0 0)', 'important');
+          if (caret) caret.style.setProperty('left', (22 + k * (w - 6)).toFixed(1) + 'px', 'important');
+          if (t < 1) requestAnimationFrame(step);
+          else if (caret){
+            if (blinkInt) clearInterval(blinkInt);
+            var f0 = performance.now();
+            var fade = function(){
+              var ft = Math.min(1, (performance.now() - f0) / 400);
+              try { caret.style.setProperty('opacity', String(1 - ft), 'important'); } catch(e){}
+              if (ft < 1) requestAnimationFrame(fade);
+            };
+            fade();
+          }
+        };
+        step();
+      }, animDelay);
+    } else if (kind === 'fade'){
+      setTimeout(function(){
+        var t0 = performance.now();
+        var step = function(){
+          var t = Math.min(1, (performance.now() - t0) / dur);
+          var k = 1 - Math.pow(1 - t, 4);
+          el.style.setProperty('opacity', String(k), 'important');
+          el.style.setProperty('transform', 'translateY(' + (6 * (1 - k)).toFixed(2) + 'px)', 'important');
+          if (t < 1) requestAnimationFrame(step);
+        };
+        step();
+      }, animDelay);
+    }
+  };
+
+  var revealEl = function(el){
+    if (el._revealed) return;
+    el._revealed = true;
+    var delay = parseInt(el.dataset.delay || '0', 10) || 0;
+    setTimeout(function(){
+      animateIn(el, 700, 16);
+      var stag = parseInt(el.dataset.stagger || '0', 10);
+      if (stag > 0){
+        Array.from(el.children).forEach(function(child, i){
+          setTimeout(function(){
+            if (!child._revealed){
+              child._revealed = true;
+              animateIn(child, 600, 14);
+            }
+          }, (i + 1) * stag);
+        });
+      }
+      el.querySelectorAll('[data-anim]').forEach(function(animEl){ runAnim(animEl); });
     }, delay);
-  }
+  };
 
-  var obs = new IntersectionObserver(function(entries){
-    entries.forEach(function(entry){
-      try {
-        if(!entry.isIntersecting) return;
-        var el = entry.target;
-        var delay = parseInt(el.dataset.delay || '0', 10) || 0;
-        reveal(el, delay);
-        obs.unobserve(el);
-      } catch(e){}
+  var inView = function(el){
+    var r = el.getBoundingClientRect();
+    var vh = window.innerHeight || document.documentElement.clientHeight;
+    return r.top < vh - 60 && r.bottom > 0;
+  };
+
+  var checkAll = function(){
+    document.querySelectorAll('[data-reveal]').forEach(function(el){
+      if (!el._revealed && inView(el)) revealEl(el);
     });
-  }, { threshold: 0.12, rootMargin: '0px 0px -6% 0px' });
+  };
 
-  document.querySelectorAll('[data-reveal]').forEach(function(el){
-    try { obs.observe(el); } catch(e){}
-  });
-})();
-
-/* ═══ Smooth scroll for anchor links ═══ */
-document.querySelectorAll('a[href^="#"]').forEach(function(a){
-  a.addEventListener('click', function(e){
-    var target = document.querySelector(a.getAttribute('href'));
-    if(target){ e.preventDefault(); target.scrollIntoView({behavior:'smooth',block:'start'}); }
-  });
+  checkAll();
+  var pending = false;
+  var onScroll = function(){
+    if (pending) return;
+    pending = true;
+    requestAnimationFrame(function(){
+      pending = false;
+      checkAll();
+    });
+  };
+  window.addEventListener('scroll', onScroll, { passive: true });
+  window.addEventListener('resize', onScroll, { passive: true });
 });
 
-/* ═══ Tour guidé du screenshot ═══ */
-(function(){
-  var img = document.getElementById('shot-img');
-  if(!img) return;
-  var SRC = {
-    light: 'screenshots/01-editor-light.png',
-    dark: 'screenshots/02-editor-dark.png',
-    sel: 'screenshots/03-editor-selection.png'
-  };
-  /* Coords en % du conteneur (la stage prend la taille de l'img qui est 1480×880).
-     mask = null  → pas de surlignage (vue d'ensemble)
-     caption.pos = 'top' force la légende en haut sinon défaut = bas */
-  var STEPS = [
-    { img:'light', mask:null,
-      eyebrow:'visite guidée · 1 / 10',
-      title:'Plume — éditeur Markdown avec révision IA',
-      sub:'Sommaire à gauche, source au centre, aperçu et révision à droite.' },
-    { img:'light', mask:{l:0.5, t:4.0, w:15.0, h:95.0},
-      eyebrow:'sommaire',
-      title:'Tous vos titres, listés à gauche',
-      sub:'Parser des # à ###### pour naviguer d\'un clic. Mise à jour à la frappe.' },
-    { img:'light', mask:{l:15.8, t:4.0, w:36.0, h:96.0},
-      eyebrow:'éditeur',
-      title:'Markdown brut, barre de formatage, zoom',
-      sub:'Raccourcis, recherche-remplace, zoom 70 % → 180 % pour les longues sessions.' },
-    { img:'light', mask:{l:41.5, t:4.0, w:30.0, h:96.0},
-      eyebrow:'aperçu',
-      title:'Rendu typographique en serif, temps réel',
-      sub:'Newsreader. Lisibilité analysée (phrases longues, adverbes, mots inconnus).' },
-    { img:'sel', mask:{l:7.0, t:34.0, w:32.0, h:9.0}, captionPos:'top',
-      eyebrow:'command bar',
-      title:'Sélectionnez un passage → la command bar apparaît',
-      sub:'Corriger, Reformuler, Vocabulaire — au-dessous de votre sélection, sans bouger la souris.' },
-    { img:'light', mask:{l:71.5, t:4.0, w:28.0, h:96.0},
-      eyebrow:'panneau révision',
-      title:'Diffs, propositions, aperçu cumulé',
-      sub:'Acceptez, refusez, refaites — phrase par phrase ou en bloc.' },
-    { img:'light', mask:{l:71.5, t:8.5, w:13.5, h:3.5},
-      eyebrow:'portée',
-      title:'Sélection ou tout le document',
-      sub:'Un seul interrupteur. La révision suit ce que vous choisissez.' },
-    { img:'light', mask:{l:71.5, t:12.5, w:18.0, h:4.0},
-      eyebrow:'onglets',
-      title:'Corrections · Style · Vocabulaire',
-      sub:'Trois axes de relecture, chacun avec son grain. Un clic, un type de proposition.' },
-    { img:'light', mask:{l:64.0, t:0.5, w:11.0, h:3.0},
-      eyebrow:'palette',
-      title:'⌘K ouvre la palette de commandes',
-      sub:'Toutes les actions à la frappe : profils de voix, modèles, raccourcis.' },
-    { img:'dark', mask:null,
-      eyebrow:'thème',
-      title:'Mode sombre prêt aux longues nuits',
-      sub:'Contraste augmenté, surlignages lisibles, accent indigo ajusté.' }
-  ];
-
-  var STEP_MS = 4200;
-  var TICK_MS = 50;
-  var idx = 0;
-  var elapsed = 0;
-  var playing = true;
-  var timer = null;
-  var currentImg = 'light';
-
-  var maskEl = document.getElementById('tour-mask');
-  var capEl = document.getElementById('tour-caption');
-  var ebEl = document.getElementById('tc-eyebrow');
-  var tEl = document.getElementById('tc-title');
-  var sEl = document.getElementById('tc-sub');
-  var fillEl = document.getElementById('tour-fill');
-  var stepNumEl = document.getElementById('tour-step');
-  var stepTotalEl = document.getElementById('tour-total');
-  var toggleBtn = document.getElementById('tour-toggle');
-  var toggleIcon = document.getElementById('tour-toggle-icon');
-  stepTotalEl.textContent = STEPS.length;
-
-  var PLAY_ICON = '<polygon points="6 4 20 12 6 20 6 4" fill="currentColor"/>';
-  var PAUSE_ICON = '<rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/>';
-
-  function applyStep(){
-    var s = STEPS[idx];
-    stepNumEl.textContent = idx + 1;
-    if (s.img !== currentImg){
-      img.classList.add('fading');
-      setTimeout(function(){
-        img.src = SRC[s.img];
-        currentImg = s.img;
-        img.onload = function(){ img.classList.remove('fading'); };
-      }, 180);
-    }
-    capEl.classList.add('swap');
-    setTimeout(function(){
-      ebEl.textContent = (s.eyebrow || '') + ' · ' + (idx+1) + ' / ' + STEPS.length;
-      tEl.textContent = s.title;
-      sEl.textContent = s.sub;
-      capEl.classList.toggle('below', s.captionPos === 'top');
-      capEl.classList.remove('swap');
-    }, 180);
-    if (s.mask){
-      maskEl.classList.remove('off');
-      maskEl.style.left = s.mask.l + '%';
-      maskEl.style.top = s.mask.t + '%';
-      maskEl.style.width = s.mask.w + '%';
-      maskEl.style.height = s.mask.h + '%';
-    } else {
-      maskEl.classList.add('off');
-    }
-    elapsed = 0;
-    fillEl.style.width = '0%';
-  }
-  function tick(){
-    if (!playing) return;
-    elapsed += TICK_MS;
-    fillEl.style.width = Math.min(100, (elapsed / STEP_MS) * 100) + '%';
-    if (elapsed >= STEP_MS){
-      idx = (idx + 1) % STEPS.length;
-      applyStep();
-    }
-  }
-  function start(){ if(timer) clearInterval(timer); timer = setInterval(tick, TICK_MS); }
-  function setPlaying(p){
-    playing = p;
-    toggleIcon.innerHTML = p ? PAUSE_ICON : PLAY_ICON;
-    toggleBtn.title = p ? 'Pause' : 'Reprendre';
-  }
-  document.getElementById('tour-prev').addEventListener('click', function(){
-    idx = (idx - 1 + STEPS.length) % STEPS.length; applyStep();
+// Smooth scroll for anchor links
+document.querySelectorAll('a[href^="#"]').forEach(function(a){
+  a.addEventListener('click', function(e){
+    var t = document.querySelector(a.getAttribute('href'));
+    if (t){ e.preventDefault(); t.scrollIntoView({behavior:'smooth', block:'start'}); }
   });
-  document.getElementById('tour-next').addEventListener('click', function(){
-    idx = (idx + 1) % STEPS.length; applyStep();
-  });
-  toggleBtn.addEventListener('click', function(){ setPlaying(!playing); });
-  document.getElementById('tour-stage').addEventListener('click', function(e){
-    if (e.target.closest('.tour-controls')) return;
-    setPlaying(!playing);
-  });
-
-  applyStep(); start();
-})();
+});
 </script>
 </body>
 </html>

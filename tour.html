@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Plume — visite guidée</title>
+<meta name="description" content="Visite guidée des sept gestes de Plume : sélection, correction, reformulation, vocabulaire, tics, longueur, profils de voix.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,500;1,6..72,400&display=swap" rel="stylesheet">
+<style>
+  body{margin:0; background:#FAFAF8; color:#11110F; font-family:'Inter',system-ui,sans-serif;}
+  *{box-sizing:border-box}
+  a{color:inherit}
+  ::selection{background:#dde2f0; color:#11110F}
+  [data-reveal]{opacity:0;}
+  [data-stagger]>*{opacity:0;}
+  html{scroll-behavior:smooth;}
+  .plume-logo{flex:none; display:flex; align-items:center; justify-content:center}
+  .plume-logo svg{width:100%; height:100%; display:block}
+  .plume-logo--nav{width:22px; height:22px}
+  .plume-logo--foot{width:20px; height:20px}
+</style>
+</head>
+<body>
+
+<!-- Symboles SVG : icône Plume claire (sur fond clair) et sombre (sur fond foncé) -->
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true">
+  <symbol id="plume-icon" viewBox="0 0 141.73 141.73">
+    <rect fill="#fff" stroke="#000" stroke-miterlimit="10" x="28.94" y="19.21" width="91.66" height="105.24"/>
+    <path fill="#15130f" d="M107.3,0H34.43C15.49,0,0,15.49,0,34.43v72.87c0,18.94,15.49,34.43,34.43,34.43h72.87c18.94,0,34.43-15.49,34.43-34.43V34.43c0-18.94-15.49-34.43-34.43-34.43ZM81.02,81.88c-8.15.95-14-1.48-14-1.48.06-1.07-.17-2.07.71-3.69.41-.76,1.2-1.24,2.15-1.53,2.1-.64,4.9-.21,5.84,1.41.02.03.03.06.05.09.66-2.14-1.53-3.82-4.22-3.8,2.47,0,4.81-.03,6.85-.9,4.49-1.91,8.06-7.18,7.89-8.72-2.3.66-5.35.72-7.85.15,3.69-.37,8.14-1.07,10.4-2.93,4.43-3.64,7.3-6.62,7.56-10.19-1.45,2.75-5.25,3.57-9.76,4.26,7.79-2.83,10.99-5.99,10.84-11.08-.11-3.96-1.36-7.1-.9-9.18-34.36,7.27-37.05,18.21-33.03,36.6,2.46-10.98,14.21-20.4,17.84-22.83-9.59,9.94-16.97,20.25-16.97,31.73v20.32c0,12.61,1.36,13.65,14.32,14.69v5.04H31.87v-5.04c11.31-1.04,12.66-2.08,12.66-14.69v-56.81c0-12.61-1.36-13.5-11.76-14.69v-5.19h41.46c11.91,0,20.5,1.63,26.38,5.79,7.09,4.75,11.16,12.16,11.16,21.81,0,19.88-14.91,29.02-30.75,30.85h0Z"/>
+  </symbol>
+  <symbol id="plume-icon-dark" viewBox="0 0 141.73 141.73">
+    <rect fill="#231f20" stroke="#000" stroke-miterlimit="10" x="28.94" y="19.21" width="91.66" height="105.24"/>
+    <path fill="#fff" d="M107.3,0H34.43C15.49,0,0,15.49,0,34.43v72.87c0,18.94,15.49,34.43,34.43,34.43h72.87c18.94,0,34.43-15.49,34.43-34.43V34.43c0-18.94-15.49-34.43-34.43-34.43ZM81.02,81.88c-8.15.95-14-1.48-14-1.48.06-1.07-.17-2.07.71-3.69.41-.76,1.2-1.24,2.15-1.53,2.1-.64,4.9-.21,5.84,1.41.02.03.03.06.05.09.66-2.14-1.53-3.82-4.22-3.8,2.47,0,4.81-.03,6.85-.9,4.49-1.91,8.06-7.18,7.89-8.72-2.3.66-5.35.72-7.85.15,3.69-.37,8.14-1.07,10.4-2.93,4.43-3.64,7.3-6.62,7.56-10.19-1.45,2.75-5.25,3.57-9.76,4.26,7.79-2.83,10.99-5.99,10.84-11.08-.11-3.96-1.36-7.1-.9-9.18-34.36,7.27-37.05,18.21-33.03,36.6,2.46-10.98,14.21-20.4,17.84-22.83-9.59,9.94-16.97,20.25-16.97,31.73v20.32c0,12.61,1.36,13.65,14.32,14.69v5.04H31.87v-5.04c11.31-1.04,12.66-2.08,12.66-14.69v-56.81c0-12.61-1.36-13.5-11.76-14.69v-5.19h41.46c11.91,0,20.5,1.63,26.38,5.79,7.09,4.75,11.16,12.16,11.16,21.81,0,19.88-14.91,29.02-30.75,30.85h0Z"/>
+  </symbol>
+</svg>
+
+<!-- ═════════════════════ NAV ═════════════════════ -->
+<header style="position:sticky; top:0; z-index:30; background:rgba(250,250,248,.92); backdrop-filter:blur(8px); border-bottom:1px solid #E8E6E0;">
+  <div style="max-width:1200px; margin:0 auto; padding:0 36px; display:flex; align-items:center; height:60px; gap:14px;">
+    <a href="index.html" style="display:flex; align-items:center; gap:9px; text-decoration:none;">
+      <span class="plume-logo plume-logo--nav"><svg><use href="#plume-icon"/></svg></span>
+      <span style="font-weight:600; font-size:15px; letter-spacing:-.005em;">Plume</span>
+      <span style="font-family:'JetBrains Mono',monospace; font-size:10.5px; color:#A8A59C; padding:2px 6px; background:#fff; border:1px solid #E8E6E0; border-radius:4px;">v1.4</span>
+    </a>
+    <div style="flex:1"></div>
+    <nav style="display:flex; gap:14px; font-size:12px; color:#3d3b35;">
+      <a href="#etape-1" style="text-decoration:none; white-space:nowrap;">01 Sélection</a>
+      <a href="#etape-2" style="text-decoration:none; white-space:nowrap;">02 Corriger</a>
+      <a href="#etape-3" style="text-decoration:none; white-space:nowrap;">03 Reformuler</a>
+      <a href="#etape-4" style="text-decoration:none; white-space:nowrap;">04 Vocabulaire</a>
+      <a href="#etape-5" style="text-decoration:none; white-space:nowrap;">05 Tics</a>
+      <a href="#etape-6" style="text-decoration:none; white-space:nowrap;">06 Longueur</a>
+      <a href="#etape-7" style="text-decoration:none; white-space:nowrap;">07 Voix</a>
+    </nav>
+    <div style="margin-left:14px; display:flex; align-items:center; gap:10px;">
+      <a href="app.html" style="font-size:13px; font-weight:500; padding:7px 14px; background:#3A5BB5; color:#fff; border-radius:6px; text-decoration:none; white-space:nowrap;">Ouvrir l'éditeur</a>
+    </div>
+  </div>
+</header>
+
+<!-- ═════════════════════ HERO ═════════════════════ -->
+<section style="padding:88px 36px 64px;">
+  <div style="max-width:1080px; margin:0 auto;">
+    <div data-reveal data-delay="0" style="display:inline-flex; align-items:center; gap:8px; padding:5px 12px; background:#fff; border:1px solid #E8E6E0; border-radius:999px; font-size:11.5px; color:#3A5BB5; font-family:'JetBrains Mono',monospace; margin-bottom:28px;">
+      <span style="width:6px; height:6px; border-radius:50%; background:#3A5BB5;"></span>
+      Visite guidée · sept moments
+    </div>
+
+    <h1 data-reveal data-delay="100" style="font-weight:700; font-size:clamp(36px, 5.2vw, 56px); line-height:1.04; letter-spacing:-.024em; margin:0 0 24px; color:#11110F; max-width:900px; text-wrap:balance;">Une révision, du clic à l'aperçu cumulé.</h1>
+
+    <p data-reveal data-delay="220" style="font-size:17px; line-height:1.55; color:#3d3b35; margin:0 0 30px; max-width:680px;">On suit un passage du premier chapitre de <i>La Reine Margot</i> à travers les sept gestes de Plume. Sélection, correction, reformulation, vocabulaire, tics, longueur, profil de voix. Vous regardez Plume travailler, sans rien installer.</p>
+
+    <div data-reveal data-delay="340" style="display:flex; align-items:center; gap:18px; flex-wrap:wrap;">
+      <a href="#etape-1" style="font-size:14px; font-weight:500; padding:11px 22px; background:#11110F; color:#fff; border-radius:6px; text-decoration:none; display:inline-flex; align-items:center; gap:8px;">Commencer la visite <span style="font-family:'JetBrains Mono',monospace;">↓</span></a>
+      <a href="app.html" style="font-size:14px; padding:11px 22px; background:#fff; color:#11110F; border:1px solid #E8E6E0; border-radius:6px; text-decoration:none;">Ouvrir l'éditeur</a>
+      <span style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#74716a;">≈ 5 min de lecture</span>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════════════════ EXTRAIT SOURCE ═════════════════════ -->
+<section style="padding:0 36px 88px;">
+  <div data-reveal style="max-width:1080px; margin:0 auto;">
+    <div style="background:#fff; border:1px solid #E8E6E0; border-radius:9px; overflow:hidden;">
+      <div style="height:36px; border-bottom:1px solid #E8E6E0; background:#FAFAF8; display:flex; align-items:center; padding:0 18px; gap:10px;">
+        <span style="width:8px; height:8px; border-radius:50%; background:#E0DDD5;"></span>
+        <span style="width:8px; height:8px; border-radius:50%; background:#E0DDD5;"></span>
+        <span style="width:8px; height:8px; border-radius:50%; background:#E0DDD5;"></span>
+        <span style="margin-left:8px; font-family:'JetBrains Mono',monospace; font-size:11px; color:#74716a;">~/plume · reine-margot-ch1.md</span>
+        <span style="margin-left:auto; font-family:'JetBrains Mono',monospace; font-size:10.5px; color:#A8A59C;">extrait de travail · 712c</span>
+      </div>
+      <div style="padding:32px 44px; background:#FAFAF8;">
+        <pre style="font-family:'JetBrains Mono',monospace; font-size:14px; line-height:1.78; color:#11110F; margin:0; white-space:pre-wrap; max-width:760px;"><span style="color:#3A5BB5; font-weight:500;"># La nuit du dix-huit août</span>
+
+Le lundi, dix-huitième jour du mois d'août 1572, il
+y avait grande fête au Louvre.
+
+Les fenêtres ordinairement si sombres de l'antique
+demeure royale étaient ardemment éclairées; les
+places et les rues attenantes, habituellement si
+solitaire, regorgeaient de peuple.
+
+Toute cette foule qu'attiraient et que retenaient
+dans le voisinage les lueurs et le bruit, avait
+l'aspect sombre, inquiet et menaçant.</pre>
+      </div>
+      <div style="padding:14px 22px; border-top:1px solid #E8E6E0; display:flex; gap:18px; align-items:center; font-family:'JetBrains Mono',monospace; font-size:11px; color:#74716a;">
+        <span><span style="color:#3A5BB5;">●</span> roman, ton littéraire</span>
+        <span>·</span>
+        <span>112 mots</span>
+        <span>·</span>
+        <span>681 c</span>
+        <span style="margin-left:auto;">extrait du chapitre I, La Reine Margot · Alexandre Dumas, 1845</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════════════════ ÉTAPE 01 — SÉLECTION ═════════════════════ -->
+<section id="etape-1" style="padding:64px 36px; background:#fff; border-top:1px solid #E8E6E0;">
+  <div data-reveal style="max-width:1200px; margin:0 auto; display:grid; grid-template-columns:1fr 1.05fr; gap:64px; align-items:start;">
+
+    <div style="position:sticky; top:96px;">
+      <div style="display:inline-flex; align-items:center; gap:10px; padding:5px 12px; background:#FAFAF8; border:1px solid #E8E6E0; border-radius:999px; font-family:'JetBrains Mono',monospace; font-size:11px; color:#3A5BB5; margin-bottom:24px;">
+        <span style="font-weight:600;">ÉTAPE 01</span>
+        <span style="color:#A8A59C;">·</span>
+        <span style="color:#74716a;">sélection</span>
+      </div>
+      <h2 style="font-weight:700; font-size:36px; line-height:1.08; letter-spacing:-.018em; margin:0 0 18px; text-wrap:balance;">Sélectionnez un passage. Plume propose.</h2>
+      <p style="font-size:15px; line-height:1.6; color:#3d3b35; margin:0 0 18px; max-width:480px;">Votre sélection fait apparaître les outils : une command bar au-dessus du passage, les raccourcis bien visibles.</p>
+      <p style="font-size:15px; line-height:1.6; color:#3d3b35; margin:0 0 24px; max-width:480px;">Le compteur affiche signes, mots et phrases pour cadrer la décision. Tant que rien n'est sélectionné, Plume reste silencieux.</p>
+      <div style="display:flex; gap:10px; flex-wrap:wrap; font-family:'JetBrains Mono',monospace; font-size:11.5px;">
+        <span style="padding:5px 11px; background:#FAFAF8; border:1px solid #E8E6E0; border-radius:4px; color:#3d3b35;">⌘K palette</span>
+        <span style="padding:5px 11px; background:#FAFAF8; border:1px solid #E8E6E0; border-radius:4px; color:#3d3b35;">↵ corriger</span>
+        <span style="padding:5px 11px; background:#FAFAF8; border:1px solid #E8E6E0; border-radius:4px; color:#3d3b35;">⇧↵ reformuler</span>
+      </div>
+    </div>
+
+    <div data-reveal data-stagger="90" style="background:#fff; border:1px solid #E8E6E0; border-radius:9px; overflow:hidden; box-shadow:0 28px 56px -28px rgba(17,17,15,.20);">
+      <div style="height:36px; border-bottom:1px solid #E8E6E0; background:#FAFAF8; display:flex; align-items:center; padding:0 14px; gap:9px;">
+        <span style="width:8px; height:8px; border-radius:50%; background:#E0DDD5;"></span>
+        <span style="width:8px; height:8px; border-radius:50%; background:#E0DDD5;"></span>
+        <span style="width:8px; height:8px; border-radius:50%; background:#E0DDD5;"></span>
+        <span style="margin-left:8px; font-family:'JetBrains Mono',monospace; font-size:10.5px; color:#74716a;">reine-margot-ch1.md</span>
+      </div>
+      <div style="position:relative; padding:32px 36px 56px; background:#FAFAF8; min-height:380px;">
+        <div style="font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:.14em; text-transform:uppercase; color:#A8A59C; margin-bottom:18px;">source.md</div>
+        <pre style="font-family:'JetBrains Mono',monospace; font-size:13.5px; line-height:1.78; color:#11110F; margin:0 0 24px; white-space:pre-wrap;">Le lundi, dix-huitième jour du mois
+d'août 1572, il y avait grande fête
+au Louvre.
+
+<span data-anim="sweep" style="background-image:linear-gradient(#dde2f0,#dde2f0),linear-gradient(#3A5BB5,#3A5BB5); background-size:0% 100%, 0% 1px; background-position:0% 0%, 0% 100%; background-repeat:no-repeat; padding:1px 2px; border-radius:2px;">Les fenêtres ordinairement si sombres
+de l'antique demeure royale étaient
+ardemment éclairées; les places et
+les rues attenantes, habituellement
+si solitaire, regorgeaient de peuple.</span></pre>
+
+        <div style="position:absolute; left:36px; bottom:62px; display:flex; align-items:stretch; background:#fff; border:1px solid #E8E6E0; border-radius:8px; padding:4px; box-shadow:0 16px 36px -8px rgba(0,0,0,.22);">
+          <button style="display:inline-flex; align-items:center; gap:6px; padding:7px 12px; font-size:12.5px; font-weight:500; color:#fff; background:#3A5BB5; border:none; border-radius:4px; cursor:pointer; font-family:inherit;">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            Corriger
+            <span style="font-family:'JetBrains Mono',monospace; font-size:10px; color:rgba(255,255,255,.7); margin-left:4px;">↵</span>
+          </button>
+          <button style="padding:7px 12px; font-size:12.5px; color:#11110F; background:transparent; border:none; border-radius:4px; cursor:pointer; font-family:inherit;">Reformuler <span style="font-family:'JetBrains Mono',monospace; font-size:10px; color:#A8A59C;">⇧↵</span></button>
+          <button style="padding:7px 12px; font-size:12.5px; color:#11110F; background:transparent; border:none; border-radius:4px; cursor:pointer; font-family:inherit;">Vocabulaire <span style="font-family:'JetBrains Mono',monospace; font-size:10px; color:#A8A59C;">⌥↵</span></button>
+          <div style="width:1px; background:#E8E6E0; margin:4px 4px;"></div>
+          <button style="padding:7px 10px; font-size:12.5px; color:#74716a; background:transparent; border:none; border-radius:4px; cursor:pointer; font-family:inherit;">Tics</button>
+          <button style="padding:7px 10px; font-size:12.5px; color:#74716a; background:transparent; border:none; border-radius:4px; cursor:pointer; font-family:inherit;">Longueur</button>
+          <div style="width:1px; background:#E8E6E0; margin:4px 4px;"></div>
+          <button style="padding:7px 10px; font-family:'JetBrains Mono',monospace; font-size:11px; color:#74716a; background:transparent; border:none; border-radius:4px; cursor:pointer;">⌘K</button>
+        </div>
+
+        <div style="position:absolute; left:36px; bottom:24px; font-family:'JetBrains Mono',monospace; font-size:10.5px; color:#3A5BB5; letter-spacing:.04em;">sélection · 178 signes · 30 mots · 4 phrases</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════════════════ ÉTAPE 02 — CORRIGER ═════════════════════ -->
+<section id="etape-2" style="padding:64px 36px; background:#FAFAF8; border-top:1px solid #E8E6E0;">
+  <div data-reveal style="max-width:1200px; margin:0 auto; display:grid; grid-template-columns:1fr 1.05fr; gap:64px; align-items:start;">
+
+    <div style="position:sticky; top:96px;">
+      <div style="display:inline-flex; align-items:center; gap:10px; padding:5px 12px; background:#fff; border:1px solid #E8E6E0; border-radius:999px; margin-bottom:24px;">
+        <span style="font-family:'JetBrains Mono',monospace; font-size:10.5px; font-weight:600; color:#3A5BB5;">ÉTAPE 02</span>
+        <span style="color:#A8A59C;">·</span>
+        <span style="font-family:'JetBrains Mono',monospace; font-size:10.5px; padding:2px 7px; background:#dde2f0; color:#3A5BB5; border-radius:3px; font-weight:600;">COR</span>
+        <span style="font-family:'JetBrains Mono',monospace; font-size:10.5px; color:#74716a;">⌘1</span>
+      </div>
+      <h2 style="font-weight:700; font-size:36px; line-height:1.08; letter-spacing:-.018em; margin:0 0 18px; text-wrap:balance;">Corriger et reformuler, à la justification près.</h2>
+      <p style="font-size:15px; line-height:1.6; color:#3d3b35; margin:0 0 18px; max-width:480px;">Orthographe, grammaire, conjugaison, ponctuation. Chaque carte porte son code (PCT, GRA, ACC, CONJ), son diff et sa justification. Vous acceptez, vous refusez, vous refaites.</p>
+      <p style="font-size:15px; line-height:1.6; color:#3d3b35; margin:0 0 24px; max-width:480px;">Sur ce passage, Plume trouve deux choses : une phrase trop longue, et un singulier qui devrait s'accorder.</p>
+    </div>
+
+    <div data-reveal data-stagger="80" style="background:#fff; border:1px solid #E8E6E0; border-radius:9px; overflow:hidden; box-shadow:0 28px 56px -28px rgba(17,17,15,.16);">
+      <div style="padding:16px 22px; border-bottom:1px solid #E8E6E0; background:#FAFAF8;">
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:12px;">
+          <h3 style="font-weight:600; font-size:13.5px; margin:0; color:#11110F;">Révision</h3>
+          <span style="font-family:'JetBrains Mono',monospace; font-size:10.5px; color:#A8A59C;">sélection · 178c</span>
+          <span style="margin-left:auto; font-family:'JetBrains Mono',monospace; font-size:10.5px; color:#74716a; display:inline-flex; align-items:center; gap:5px;"><span style="width:5px; height:5px; border-radius:50%; background:#3E7D5A;"></span>2.1 s</span>
+        </div>
+        <div style="display:flex; gap:22px;">
+          <span style="padding:6px 0; font-size:12.5px; color:#11110F; border-bottom:2px solid #3A5BB5; font-weight:500; display:inline-flex; align-items:center; gap:6px;">Corrections <span style="font-family:'JetBrains Mono',monospace; font-size:10px; padding:1px 6px; background:#dde2f0; color:#3A5BB5; border-radius:99px;">2</span></span>
+          <span style="padding:6px 0; font-size:12.5px; color:#74716a; display:inline-flex; align-items:center; gap:6px;">Style <span style="font-family:'JetBrains Mono',monospace; font-size:10px; padding:1px 6px; background:#F1EFE9; color:#A8A59C; border-radius:99px;">3</span></span>
+          <span style="padding:6px 0; font-size:12.5px; color:#74716a;">Vocabulaire</span>
+        </div>
+      </div>
+
+      <div>
+        <div style="padding:16px 22px; border-bottom:1px solid #F1EFE9; display:flex; gap:12px; align-items:flex-start;">
+          <span style="font-family:'JetBrains Mono',monospace; font-size:10px; padding:2px 7px; background:#dde2f0; color:#3A5BB5; border-radius:3px; flex:none; margin-top:1px; font-weight:600;">PCT</span>
+          <div style="flex:1; min-width:0;">
+            <div style="font-size:13px; line-height:1.6; color:#11110F;">éclairées<del style="color:#B53A3A; background:rgba(181,58,58,.10); text-decoration:line-through; padding:0 2px;">;</del><ins style="color:#3E7D5A; background:rgba(62,125,90,.14); text-decoration:none; padding:0 2px;">.</ins> <del style="color:#B53A3A; background:rgba(181,58,58,.10); text-decoration:line-through; padding:0 2px;">les</del> <ins style="color:#3E7D5A; background:rgba(62,125,90,.14); text-decoration:none; padding:0 2px;">Les</ins> places et les rues attenantes…</div>
+            <p style="font-size:11.5px; color:#74716a; margin:8px 0 0; line-height:1.55;">Phrase trop longue. Le point marque la respiration, la capitale repart au pas.</p>
+            <div style="display:flex; gap:6px; margin-top:12px;">
+              <button style="font-size:11.5px; padding:5px 11px; background:#11110F; color:#fff; border:none; border-radius:4px; font-weight:500; cursor:pointer; font-family:inherit;">Accepter</button>
+              <button style="font-size:11.5px; padding:5px 11px; background:transparent; color:#74716a; border:1px solid #E8E6E0; border-radius:4px; cursor:pointer; font-family:inherit;">Refuser</button>
+              <button style="font-size:11.5px; padding:5px 11px; background:transparent; color:#3A5BB5; border:none; border-radius:4px; cursor:pointer; font-family:inherit;">↺ refaire</button>
+            </div>
+          </div>
+        </div>
+
+        <div style="padding:16px 22px; border-bottom:1px solid #F1EFE9; display:flex; gap:12px; align-items:flex-start;">
+          <span style="font-family:'JetBrains Mono',monospace; font-size:10px; padding:2px 7px; background:rgba(166,113,31,.14); color:#A6711F; border-radius:3px; flex:none; margin-top:1px; font-weight:600;">GRA</span>
+          <div style="flex:1; min-width:0;">
+            <div style="font-size:13px; line-height:1.6; color:#11110F;">habituellement si <del style="color:#B53A3A; background:rgba(181,58,58,.10); text-decoration:line-through; padding:0 2px;">solitaire</del><ins style="color:#3E7D5A; background:rgba(62,125,90,.14); text-decoration:none; padding:0 2px;">solitaires</ins></div>
+            <p style="font-size:11.5px; color:#74716a; margin:8px 0 0; line-height:1.55;">Accord au pluriel avec « places et rues ».</p>
+            <div style="display:flex; gap:6px; margin-top:12px;">
+              <button style="font-size:11.5px; padding:5px 11px; background:#11110F; color:#fff; border:none; border-radius:4px; font-weight:500; cursor:pointer; font-family:inherit;">Accepter</button>
+              <button style="font-size:11.5px; padding:5px 11px; background:transparent; color:#74716a; border:1px solid #E8E6E0; border-radius:4px; cursor:pointer; font-family:inherit;">Refuser</button>
+            </div>
+          </div>
+        </div>
+
+        <div style="padding:16px 22px;">
+          <div style="display:flex; align-items:center; margin-bottom:10px;">
+            <div style="font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:.12em; text-transform:uppercase; color:#A8A59C;">aperçu cumulé</div>
+            <span style="margin-left:auto; font-family:'JetBrains Mono',monospace; font-size:10.5px; color:#3A5BB5;">2/2</span>
+          </div>
+          <div style="font-size:13px; line-height:1.65; background:#FAFAF8; padding:12px 14px; border:1px solid #E8E6E0; border-radius:5px; color:#11110F;">Les fenêtres ordinairement si sombres de l'antique demeure royale étaient ardemment éclairées<span style="background:rgba(62,125,90,.18); border-radius:2px; padding:0 2px;">.</span> <span style="background:rgba(62,125,90,.18); border-radius:2px; padding:0 2px;">L</span>es places et les rues attenantes, habituellement si <span style="background:rgba(62,125,90,.18); border-radius:2px; padding:0 2px;">solitaires</span>, regorgeaient de peuple.</div>
+        </div>
+
+        <div style="border-top:1px solid #E8E6E0; padding:12px 22px; display:flex; gap:8px; background:#FAFAF8;">
+          <button style="flex:1; font-size:12.5px; font-weight:500; padding:8px 14px; background:#3A5BB5; color:#fff; border:none; border-radius:5px; cursor:pointer; font-family:inherit;">Appliquer (2)</button>
+          <button style="font-size:12.5px; padding:8px 14px; background:#fff; color:#3d3b35; border:1px solid #E8E6E0; border-radius:5px; cursor:pointer; font-family:inherit;">Ignorer</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════════════════ ÉTAPE 03 — REFORMULER ═════════════════════ -->
+<section id="etape-3" style="padding:64px 36px; background:#fff; border-top:1px solid #E8E6E0;">
+  <div data-reveal style="max-width:1200px; margin:0 auto; display:grid; grid-template-columns:1fr 1.05fr; gap:64px; align-items:start;">
+
+    <div style="position:sticky; top:96px;">
+      <div style="display:inline-flex; align-items:center; gap:10px; padding:5px 12px; background:#FAFAF8; border:1px solid #E8E6E0; border-radius:999px; margin-bottom:24px;">
+        <span style="font-family:'JetBrains Mono',monospace; font-size:10.5px; font-weight:600; color:#3A5BB5;">ÉTAPE 03</span>
+        <span style="color:#A8A59C;">·</span>
+        <span style="font-family:'JetBrains Mono',monospace; font-size:10.5px; padding:2px 7px; background:rgba(166,113,31,.14); color:#A6711F; border-radius:3px; font-weight:600;">STY</span>
+        <span style="font-family:'JetBrains Mono',monospace; font-size:10.5px; color:#74716a;">⌘2</span>
+      </div>
+      <h2 style="font-weight:700; font-size:36px; line-height:1.08; letter-spacing:-.018em; margin:0 0 18px; text-wrap:balance;">Trois variantes, un ton à la fois.</h2>
+      <p style="font-size:15px; line-height:1.6; color:#3d3b35; margin:0 0 18px; max-width:480px;">Plume propose trois reformulations selon trois axes : <b>plus concis</b>, <b>plus incarné</b>, <b>plus formel</b>. Chaque variante affiche son delta de caractères et son delta de mots.</p>
+      <p style="font-size:15px; line-height:1.6; color:#3d3b35; margin:0 0 24px; max-width:480px;">Un clic sur <i>Adopter</i> remplace la sélection. Une consigne en clair (« plus sec », « ton plus distant ») regénère les trois.</p>
+    </div>
+
+    <div data-reveal data-stagger="80" style="background:#fff; border:1px solid #E8E6E0; border-radius:9px; overflow:hidden; box-shadow:0 28px 56px -28px rgba(17,17,15,.16);">
+      <div style="padding:14px 22px; border-bottom:1px solid #E8E6E0; background:#FAFAF8; display:flex; align-items:center; gap:14px;">
+        <h3 style="font-weight:600; font-size:13.5px; margin:0; color:#11110F;">Style</h3>
+        <span style="font-family:'JetBrains Mono',monospace; font-size:10.5px; color:#A8A59C;">3 variantes</span>
+        <span style="margin-left:auto; font-family:'JetBrains Mono',monospace; font-size:10.5px; color:#3A5BB5; padding:3px 8px; background:#dde2f0; border-radius:99px;">ton littéraire</span>
+      </div>
+
+      <div style="padding:18px 22px; border-bottom:1px solid #F1EFE9;">
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:8px;">
+          <span style="font-family:'JetBrains Mono',monospace; font-size:10px; padding:2px 7px; background:rgba(166,113,31,.14); color:#A6711F; border-radius:3px; font-weight:600;">STY</span>
+          <span style="font-size:12px; font-weight:500; color:#11110F;">plus concis</span>
+          <span style="margin-left:auto; font-family:'JetBrains Mono',monospace; font-size:10.5px; color:#74716a;">−72c · −13 mots</span>
+        </div>
+        <p style="font-size:13px; line-height:1.65; color:#3d3b35; margin:0 0 10px;">Les fenêtres de la vieille demeure étaient ardemment éclairées. Les rues attenantes regorgeaient de peuple.</p>
+        <div style="display:flex; gap:6px;">
+          <button style="font-size:11.5px; padding:5px 11px; background:#11110F; color:#fff; border:none; border-radius:4px; font-weight:500; cursor:pointer; font-family:inherit;">Adopter</button>
+          <button style="font-size:11.5px; padding:5px 11px; background:transparent; color:#3A5BB5; border:none; border-radius:4px; cursor:pointer; font-family:inherit;">↺ refaire</button>
+        </div>
+      </div>
+
+      <div style="padding:18px 22px; border-bottom:1px solid #F1EFE9;">
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:8px;">
+          <span style="font-family:'JetBrains Mono',monospace; font-size:10px; padding:2px 7px; background:rgba(166,113,31,.14); color:#A6711F; border-radius:3px; font-weight:600;">STY</span>
+          <span style="font-size:12px; font-weight:500; color:#11110F;">plus incarné</span>
+          <span style="margin-left:auto; font-family:'JetBrains Mono',monospace; font-size:10.5px; color:#74716a;">+18c · +2 mots</span>
+        </div>
+        <p style="font-size:13px; line-height:1.65; color:#3d3b35; margin:0 0 10px;">Aux croisées de l'antique Louvre brûlaient mille feux. En bas, la foule poussait sa rumeur jusqu'aux pavés des rues attenantes.</p>
+        <div style="display:flex; gap:6px;">
+          <button style="font-size:11.5px; padding:5px 11px; background:#11110F; color:#fff; border:none; border-radius:4px; font-weight:500; cursor:pointer; font-family:inherit;">Adopter</button>
+          <button style="font-size:11.5px; padding:5px 11px; background:transparent; color:#3A5BB5; border:none; border-radius:4px; cursor:pointer; font-family:inherit;">↺ refaire</button>
+        </div>
+      </div>
+
+      <div style="padding:18px 22px;">
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:8px;">
+          <span style="font-family:'JetBrains Mono',monospace; font-size:10px; padding:2px 7px; background:rgba(166,113,31,.14); color:#A6711F; border-radius:3px; font-weight:600;">STY</span>
+          <span style="font-size:12px; font-weight:500; color:#11110F;">plus formel</span>
+          <span style="margin-left:auto; font-family:'JetBrains Mono',monospace; font-size:10.5px; color:#74716a;">−8c · même cadence</span>
+        </div>
+        <p style="font-size:13px; line-height:1.65; color:#3d3b35; margin:0 0 10px;">Les fenêtres de l'antique demeure royale, d'ordinaire fort sombres, étaient ce soir-là vivement éclairées. Les places et les rues attenantes étaient envahies par une foule considérable.</p>
+        <div style="display:flex; gap:6px;">
+          <button style="font-size:11.5px; padding:5px 11px; background:#11110F; color:#fff; border:none; border-radius:4px; font-weight:500; cursor:pointer; font-family:inherit;">Adopter</button>
+          <button style="font-size:11.5px; padding:5px 11px; background:transparent; color:#3A5BB5; border:none; border-radius:4px; cursor:pointer; font-family:inherit;">↺ refaire</button>
+        </div>
+      </div>
+
+      <div style="border-top:1px solid #E8E6E0; padding:12px 22px; background:#FAFAF8; display:flex; align-items:center; gap:10px;">
+        <span style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#3A5BB5;">↻</span>
+        <span style="flex:1; font-family:'JetBrains Mono',monospace; font-size:11.5px; color:#A8A59C;">Affine : « plus sec », « ton plus distant »…</span>
+        <span style="font-family:'JetBrains Mono',monospace; font-size:10.5px; color:#74716a; padding:3px 8px; border:1px solid #E8E6E0; border-radius:4px; background:#fff;">↵</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════════════════ ÉTAPE 04 — VOCABULAIRE ═════════════════════ -->
+<section id="etape-4" style="padding:64px 36px; background:#FAFAF8; border-top:1px solid #E8E6E0;">
+  <div data-reveal style="max-width:1200px; margin:0 auto; display:grid; grid-template-columns:1fr 1.05fr; gap:64px; align-items:start;">
+
+    <div style="position:sticky; top:96px;">
+      <div style="display:inline-flex; align-items:center; gap:10px; padding:5px 12px; background:#fff; border:1px solid #E8E6E0; border-radius:999px; margin-bottom:24px;">
+        <span style="font-family:'JetBrains Mono',monospace; font-size:10.5px; font-weight:600; color:#3A5BB5;">ÉTAPE 04</span>
+        <span style="color:#A8A59C;">·</span>
+        <span style="font-family:'JetBrains Mono',monospace; font-size:10.5px; padding:2px 7px; background:#dde2f0; color:#3A5BB5; border-radius:3px; font-weight:600;">VOC</span>
+        <span style="font-family:'JetBrains Mono',monospace; font-size:10.5px; color:#74716a;">⌘3</span>
+      </div>
+      <h2 style="font-weight:700; font-size:36px; line-height:1.08; letter-spacing:-.018em; margin:0 0 18px; text-wrap:balance;">Plusieurs propositions, vous choisissez.</h2>
+      <p style="font-size:15px; line-height:1.6; color:#3d3b35; margin:0 0 18px; max-width:480px;">Plume propose des substitutions accordées en genre et en nombre. Sur chaque mot, deux ou trois variantes sont proposées en étiquettes. Vous cochez, vous décochez. L'aperçu vivant en haut suit en temps réel.</p>
+      <p style="font-size:15px; line-height:1.6; color:#3d3b35; margin:0 0 24px; max-width:480px;">Ici, on essaie <i>croisées</i> pour <i>fenêtres</i>, on garde <i>demeure</i>, et <i>débordaient</i> remplace <i>regorgeaient</i>.</p>
+    </div>
+
+    <div data-reveal data-stagger="80" style="background:#fff; border:1px solid #E8E6E0; border-radius:9px; overflow:hidden; box-shadow:0 28px 56px -28px rgba(17,17,15,.16);">
+      <div style="padding:14px 22px; border-bottom:1px solid #E8E6E0; background:#FAFAF8;">
+        <h3 style="font-weight:600; font-size:13.5px; margin:0 0 4px; color:#11110F;">Vocabulaire</h3>
+        <p style="font-family:'JetBrains Mono',monospace; font-size:10.5px; color:#A8A59C; margin:0;">3 mots accordés · aperçu vivant ci-dessous</p>
+      </div>
+
+      <div style="padding:16px 22px; border-bottom:1px solid #F1EFE9;">
+        <div style="font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:.14em; text-transform:uppercase; color:#A8A59C; margin-bottom:8px;">aperçu</div>
+        <div style="font-size:13px; line-height:1.7; color:#11110F;">Les <ins style="color:#3E7D5A; background:rgba(62,125,90,.16); text-decoration:none; padding:0 2px; border-radius:2px;">croisées</ins> ordinairement si sombres de l'antique <span style="color:#3A5BB5; background:#dde2f0; padding:0 2px; border-radius:2px;">demeure</span> royale étaient ardemment éclairées. Les places et les rues attenantes <ins style="color:#3E7D5A; background:rgba(62,125,90,.16); text-decoration:none; padding:0 2px; border-radius:2px;">débordaient</ins> de peuple.</div>
+      </div>
+
+      <div style="padding:16px 22px; border-bottom:1px solid #F1EFE9;">
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
+          <span style="font-family:'JetBrains Mono',monospace; font-size:10px; padding:2px 7px; background:#dde2f0; color:#3A5BB5; border-radius:3px; font-weight:600;">VOC</span>
+          <span style="font-size:12.5px; color:#5a5852;">fenêtres</span>
+        </div>
+        <div style="display:flex; gap:6px; flex-wrap:wrap;">
+          <span style="padding:4px 11px; font-size:12px; color:#11110F; border:1px solid #E8E6E0; border-radius:99px;">fenêtres</span>
+          <span style="padding:4px 11px; font-size:12px; color:#3A5BB5; background:#dde2f0; border:1px solid #3A5BB5; border-radius:99px; font-weight:500; display:inline-flex; align-items:center; gap:5px;">✓ croisées</span>
+          <span style="padding:4px 11px; font-size:12px; color:#A8A59C; border:1px solid #E8E6E0; border-radius:99px;">baies</span>
+        </div>
+      </div>
+
+      <div style="padding:16px 22px; border-bottom:1px solid #F1EFE9;">
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
+          <span style="font-family:'JetBrains Mono',monospace; font-size:10px; padding:2px 7px; background:#dde2f0; color:#3A5BB5; border-radius:3px; font-weight:600;">VOC</span>
+          <span style="font-size:12.5px; color:#5a5852;">demeure</span>
+        </div>
+        <div style="display:flex; gap:6px; flex-wrap:wrap;">
+          <span style="padding:4px 11px; font-size:12px; color:#3A5BB5; background:#dde2f0; border:1px solid #3A5BB5; border-radius:99px; font-weight:500; display:inline-flex; align-items:center; gap:5px;">✓ demeure</span>
+          <span style="padding:4px 11px; font-size:12px; color:#11110F; border:1px solid #E8E6E0; border-radius:99px;">palais</span>
+          <span style="padding:4px 11px; font-size:12px; color:#A8A59C; border:1px solid #E8E6E0; border-radius:99px;">résidence</span>
+        </div>
+      </div>
+
+      <div style="padding:16px 22px;">
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
+          <span style="font-family:'JetBrains Mono',monospace; font-size:10px; padding:2px 7px; background:#dde2f0; color:#3A5BB5; border-radius:3px; font-weight:600;">VOC</span>
+          <span style="font-size:12.5px; color:#5a5852;">regorgeaient</span>
+        </div>
+        <div style="display:flex; gap:6px; flex-wrap:wrap;">
+          <span style="padding:4px 11px; font-size:12px; color:#11110F; border:1px solid #E8E6E0; border-radius:99px;">regorgeaient</span>
+          <span style="padding:4px 11px; font-size:12px; color:#3A5BB5; background:#dde2f0; border:1px solid #3A5BB5; border-radius:99px; font-weight:500; display:inline-flex; align-items:center; gap:5px;">✓ débordaient</span>
+          <span style="padding:4px 11px; font-size:12px; color:#A8A59C; border:1px solid #E8E6E0; border-radius:99px;">étaient pleines</span>
+        </div>
+      </div>
+
+      <div style="border-top:1px solid #E8E6E0; padding:12px 22px; background:#FAFAF8; display:flex; gap:8px;">
+        <button style="flex:1; font-size:12.5px; font-weight:500; padding:8px 14px; background:#3A5BB5; color:#fff; border:none; border-radius:5px; cursor:pointer; font-family:inherit;">Appliquer les choix (2/3)</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════════════════ ÉTAPE 05 — TICS ═════════════════════ -->
+<section id="etape-5" style="padding:64px 36px; background:#fff; border-top:1px solid #E8E6E0;">
+  <div data-reveal style="max-width:1200px; margin:0 auto; display:grid; grid-template-columns:1fr 1.05fr; gap:64px; align-items:start;">
+
+    <div style="position:sticky; top:96px;">
+      <div style="display:inline-flex; align-items:center; gap:10px; padding:5px 12px; background:#FAFAF8; border:1px solid #E8E6E0; border-radius:999px; margin-bottom:24px;">
+        <span style="font-family:'JetBrains Mono',monospace; font-size:10.5px; font-weight:600; color:#3A5BB5;">ÉTAPE 05</span>
+        <span style="color:#A8A59C;">·</span>
+        <span style="font-family:'JetBrains Mono',monospace; font-size:10.5px; padding:2px 7px; background:rgba(181,58,58,.10); color:#B53A3A; border-radius:3px; font-weight:600;">TIC</span>
+        <span style="font-family:'JetBrains Mono',monospace; font-size:10.5px; color:#74716a;">⌘4</span>
+      </div>
+      <h2 style="font-weight:700; font-size:36px; line-height:1.08; letter-spacing:-.018em; margin:0 0 18px; text-wrap:balance;">Anglicismes, jargon, formules creuses.</h2>
+      <p style="font-size:15px; line-height:1.6; color:#3d3b35; margin:0 0 18px; max-width:480px;">Plume remonte un par un les tics du texte : tournures vides, redondances, formules de cliché. À chaque ligne, un diagnostic court et une proposition. Vous décidez.</p>
+      <p style="font-size:15px; line-height:1.6; color:#3d3b35; margin:0 0 24px; max-width:480px;">Dumas écrit en 1845. Le filtre des tics ne lui fait pas grâce, c'est précisément l'idée : Plume signale, ne juge pas.</p>
+    </div>
+
+    <div data-reveal data-stagger="80" style="background:#fff; border:1px solid #E8E6E0; border-radius:9px; overflow:hidden; box-shadow:0 28px 56px -28px rgba(17,17,15,.16);">
+      <div style="padding:14px 22px; border-bottom:1px solid #E8E6E0; background:#FAFAF8;">
+        <h3 style="font-weight:600; font-size:13.5px; margin:0 0 4px; color:#11110F;">Tics</h3>
+        <p style="font-family:'JetBrains Mono',monospace; font-size:10.5px; color:#A8A59C; margin:0;">3 repérages sur 681c</p>
+      </div>
+
+      <div style="padding:16px 22px; border-bottom:1px solid #F1EFE9;">
+        <div style="font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:.14em; text-transform:uppercase; color:#A8A59C; margin-bottom:8px;">passage</div>
+        <div style="font-size:13px; line-height:1.7; color:#11110F;"><mark style="background:rgba(181,58,58,.14); color:#B53A3A; padding:0 2px; border-radius:2px;">il y avait grande fête</mark> au Louvre. Les fenêtres ordinairement si sombres de l'antique demeure royale étaient <mark style="background:rgba(181,58,58,.14); color:#B53A3A; padding:0 2px; border-radius:2px;">ardemment éclairées</mark>. Toute cette foule qu'attiraient et que retenaient dans le voisinage les lueurs et le bruit, avait l'aspect <mark style="background:rgba(181,58,58,.14); color:#B53A3A; padding:0 2px; border-radius:2px;">sombre, inquiet et menaçant</mark>.</div>
+      </div>
+
+      <div style="padding:14px 22px; border-bottom:1px solid #F1EFE9; display:flex; gap:12px; align-items:flex-start;">
+        <span style="font-family:'JetBrains Mono',monospace; font-size:10px; padding:2px 7px; background:rgba(181,58,58,.10); color:#B53A3A; border-radius:3px; flex:none; margin-top:1px; font-weight:600;">TIC</span>
+        <div style="flex:1;">
+          <div style="font-size:12.5px; color:#11110F; margin-bottom:4px;"><b>il y avait grande fête</b> → <span style="color:#3E7D5A;">on fêtait au Louvre</span></div>
+          <p style="font-size:11.5px; color:#74716a; margin:0; line-height:1.5;">Formule en « il y avait » : remplacer par un verbe d'action.</p>
+        </div>
+      </div>
+
+      <div style="padding:14px 22px; border-bottom:1px solid #F1EFE9; display:flex; gap:12px; align-items:flex-start;">
+        <span style="font-family:'JetBrains Mono',monospace; font-size:10px; padding:2px 7px; background:rgba(181,58,58,.10); color:#B53A3A; border-radius:3px; flex:none; margin-top:1px; font-weight:600;">TIC</span>
+        <div style="flex:1;">
+          <div style="font-size:12.5px; color:#11110F; margin-bottom:4px;"><b>ardemment éclairées</b> → <span style="color:#3E7D5A;">vivement éclairées</span></div>
+          <p style="font-size:11.5px; color:#74716a; margin:0; line-height:1.5;">Adverbe en -emment ronflant, peu naturel à l'oral. Variante plus sobre.</p>
+        </div>
+      </div>
+
+      <div style="padding:14px 22px; display:flex; gap:12px; align-items:flex-start;">
+        <span style="font-family:'JetBrains Mono',monospace; font-size:10px; padding:2px 7px; background:rgba(181,58,58,.10); color:#B53A3A; border-radius:3px; flex:none; margin-top:1px; font-weight:600;">TIC</span>
+        <div style="flex:1;">
+          <div style="font-size:12.5px; color:#11110F; margin-bottom:4px;"><b>sombre, inquiet et menaçant</b> → <span style="color:#3E7D5A;">menaçant</span></div>
+          <p style="font-size:11.5px; color:#74716a; margin:0; line-height:1.5;">Triade adjectivale, le dernier terme porte déjà les deux autres.</p>
+        </div>
+      </div>
+
+      <div style="border-top:1px solid #E8E6E0; padding:12px 22px; background:#FAFAF8; display:flex; gap:8px;">
+        <button style="flex:1; font-size:12.5px; font-weight:500; padding:8px 14px; background:#3A5BB5; color:#fff; border:none; border-radius:5px; cursor:pointer; font-family:inherit;">Appliquer (3)</button>
+        <button style="font-size:12.5px; padding:8px 14px; background:#fff; color:#3d3b35; border:1px solid #E8E6E0; border-radius:5px; cursor:pointer; font-family:inherit;">Ignorer</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════════════════ ÉTAPE 06 — LONGUEUR ═════════════════════ -->
+<section id="etape-6" style="padding:64px 36px; background:#FAFAF8; border-top:1px solid #E8E6E0;">
+  <div data-reveal style="max-width:1200px; margin:0 auto; display:grid; grid-template-columns:1fr 1.05fr; gap:64px; align-items:start;">
+
+    <div style="position:sticky; top:96px;">
+      <div style="display:inline-flex; align-items:center; gap:10px; padding:5px 12px; background:#fff; border:1px solid #E8E6E0; border-radius:999px; margin-bottom:24px;">
+        <span style="font-family:'JetBrains Mono',monospace; font-size:10.5px; font-weight:600; color:#3A5BB5;">ÉTAPE 06</span>
+        <span style="color:#A8A59C;">·</span>
+        <span style="font-family:'JetBrains Mono',monospace; font-size:10.5px; padding:2px 7px; background:#E8E6E0; color:#5a5852; border-radius:3px; font-weight:600;">LEN</span>
+        <span style="font-family:'JetBrains Mono',monospace; font-size:10.5px; color:#74716a;">⌘5</span>
+      </div>
+      <h2 style="font-weight:700; font-size:36px; line-height:1.08; letter-spacing:-.018em; margin:0 0 18px; text-wrap:balance;">Un outil pour gérer les contraintes de limitation de caractères.</h2>
+      <p style="font-size:15px; line-height:1.6; color:#3d3b35; margin:0 0 18px; max-width:480px;">Vous choisissez une cible (titre 60c, méta 155c, post 280c) ou vous tapez votre nombre. Plume condense ou étoffe sans rogner le sens.</p>
+      <p style="font-size:15px; line-height:1.6; color:#3d3b35; margin:0 0 24px; max-width:480px;">Le compteur en pied indique le delta. Plus de buffer après, plus de phrases coupées en deux.</p>
+    </div>
+
+    <div data-reveal data-stagger="80" style="background:#fff; border:1px solid #E8E6E0; border-radius:9px; overflow:hidden; box-shadow:0 28px 56px -28px rgba(17,17,15,.16);">
+      <div style="padding:14px 22px; border-bottom:1px solid #E8E6E0; background:#FAFAF8; display:flex; align-items:center; gap:14px;">
+        <h3 style="font-weight:600; font-size:13.5px; margin:0; color:#11110F;">Longueur</h3>
+        <span style="margin-left:auto; font-family:'JetBrains Mono',monospace; font-size:10.5px; color:#A8A59C;">depuis 178c</span>
+      </div>
+
+      <div style="padding:18px 22px; border-bottom:1px solid #F1EFE9;">
+        <div style="font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:.14em; text-transform:uppercase; color:#A8A59C; margin-bottom:10px;">cible</div>
+        <div style="display:flex; gap:6px; flex-wrap:wrap;">
+          <span style="padding:6px 12px; font-family:'JetBrains Mono',monospace; font-size:11.5px; color:#11110F; border:1px solid #E8E6E0; border-radius:5px; background:#fff;">titre 60c</span>
+          <span style="padding:6px 12px; font-family:'JetBrains Mono',monospace; font-size:11.5px; color:#3A5BB5; border:1px solid #3A5BB5; background:#dde2f0; border-radius:5px; font-weight:500; display:inline-flex; align-items:center; gap:5px;">✓ post 280c</span>
+          <span style="padding:6px 12px; font-family:'JetBrains Mono',monospace; font-size:11.5px; color:#11110F; border:1px solid #E8E6E0; border-radius:5px; background:#fff;">méta 155c</span>
+          <span style="padding:6px 12px; font-family:'JetBrains Mono',monospace; font-size:11.5px; color:#11110F; border:1px solid #E8E6E0; border-radius:5px; background:#fff;">paragraphe 500c</span>
+          <span style="padding:6px 12px; font-family:'JetBrains Mono',monospace; font-size:11.5px; color:#74716a; border:1px dashed #E8E6E0; border-radius:5px; background:#fff;">+ cible…</span>
+        </div>
+      </div>
+
+      <div style="padding:18px 22px; border-bottom:1px solid #F1EFE9;">
+        <div style="display:flex; align-items:center; margin-bottom:10px;">
+          <span style="font-family:'JetBrains Mono',monospace; font-size:10px; padding:2px 7px; background:#E8E6E0; color:#5a5852; border-radius:3px; font-weight:600;">LEN</span>
+          <span style="margin-left:10px; font-size:12px; font-weight:500;">condenser à 280c</span>
+          <span style="margin-left:auto; font-family:'JetBrains Mono',monospace; font-size:10.5px; color:#3E7D5A;">−246c · −42 mots</span>
+        </div>
+        <p style="font-size:13px; line-height:1.65; color:#3d3b35; margin:0 0 8px;">Le 18 août 1572, le Louvre brillait. Les fenêtres de l'antique demeure étaient ardemment éclairées, les rues attenantes regorgeaient de peuple. La foule avait l'aspect inquiet et menaçant.</p>
+        <div style="display:flex; align-items:center; gap:10px;">
+          <button style="font-size:11.5px; padding:5px 11px; background:#11110F; color:#fff; border:none; border-radius:4px; font-weight:500; cursor:pointer; font-family:inherit;">Adopter</button>
+          <button style="font-size:11.5px; padding:5px 11px; background:transparent; color:#3A5BB5; border:none; border-radius:4px; cursor:pointer; font-family:inherit;">↺ refaire</button>
+          <span style="margin-left:auto; font-family:'JetBrains Mono',monospace; font-size:10.5px; color:#3A5BB5;">266 / 280c</span>
+        </div>
+      </div>
+
+      <div style="padding:14px 22px; background:#FAFAF8;">
+        <div style="height:6px; background:#E8E6E0; border-radius:99px; overflow:hidden; margin-bottom:8px;">
+          <div data-anim="fill" data-target="95" style="width:0%; height:100%; background:#3A5BB5; border-radius:99px;"></div>
+        </div>
+        <div style="display:flex; gap:16px; font-family:'JetBrains Mono',monospace; font-size:10.5px; color:#74716a;">
+          <span>266c proposé</span>
+          <span style="margin-left:auto; color:#3A5BB5;">cible 280c · marge 14c</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════════════════ ÉTAPE 07 — VOIX ═════════════════════ -->
+<section id="etape-7" style="padding:64px 36px; background:#fff; border-top:1px solid #E8E6E0;">
+  <div data-reveal style="max-width:1200px; margin:0 auto; display:grid; grid-template-columns:1fr 1.05fr; gap:64px; align-items:start;">
+
+    <div style="position:sticky; top:96px;">
+      <div style="display:inline-flex; align-items:center; gap:10px; padding:5px 12px; background:#FAFAF8; border:1px solid #E8E6E0; border-radius:999px; margin-bottom:24px;">
+        <span style="font-family:'JetBrains Mono',monospace; font-size:10.5px; font-weight:600; color:#3A5BB5;">ÉTAPE 07</span>
+        <span style="color:#A8A59C;">·</span>
+        <span style="font-family:'JetBrains Mono',monospace; font-size:10.5px; padding:2px 7px; background:rgba(62,125,90,.14); color:#3E7D5A; border-radius:3px; font-weight:600;">VOX</span>
+        <span style="font-family:'JetBrains Mono',monospace; font-size:10.5px; color:#74716a;">⌘6</span>
+      </div>
+      <h2 style="font-weight:700; font-size:36px; line-height:1.08; letter-spacing:-.018em; margin:0 0 18px; text-wrap:balance;">Un profil par marque, par projet, par humeur.</h2>
+      <p style="font-size:15px; line-height:1.6; color:#3d3b35; margin:0 0 18px; max-width:480px;">Chaque profil porte son ton, ses consignes, ses mots interdits. Vous passez de l'un à l'autre en un clic, toutes les propositions s'alignent.</p>
+      <p style="font-size:15px; line-height:1.6; color:#3d3b35; margin:0 0 24px; max-width:480px;">Importez une charte (PDF, Word, Markdown) : Plume en extrait les consignes utiles et les pose à plat. Vous gardez la main pour ajuster.</p>
+    </div>
+
+    <div data-reveal data-stagger="80" style="background:#fff; border:1px solid #E8E6E0; border-radius:9px; overflow:hidden; box-shadow:0 28px 56px -28px rgba(17,17,15,.16);">
+      <div style="padding:14px 22px; border-bottom:1px solid #E8E6E0; background:#FAFAF8; display:flex; align-items:center; gap:14px;">
+        <h3 style="font-weight:600; font-size:13.5px; margin:0; color:#11110F;">Profils de voix</h3>
+        <span style="margin-left:auto; font-family:'JetBrains Mono',monospace; font-size:10.5px; color:#74716a;">4 profils · ⌘⇧V pour basculer</span>
+      </div>
+
+      <div style="padding:14px 22px; border-bottom:1px solid #F1EFE9; display:flex; align-items:center; gap:12px; background:#dde2f0;">
+        <span style="font-family:'JetBrains Mono',monospace; font-size:10px; padding:2px 7px; background:rgba(62,125,90,.16); color:#3E7D5A; border-radius:3px; font-weight:600;">VOX</span>
+        <div style="flex:1;">
+          <div style="font-size:13.5px; font-weight:600; color:#11110F;">Roman, ton littéraire</div>
+          <div style="font-family:'JetBrains Mono',monospace; font-size:10.5px; color:#3A5BB5;">phrases longues · vocabulaire soutenu · pas d'oralité</div>
+        </div>
+        <span style="font-family:'JetBrains Mono',monospace; font-size:10.5px; color:#3A5BB5; padding:3px 8px; background:#fff; border:1px solid #3A5BB5; border-radius:99px;">actif</span>
+      </div>
+
+      <div style="padding:14px 22px; border-bottom:1px solid #F1EFE9; display:flex; align-items:center; gap:12px;">
+        <span style="font-family:'JetBrains Mono',monospace; font-size:10px; padding:2px 7px; background:rgba(62,125,90,.14); color:#3E7D5A; border-radius:3px; font-weight:600;">VOX</span>
+        <div style="flex:1;">
+          <div style="font-size:13.5px; font-weight:500; color:#11110F;">Newsletter perso</div>
+          <div style="font-family:'JetBrains Mono',monospace; font-size:10.5px; color:#74716a;">je / vous · ton direct · pas de jargon</div>
+        </div>
+      </div>
+
+      <div style="padding:14px 22px; border-bottom:1px solid #F1EFE9; display:flex; align-items:center; gap:12px;">
+        <span style="font-family:'JetBrains Mono',monospace; font-size:10px; padding:2px 7px; background:rgba(62,125,90,.14); color:#3E7D5A; border-radius:3px; font-weight:600;">VOX</span>
+        <div style="flex:1;">
+          <div style="font-size:13.5px; font-weight:500; color:#11110F;">Marketing produit · v2</div>
+          <div style="font-family:'JetBrains Mono',monospace; font-size:10.5px; color:#74716a;">verbes d'action · 60c en titre · pas d'em-dash</div>
+        </div>
+      </div>
+
+      <div style="padding:14px 22px; border-bottom:1px solid #F1EFE9; display:flex; align-items:center; gap:12px;">
+        <span style="font-family:'JetBrains Mono',monospace; font-size:10px; padding:2px 7px; background:rgba(62,125,90,.14); color:#3E7D5A; border-radius:3px; font-weight:600;">VOX</span>
+        <div style="flex:1;">
+          <div style="font-size:13.5px; font-weight:500; color:#11110F;">Académique</div>
+          <div style="font-family:'JetBrains Mono',monospace; font-size:10.5px; color:#74716a;">nous · citations en note · pas d'anaphore</div>
+        </div>
+      </div>
+
+      <div style="padding:14px 22px; background:#FAFAF8; display:flex; gap:10px; align-items:center;">
+        <span style="font-family:'JetBrains Mono',monospace; font-size:10px; padding:2px 7px; background:#E8E6E0; color:#5a5852; border-radius:3px; font-weight:600;">+</span>
+        <div style="flex:1; font-size:12.5px; color:#5a5852;">Importer une charte de marque (PDF, Word, MD)</div>
+        <button style="font-size:11.5px; padding:5px 11px; background:#fff; color:#3A5BB5; border:1px solid #3A5BB5; border-radius:4px; font-weight:500; cursor:pointer; font-family:inherit;">Importer →</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════════════════ FIN ═════════════════════ -->
+<section style="padding:96px 36px; background:#11110F; color:#fff;">
+  <div data-reveal style="max-width:880px; margin:0 auto; text-align:center;">
+    <div style="display:inline-flex; align-items:center; gap:8px; padding:5px 12px; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.10); border-radius:999px; font-family:'JetBrains Mono',monospace; font-size:11px; color:#8FB0E8; margin-bottom:24px;">
+      <span style="width:6px; height:6px; border-radius:50%; background:#3E7D5A;"></span>
+      Fin de la visite · à vous de jouer
+    </div>
+    <h2 style="font-weight:700; font-size:46px; line-height:1.06; letter-spacing:-.02em; margin:0 0 18px; color:#fff; text-wrap:balance;">Sept gestes, votre clé, votre texte.</h2>
+    <p style="font-size:16px; line-height:1.6; color:#A8A59C; margin:0 auto 36px; max-width:600px;">Plume tourne dans votre navigateur. Ouvrez l'éditeur, ajoutez la clé du modèle de votre choix, collez un texte. Aucun compte, aucune installation.</p>
+
+    <div style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap;">
+      <a href="app.html" style="font-size:14px; font-weight:500; padding:13px 26px; background:#fff; color:#11110F; border-radius:6px; text-decoration:none; display:inline-flex; align-items:center; gap:8px;">Ouvrir l'éditeur <span style="font-family:'JetBrains Mono',monospace;">→</span></a>
+      <a href="index.html" style="font-size:14px; padding:13px 26px; background:transparent; color:#fff; border:1px solid rgba(255,255,255,.20); border-radius:6px; text-decoration:none;">Retour à l'accueil</a>
+    </div>
+
+    <div style="margin-top:36px; display:inline-flex; gap:18px; font-family:'JetBrains Mono',monospace; font-size:11px; color:#74716a;">
+      <span style="display:inline-flex; align-items:center; gap:6px;"><span style="width:5px; height:5px; border-radius:50%; background:#3E7D5A;"></span>aucune inscription</span>
+      <span>·</span>
+      <span style="display:inline-flex; align-items:center; gap:6px;"><span style="width:5px; height:5px; border-radius:50%; background:#3E7D5A;"></span>clé en local</span>
+      <span>·</span>
+      <span style="display:inline-flex; align-items:center; gap:6px;"><span style="width:5px; height:5px; border-radius:50%; background:#3E7D5A;"></span>open source</span>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════════════════ FOOTER ═════════════════════ -->
+<footer style="padding:36px 36px 56px; border-top:1px solid #1f1e1c; background:#11110F; color:#A8A59C;">
+  <div style="max-width:1200px; margin:0 auto; display:flex; align-items:center; flex-wrap:wrap; gap:18px;">
+    <div style="display:flex; align-items:center; gap:9px;">
+      <span class="plume-logo plume-logo--foot"><svg><use href="#plume-icon-dark"/></svg></span>
+      <span style="font-weight:600; font-size:14px; color:#fff;">Plume</span>
+      <span style="font-family:'JetBrains Mono',monospace; font-size:10.5px; color:#74716a; padding:2px 6px; background:transparent; border:1px solid #2a2925; border-radius:4px;">v1.4</span>
+      <span style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#74716a; margin-left:8px;">· libre et sans pub · © 2026</span>
+    </div>
+    <div style="flex:1"></div>
+    <div style="display:flex; gap:22px; font-size:13px;">
+      <a href="index.html" style="text-decoration:none;">Accueil</a>
+      <a href="https://github.com/Fluorgasmic/Plume" style="text-decoration:none;">Code source</a>
+      <a href="index.html#confidentialite" style="text-decoration:none;">Confidentialité</a>
+      <a href="index.html#soutenir" style="text-decoration:none; color:#8FB0E8;">Soutenir</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+// ════ Reveal animations (port from DC inline script as plain JS) ════
+document.addEventListener('DOMContentLoaded', function(){
+  var ease = function(t){ return 1 - Math.pow(1 - t, 4); };
+
+  var animateIn = function(el, duration, startY){
+    var t0 = performance.now();
+    var step = function(){
+      if (!document.body.contains(el)) return;
+      var t = Math.min(1, (performance.now() - t0) / duration);
+      var k = ease(t);
+      el.style.setProperty('opacity', String(k), 'important');
+      el.style.setProperty('transform', 'translateY(' + (startY * (1 - k)).toFixed(2) + 'px)', 'important');
+      if (t < 1) requestAnimationFrame(step);
+    };
+    step();
+  };
+
+  var runAnim = function(el){
+    if (el._animated) return;
+    el._animated = true;
+    var kind = el.dataset.anim;
+    var animDelay = parseInt(el.dataset.animDelay || '420', 10);
+
+    if (kind === 'sweep'){
+      var dur = 1100;
+      setTimeout(function(){
+        var t0 = performance.now();
+        var step = function(){
+          var t = Math.min(1, (performance.now() - t0) / dur);
+          var k = 1 - Math.pow(1 - t, 4);
+          var w = (k * 100).toFixed(2);
+          el.style.setProperty('background-size', w + '% 100%, ' + w + '% 1px', 'important');
+          if (t < 1) requestAnimationFrame(step);
+        };
+        step();
+      }, animDelay);
+    } else if (kind === 'fill'){
+      var target = parseFloat(el.dataset.target || '100');
+      var dur2 = 1300;
+      setTimeout(function(){
+        var t0 = performance.now();
+        var step = function(){
+          var t = Math.min(1, (performance.now() - t0) / dur2);
+          var k = 1 - Math.pow(1 - t, 4);
+          el.style.setProperty('width', (k * target).toFixed(2) + '%', 'important');
+          if (t < 1) requestAnimationFrame(step);
+        };
+        step();
+      }, animDelay);
+    }
+  };
+
+  var revealEl = function(el){
+    if (el._revealed) return;
+    el._revealed = true;
+    var delay = parseInt(el.dataset.delay || '0', 10) || 0;
+    setTimeout(function(){
+      animateIn(el, 700, 16);
+      var stag = parseInt(el.dataset.stagger || '0', 10);
+      if (stag > 0){
+        Array.from(el.children).forEach(function(child, i){
+          setTimeout(function(){
+            if (!child._revealed){
+              child._revealed = true;
+              animateIn(child, 600, 14);
+            }
+          }, (i + 1) * stag);
+        });
+      }
+      el.querySelectorAll('[data-anim]').forEach(function(animEl){ runAnim(animEl); });
+    }, delay);
+  };
+
+  var inView = function(el){
+    var r = el.getBoundingClientRect();
+    var vh = window.innerHeight || document.documentElement.clientHeight;
+    return r.top < vh - 60 && r.bottom > 0;
+  };
+
+  var checkAll = function(){
+    document.querySelectorAll('[data-reveal]').forEach(function(el){
+      if (!el._revealed && inView(el)) revealEl(el);
+    });
+  };
+
+  checkAll();
+  var pending = false;
+  var onScroll = function(){
+    if (pending) return;
+    pending = true;
+    requestAnimationFrame(function(){
+      pending = false;
+      checkAll();
+    });
+  };
+  window.addEventListener('scroll', onScroll, { passive: true });
+  window.addEventListener('resize', onScroll, { passive: true });
+});
+</script>
+</body>
+</html>
