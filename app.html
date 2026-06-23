@@ -1190,10 +1190,11 @@ function analyzeHTML(text){
   if(!blocks.length) blocks=[container];
   let totalWords=0,sentCount=0,longCount=0,advCount=0,misCount=0;
   blocks.forEach(el=>{ if(/\$/.test(el.textContent)) return; const s=annotateBlock(el); totalWords+=s.words; sentCount+=s.sents; longCount+=s.long; advCount+=s.adv; misCount+=s.mis; });
-  const avg = sentCount ? Math.round(totalWords/sentCount) : 0;
-  const mins = Math.max(1, Math.round(totalWords/200));
+  const totalWordsRaw = countWords(text); // source de vérité = même calcul que le pied de page
+  const avg = sentCount ? Math.round(totalWordsRaw/sentCount) : 0;
+  const mins = Math.max(1, Math.round(totalWordsRaw/200));
   const verdict = avg<=12 ? 'très lisible' : avg<=18 ? 'lisible' : avg<=24 ? 'dense' : 'difficile';
-  let cards = statCard(totalWords,'mots') + statCard(sentCount,'phrases') + statCard(avg,'mots/phrase') + statCard('~'+mins+' min','lecture');
+  let cards = statCard(totalWordsRaw,'mots') + statCard(sentCount,'phrases') + statCard(avg,'mots/phrase') + statCard('~'+mins+' min','lecture');
   if(state.lisib) cards += statCard(longCount,'phrases longues') + statCard(advCount,'adverbes');
   if(state.spell && spell) cards += statCard(misCount,'fautes ?');
   let legend = '';
