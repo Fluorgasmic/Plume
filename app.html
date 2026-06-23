@@ -918,6 +918,8 @@ const uid = ()=> 'p'+Math.random().toString(36).slice(2,9)+Date.now().toString(3
 function load(){
   try{ const s = JSON.parse(localStorage.getItem(LS)); if(s) state = {...state, ...s}; }catch(e){}
   if(!state.models || typeof state.models!=='object') state.models = {};
+  // migration : si un provider supprimé est en localStorage, on repart sur anthropic
+  if(!PROVIDERS[state.provider]) state.provider = 'anthropic';
   // migration : un profil unique (registre + tons) devient « Profil par défaut »
   if(!Array.isArray(state.profiles) || !state.profiles.length){
     state.profiles = [{ id:uid(), name:'Profil par défaut', profile: state.profile||DEFAULT_PROFILE, tones: normTones(state.tones), fav:true }];
@@ -2491,6 +2493,8 @@ if(window.matchMedia) matchMedia('(prefers-color-scheme: dark)').addEventListene
 function applyLocalUI(p){
 }
 function openSettings(){
+  // Fallback si un ancien localStorage contient 'local' (provider supprimé)
+  if(!PROVIDERS[state.provider]) state.provider = 'anthropic';
   $('#set-provider').value = state.provider;
   populateModels(state.provider, state.models[state.provider] || state.model);
   $('#set-key').value = state.key;
