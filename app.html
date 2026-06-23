@@ -1222,8 +1222,8 @@ async function loadSpell(){
   } finally { spellLoading = false; }
 }
 function counts(){
-  const t = editor.value.trim();
-  const w = t ? t.split(/\s+/).length : 0;
+  const t = editor.value;
+  const w = countWords(t);  // même regex que l'aperçu : ignore #, **, -, etc.
   $('#stat-words').textContent = w + (w>1?' mots':' mot');
   $('#stat-chars').textContent = editor.value.length + ' c';
   updateSelStat();
@@ -1235,7 +1235,7 @@ function updateSelStat(){
   const s = editor.selectionStart, e = editor.selectionEnd;
   if(e>s && document.activeElement===editor){
     const sub = editor.value.slice(s,e), n = sub.length;
-    const w = sub.trim() ? sub.trim().split(/\s+/).length : 0;
+    const w = countWords(sub);
     const mark = LEN_MARKS.find(m=> n<=m.n) || LEN_MARKS[LEN_MARKS.length-1];
     const sentences = sub.split(/[.!?]+/).filter(s => s.trim()).length;
     el.textContent = `sélection · ${n}c · ${sentences} phrase${sentences>1?'s':''}`;
@@ -2424,8 +2424,9 @@ function download(filename, content, mime){
 }
 function renderedHTML(){ return (window.marked && window.DOMPurify) ? DOMPurify.sanitize(marked.parse(editor.value)) : esc(editor.value); }
 function baseName(){
-  const m = editor.value.match(/^\s*#\s+(.+)$/m);   // 1er titre H1 comme nom de fichier, sinon « document »
-  return (m ? m[1] : 'document').trim().replace(/[\\/:*?"<>|]+/g,' ').replace(/\s+/g,'-').slice(0,60) || 'document';
+  // Utilise le nom du document actif (sans extension), pas le H1 du contenu
+  const docName = getActiveDoc().name.replace(/\.[^.]+$/, '').trim();
+  return (docName || 'document').replace(/[\\/:*?"<>|]+/g,' ').replace(/\s+/g,'-').slice(0,60) || 'document';
 }
 function htmlPage(){
   return '<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"><title>'+esc(baseName())+'</title>'
